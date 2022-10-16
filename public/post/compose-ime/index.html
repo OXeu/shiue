@@ -9,10 +9,10 @@
 <meta property='og:description' content='实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...'>
 <meta property='og:url' content='https://usfl.cn/post/compose-ime/'>
 <meta property='og:site_name' content='Shiue world'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='Compose' /><meta property='article:tag' content='Android' /><meta property='og:image' content='https://usfl.cn/cover/cover2.jpg' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='Compose' /><meta property='article:tag' content='Android' /><meta property='og:image' content='https://usfl.cn/cover/cover1.png' />
 <meta name="twitter:title" content="Jetpack Compose Accompanist IME弹出状态问题">
 <meta name="twitter:description" content="实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪..."><meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content='https://usfl.cn/cover/cover2.jpg' />
+    <meta name="twitter:image" content='https://usfl.cn/cover/cover1.png' />
     </head>
     <body class="
     article-page
@@ -129,7 +129,7 @@
         <div class="article-image">
             <a href="/post/compose-ime/">
                 
-                    <img src="/cover/cover2.jpg" loading="lazy" alt="Featured image of post Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题" />
+                    <img src="/cover/cover1.png" loading="lazy" alt="Featured image of post Jetpack Compose Accompanist IME弹出状态问题" />
                 
             </a>
         </div>
@@ -188,28 +188,30 @@
     
     
     <blockquote>
-<p>封面来源 <a class="link" href="https://www.deviantart.com/bisbiswas/art/Cloud-Burst-880532543"  target="_blank" rel="noopener"
-    >Cloud-Burst</a></p>
+<p>封面来源 <a class="link" href="https://www.deviantart.com/donlope01/art/En-haut-du-toboggan-931098411"  target="_blank" rel="noopener"
+    >En-haut-du-toboggan</a></p>
 </blockquote>
-<p>在Compose 1.2.0-alpha08 以前，可以使用以下代码</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Kotlin" data-lang="Kotlin"><span style="display:flex;"><span><span style="color:#66d9ef">val</span> dialog = Dialog(context)
-</span></span><span style="display:flex;"><span>dialog.window<span style="color:#f92672">?.</span>decorView<span style="color:#f92672">?.</span>apply {
-</span></span><span style="display:flex;"><span>    ViewTreeLifecycleOwner.<span style="color:#66d9ef">set</span>(<span style="color:#66d9ef">this</span>, <span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
-</span></span><span style="display:flex;"><span>    ViewTreeViewModelStoreOwner.<span style="color:#66d9ef">set</span>(<span style="color:#66d9ef">this</span>, <span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
-</span></span><span style="display:flex;"><span>    ViewTreeSavedStateRegistryOwner.<span style="color:#66d9ef">set</span>(<span style="color:#66d9ef">this</span>, <span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
-</span></span><span style="display:flex;"><span>    }
-</span></span></code></pre></div><p>在Compose 1.2.0-alpha08以后，<code>ViewTreeSavedStateRegistryOwner</code>的API发生了变更</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Kotlin" data-lang="Kotlin"><span style="display:flex;"><span><span style="color:#66d9ef">val</span> dialog = BottomSheetDialog(<span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
-</span></span><span style="display:flex;"><span>dialog.window<span style="color:#f92672">?.</span>decorView<span style="color:#f92672">?.</span>apply {
-</span></span><span style="display:flex;"><span>    ViewTreeLifecycleOwner.<span style="color:#66d9ef">set</span>(<span style="color:#66d9ef">this</span>, <span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
-</span></span><span style="display:flex;"><span>    ViewTreeViewModelStoreOwner.<span style="color:#66d9ef">set</span>(<span style="color:#66d9ef">this</span>, <span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
-</span></span><span style="display:flex;"><span>    setViewTreeSavedStateRegistryOwner(<span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
-</span></span><span style="display:flex;"><span>    }
-</span></span></code></pre></div><h2 id="参考内容">参考内容</h2>
-<p><a class="link" href="https://android.googlesource.com/platform/frameworks/support/&#43;/6d15b0171dfefdc911f9eda905855cebbd8da231"  target="_blank" rel="noopener"
-    >更新日志： Update ViewTreeSavedStateRegistryOwner use in Compose UI</a></p>
-<p><a class="link" href="https://android.googlesource.com/platform/frameworks/support/&#43;/6d15b0171dfefdc911f9eda905855cebbd8da231/activity/activity-compose/src/main/java/androidx/activity/compose/ComponentActivity.kt"  target="_blank" rel="noopener"
-    >ComponentActivity 源码 1.2.0-alpha08</a></p>
+<h2 id="问题">问题</h2>
+<p>实际使用<em><strong>WindowInset.ime.bottom</strong></em>和<em><strong>WindowInset.ime.isVisible</strong></em>时得到的结果比较奇怪：</p>
+<blockquote>
+<p>下文使用(int,bool)代表获取到的WindowInset.ime.bottom和WindowInset.ime.isVisible值</p>
+</blockquote>
+<blockquote>
+<p>即(WindowInset.ime.bottom,WindowInset.ime.isVisible)</p>
+</blockquote>
+<blockquote>
+<p>使用max代表获取到的WindowInset.ime.bottom最大值，即软键盘的像素高度</p>
+</blockquote>
+<p>软键盘唤起的时：<em>(0,false) -&gt; (0,true) -&gt; &hellip; -&gt;(max,true)</em></p>
+<p>软键盘关闭时：<em>(0,true) -&gt; (max,false) -&gt; &hellip; -&gt;(0,false)</em></p>
+<p>实际使用时，可能还会出现某对值多次出现的情况[比如(0,true)]，</p>
+<p>所以实际获取到的键盘高度可能会突然变成0，然后恢复正常，特别是在关闭键盘的瞬间，可能会造成界面闪烁。</p>
+<h2 id="解决方案">解决方案</h2>
+<p>解决方案也十分简单，可以看出会导致状态异常的主要就是关闭键盘一瞬间产生的(0,true)，只要将其过滤掉即可，但是由于过滤掉后仍然无法得知真实高度，因此选择使用remember一个键盘高度变量，如果获取的值为(0,true)，那么直接不对键盘高度进行处理，直接使用上次正常的键盘高度即可，反之则直接将WindowInset.ime.bottom赋值给remember的变量即可</p>
+<h2 id="另外">另外</h2>
+<p><code>imePadding()</code>与 <code>‌systemBarPadding()</code> 合用时有时会失效，大概率是由于这两个方法所在的包不一致导致的（androidx.compose.foundation.layout 和 com.google.accompanist 中都有这两个方法），个人推测是由于WindowInset为单例，无法被两个包同时持有，在一个Activity中使用不同包的方法会导致持有WindowInset冲突，导致方法失效。</p>
+<p><a class="link" href="https://github.com/google/accompanist/issues/1016"  target="_blank" rel="noopener"
+    >https://github.com/google/accompanist/issues/1016</a></p>
 
 </section>
 
@@ -254,18 +256,18 @@
             
                 
 <article class="has-image">
-    <a href="/post/compose-ime/">
+    <a href="/post/compose-fling/">
         
         
             <div class="article-image">
                 
-                    <img src="/cover/cover1.png" loading="lazy" data-key="compose-ime" data-hash="/cover/cover1.png"/>
+                    <img src="/cover/cover2.jpg" loading="lazy" data-key="compose-fling" data-hash="/cover/cover2.jpg"/>
                 
             </div>
         
 
         <div class="article-details">
-            <h2 class="article-title">Jetpack Compose Accompanist IME弹出状态问题</h2>
+            <h2 class="article-title">Jetpack Compose ViewPager 滑动手感优化</h2>
         </div>
     </a>
 </article>
@@ -273,18 +275,18 @@
             
                 
 <article class="has-image">
-    <a href="/post/compose-ime/">
+    <a href="/post/compose-bind/">
         
         
             <div class="article-image">
                 
-                    <img src="/cover/cover1.png" loading="lazy" data-key="compose-ime" data-hash="/cover/cover1.png"/>
+                    <img src="/cover/cover3.jpg" loading="lazy" data-key="compose-bind" data-hash="/cover/cover3.jpg"/>
                 
             </div>
         
 
         <div class="article-details">
-            <h2 class="article-title">Jetpack Compose ViewPager 滑动手感优化</h2>
+            <h2 class="article-title">Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</h2>
         </div>
     </a>
 </article>
@@ -416,7 +418,9 @@
         <div class="widget--toc">
             <nav id="TableOfContents">
   <ul>
-    <li><a href="#参考内容">参考内容</a></li>
+    <li><a href="#问题">问题</a></li>
+    <li><a href="#解决方案">解决方案</a></li>
+    <li><a href="#另外">另外</a></li>
   </ul>
 </nav>
         </div>

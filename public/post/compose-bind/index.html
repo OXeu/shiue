@@ -1,26 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-cn" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content='在Compose 1.2.0-alpha08 以前，可以使用以下代码
-val dialog = Dialog(context) dialog.window?.decorView?.apply { ViewTreeLifecycleOwner.set(this, this@MainActivity) ViewTreeViewModelStoreOwner.set(this, this@MainActivity) ViewTreeSavedStateRegistryOwner.set(this, this@MainActivity) } 在Compose 1.2.0-alpha08以后，ViewTreeSavedStateRegistryOwner的API发生了变更
-val dialog = BottomSheetDialog(this@MainActivity) dialog.window?.decorView?.apply { ViewTreeLifecycleOwner.set(this, this@MainActivity) ViewTreeViewModelStoreOwner.set(this, this@MainActivity) setViewTreeSavedStateRegistryOwner(this@MainActivity) } 参考内容 更新日志： Update ViewTreeSavedStateRegistryOwner use in Compose UI
-ComponentActivity 源码 1.2.0-alpha08'><title>Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</title>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content='在Compose 1.2.0-alpha08 以前，可以使用以下代码:...'><title>Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</title>
 
 <link rel='canonical' href='https://usfl.cn/post/compose-bind/'>
 
 <link rel="stylesheet" href="/scss/style.min.18145888f21de6cb02d8cb0891be8240096206785da14eda35f6c23c239b966a.css"><meta property='og:title' content='Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题'>
-<meta property='og:description' content='在Compose 1.2.0-alpha08 以前，可以使用以下代码
-val dialog = Dialog(context) dialog.window?.decorView?.apply { ViewTreeLifecycleOwner.set(this, this@MainActivity) ViewTreeViewModelStoreOwner.set(this, this@MainActivity) ViewTreeSavedStateRegistryOwner.set(this, this@MainActivity) } 在Compose 1.2.0-alpha08以后，ViewTreeSavedStateRegistryOwner的API发生了变更
-val dialog = BottomSheetDialog(this@MainActivity) dialog.window?.decorView?.apply { ViewTreeLifecycleOwner.set(this, this@MainActivity) ViewTreeViewModelStoreOwner.set(this, this@MainActivity) setViewTreeSavedStateRegistryOwner(this@MainActivity) } 参考内容 更新日志： Update ViewTreeSavedStateRegistryOwner use in Compose UI
-ComponentActivity 源码 1.2.0-alpha08'>
+<meta property='og:description' content='在Compose 1.2.0-alpha08 以前，可以使用以下代码:...'>
 <meta property='og:url' content='https://usfl.cn/post/compose-bind/'>
 <meta property='og:site_name' content='Shiue world'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='Compose' /><meta property='article:tag' content='Android' /><meta property='og:image' content='https://usfl.cn/cover/cover3.jpg' />
 <meta name="twitter:title" content="Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题">
-<meta name="twitter:description" content="在Compose 1.2.0-alpha08 以前，可以使用以下代码
-val dialog = Dialog(context) dialog.window?.decorView?.apply { ViewTreeLifecycleOwner.set(this, this@MainActivity) ViewTreeViewModelStoreOwner.set(this, this@MainActivity) ViewTreeSavedStateRegistryOwner.set(this, this@MainActivity) } 在Compose 1.2.0-alpha08以后，ViewTreeSavedStateRegistryOwner的API发生了变更
-val dialog = BottomSheetDialog(this@MainActivity) dialog.window?.decorView?.apply { ViewTreeLifecycleOwner.set(this, this@MainActivity) ViewTreeViewModelStoreOwner.set(this, this@MainActivity) setViewTreeSavedStateRegistryOwner(this@MainActivity) } 参考内容 更新日志： Update ViewTreeSavedStateRegistryOwner use in Compose UI
-ComponentActivity 源码 1.2.0-alpha08">
+<meta name="twitter:description" content="在Compose 1.2.0-alpha08 以前，可以使用以下代码:..."><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://usfl.cn/cover/cover3.jpg' />
     </head>
     <body class="
     article-page
@@ -132,10 +124,26 @@ ComponentActivity 源码 1.2.0-alpha08">
     </ol>
 </aside>
 <main class="main full-width">
-    <article class="main-article">
+    <article class="has-image main-article">
     <header class="article-header">
+        <div class="article-image">
+            <a href="/post/compose-bind/">
+                
+                    <img src="/cover/cover3.jpg" loading="lazy" alt="Featured image of post Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题" />
+                
+            </a>
+        </div>
+    
 
     <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/categories/%E5%BC%80%E5%8F%91/" >
+                开发
+            </a>
+        
+    </header>
     
 
     <div class="article-title-wrapper">
@@ -143,6 +151,10 @@ ComponentActivity 源码 1.2.0-alpha08">
             <a href="/post/compose-bind/">Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</a>
         </h2>
     
+        
+        <h3 class="article-subtitle">
+            在Compose 1.2.0-alpha08 以前，可以使用以下代码:...
+        </h3>
         
     </div>
 
@@ -175,7 +187,11 @@ ComponentActivity 源码 1.2.0-alpha08">
     <section class="article-content">
     
     
-    <p>在Compose 1.2.0-alpha08 以前，可以使用以下代码</p>
+    <blockquote>
+<p>封面来源 <a class="link" href="https://www.deviantart.com/bisbiswas/art/Cloud-Burst-880532543"  target="_blank" rel="noopener"
+    >Cloud-Burst</a></p>
+</blockquote>
+<p>在Compose 1.2.0-alpha08 以前，可以使用以下代码</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Kotlin" data-lang="Kotlin"><span style="display:flex;"><span><span style="color:#66d9ef">val</span> dialog = Dialog(context)
 </span></span><span style="display:flex;"><span>dialog.window<span style="color:#f92672">?.</span>decorView<span style="color:#f92672">?.</span>apply {
 </span></span><span style="display:flex;"><span>    ViewTreeLifecycleOwner.<span style="color:#66d9ef">set</span>(<span style="color:#66d9ef">this</span>, <span style="color:#66d9ef">this</span><span style="color:#a6e22e">@MainActivity</span>)
@@ -200,6 +216,14 @@ ComponentActivity 源码 1.2.0-alpha08">
 
     <footer class="article-footer">
     
+    <section class="article-tags">
+        
+            <a href="/tags/compose/">Compose</a>
+        
+            <a href="/tags/android/">Android</a>
+        
+    </section>
+
 
     
     <section class="article-copyright">
@@ -222,6 +246,53 @@ ComponentActivity 源码 1.2.0-alpha08">
     
 
     
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">Related content</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/post/compose-ime/">
+        
+        
+            <div class="article-image">
+                
+                    <img src="/cover/cover1.png" loading="lazy" data-key="compose-ime" data-hash="/cover/cover1.png"/>
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Jetpack Compose Accompanist IME弹出状态问题</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/post/compose-fling/">
+        
+        
+            <div class="article-image">
+                
+                    <img src="/cover/cover2.jpg" loading="lazy" data-key="compose-fling" data-hash="/cover/cover2.jpg"/>
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Jetpack Compose ViewPager 滑动手感优化</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
 
      
     

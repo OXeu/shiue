@@ -1,26 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-cn" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content='与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
-其中默认的 ViewPager Fling手感(快速滑动松手后的惯性运动效果)相较于原生 ViewPager 特别奇怪，尤其是速度够快时能够同时滑过多个页面，且Fling滑到边界时还会有边缘效果(边缘水波纹效果)，就像约束过小导致刹不住车一样，而原生ViewPager不存在这种情况。因此我参考ViewPager相关滑动源码及Jetpack Compose实现类似Viewpager滚动 - dikeboyR - 博客园 (cnblogs.com)进行改造，实现了与原生ViewPager Fling手感完全一致的Fling效果，且避免了由于
-PagerState.currentPage延迟更新或打断动画而导致的错误判断
-import androidx.compose.animation.core.animate import androidx.compose.animation.rememberSplineBasedDecay import androidx.compose.foundation.gestures.FlingBehavior import androidx.compose.foundation.gestures.ScrollScope import androidx.compose.runtime.Composable import androidx.compose.runtime.remember import com.google.accompanist.pager.ExperimentalPagerApi import com.google.accompanist.pager.PagerState import kotlin.math.abs import kotlin.math.sign @OptIn(ExperimentalPagerApi::class) @Composable fun pagerFlingBehavior(state: PagerState): FlingBehavior { val flingSpec = rememberSplineBasedDecay&amp;lt;Float&amp;gt;() return remember(flingSpec) { PagerFling(state) } } @ExperimentalPagerApi class PagerFling( val state: PagerState ) : FlingBehavior { private val childWidth = width()//Pager页面宽度，这里用屏幕宽度代替 override suspend fun ScrollScope.'><title>Jetpack Compose ViewPager 滑动手感优化</title>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content='与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等'><title>Jetpack Compose ViewPager 滑动手感优化</title>
 
 <link rel='canonical' href='https://usfl.cn/post/compose-fling/'>
 
 <link rel="stylesheet" href="/scss/style.min.18145888f21de6cb02d8cb0891be8240096206785da14eda35f6c23c239b966a.css"><meta property='og:title' content='Jetpack Compose ViewPager 滑动手感优化'>
-<meta property='og:description' content='与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
-其中默认的 ViewPager Fling手感(快速滑动松手后的惯性运动效果)相较于原生 ViewPager 特别奇怪，尤其是速度够快时能够同时滑过多个页面，且Fling滑到边界时还会有边缘效果(边缘水波纹效果)，就像约束过小导致刹不住车一样，而原生ViewPager不存在这种情况。因此我参考ViewPager相关滑动源码及Jetpack Compose实现类似Viewpager滚动 - dikeboyR - 博客园 (cnblogs.com)进行改造，实现了与原生ViewPager Fling手感完全一致的Fling效果，且避免了由于
-PagerState.currentPage延迟更新或打断动画而导致的错误判断
-import androidx.compose.animation.core.animate import androidx.compose.animation.rememberSplineBasedDecay import androidx.compose.foundation.gestures.FlingBehavior import androidx.compose.foundation.gestures.ScrollScope import androidx.compose.runtime.Composable import androidx.compose.runtime.remember import com.google.accompanist.pager.ExperimentalPagerApi import com.google.accompanist.pager.PagerState import kotlin.math.abs import kotlin.math.sign @OptIn(ExperimentalPagerApi::class) @Composable fun pagerFlingBehavior(state: PagerState): FlingBehavior { val flingSpec = rememberSplineBasedDecay&amp;lt;Float&amp;gt;() return remember(flingSpec) { PagerFling(state) } } @ExperimentalPagerApi class PagerFling( val state: PagerState ) : FlingBehavior { private val childWidth = width()//Pager页面宽度，这里用屏幕宽度代替 override suspend fun ScrollScope.'>
+<meta property='og:description' content='与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等'>
 <meta property='og:url' content='https://usfl.cn/post/compose-fling/'>
 <meta property='og:site_name' content='Shiue world'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='Compose' /><meta property='article:tag' content='Android' /><meta property='og:image' content='https://usfl.cn/cover/cover2.jpg' />
 <meta name="twitter:title" content="Jetpack Compose ViewPager 滑动手感优化">
-<meta name="twitter:description" content="与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
-其中默认的 ViewPager Fling手感(快速滑动松手后的惯性运动效果)相较于原生 ViewPager 特别奇怪，尤其是速度够快时能够同时滑过多个页面，且Fling滑到边界时还会有边缘效果(边缘水波纹效果)，就像约束过小导致刹不住车一样，而原生ViewPager不存在这种情况。因此我参考ViewPager相关滑动源码及Jetpack Compose实现类似Viewpager滚动 - dikeboyR - 博客园 (cnblogs.com)进行改造，实现了与原生ViewPager Fling手感完全一致的Fling效果，且避免了由于
-PagerState.currentPage延迟更新或打断动画而导致的错误判断
-import androidx.compose.animation.core.animate import androidx.compose.animation.rememberSplineBasedDecay import androidx.compose.foundation.gestures.FlingBehavior import androidx.compose.foundation.gestures.ScrollScope import androidx.compose.runtime.Composable import androidx.compose.runtime.remember import com.google.accompanist.pager.ExperimentalPagerApi import com.google.accompanist.pager.PagerState import kotlin.math.abs import kotlin.math.sign @OptIn(ExperimentalPagerApi::class) @Composable fun pagerFlingBehavior(state: PagerState): FlingBehavior { val flingSpec = rememberSplineBasedDecay&amp;lt;Float&amp;gt;() return remember(flingSpec) { PagerFling(state) } } @ExperimentalPagerApi class PagerFling( val state: PagerState ) : FlingBehavior { private val childWidth = width()//Pager页面宽度，这里用屏幕宽度代替 override suspend fun ScrollScope.">
+<meta name="twitter:description" content="与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://usfl.cn/cover/cover2.jpg' />
     </head>
     <body class="
     article-page
@@ -132,10 +124,26 @@ import androidx.compose.animation.core.animate import androidx.compose.animation
     </ol>
 </aside>
 <main class="main full-width">
-    <article class="main-article">
+    <article class="has-image main-article">
     <header class="article-header">
+        <div class="article-image">
+            <a href="/post/compose-fling/">
+                
+                    <img src="/cover/cover2.jpg" loading="lazy" alt="Featured image of post Jetpack Compose ViewPager 滑动手感优化" />
+                
+            </a>
+        </div>
+    
 
     <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/categories/%E5%BC%80%E5%8F%91/" >
+                开发
+            </a>
+        
+    </header>
     
 
     <div class="article-title-wrapper">
@@ -143,6 +151,10 @@ import androidx.compose.animation.core.animate import androidx.compose.animation
             <a href="/post/compose-fling/">Jetpack Compose ViewPager 滑动手感优化</a>
         </h2>
     
+        
+        <h3 class="article-subtitle">
+            与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
+        </h3>
         
     </div>
 
@@ -175,7 +187,11 @@ import androidx.compose.animation.core.animate import androidx.compose.animation
     <section class="article-content">
     
     
-    <p>与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等</p>
+    <blockquote>
+<p>封面来源 <a class="link" href="https://www.deviantart.com/bisbiswas/art/Watching-Sunset-929518803"  target="_blank" rel="noopener"
+    >Watching-Sunset</a></p>
+</blockquote>
+<p>与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等</p>
 <p>其中默认的 ViewPager Fling手感(快速滑动松手后的惯性运动效果)相较于原生 ViewPager 特别奇怪，尤其是速度够快时能够同时滑过多个页面，且Fling滑到边界时还会有边缘效果(边缘水波纹效果)，就像约束过小导致刹不住车一样，而原生ViewPager不存在这种情况。因此我参考ViewPager相关滑动源码及<a class="link" href="https://www.cnblogs.com/dikeboy/p/15256819.html"  target="_blank" rel="noopener"
     >Jetpack Compose实现类似Viewpager滚动 - dikeboyR - 博客园 (cnblogs.com)</a>进行改造，实现了与原生ViewPager Fling手感完全一致的Fling效果，且避免了由于</p>
 <p>PagerState.currentPage延迟更新或打断动画而导致的错误判断</p>
@@ -288,6 +304,14 @@ import androidx.compose.animation.core.animate import androidx.compose.animation
 
     <footer class="article-footer">
     
+    <section class="article-tags">
+        
+            <a href="/tags/compose/">Compose</a>
+        
+            <a href="/tags/android/">Android</a>
+        
+    </section>
+
 
     
     <section class="article-copyright">
@@ -310,6 +334,53 @@ import androidx.compose.animation.core.animate import androidx.compose.animation
     
 
     
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">Related content</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/post/compose-ime/">
+        
+        
+            <div class="article-image">
+                
+                    <img src="/cover/cover1.png" loading="lazy" data-key="compose-ime" data-hash="/cover/cover1.png"/>
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Jetpack Compose Accompanist IME弹出状态问题</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/post/compose-bind/">
+        
+        
+            <div class="article-image">
+                
+                    <img src="/cover/cover3.jpg" loading="lazy" data-key="compose-bind" data-hash="/cover/cover3.jpg"/>
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
 
      
     

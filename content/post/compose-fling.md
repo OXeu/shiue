@@ -3,7 +3,7 @@ title: "Jetpack Compose ViewPager 滑动手感优化"
 date: 2022-2-12T11:28:52+08:00
 draft: false
 description: 与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
-slug: compose-ime
+slug: compose-fling
 image: cover/cover2.jpg
 categories:
 - 开发
