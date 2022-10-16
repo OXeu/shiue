@@ -1,7 +1,7 @@
 ---
 title: 开发
 description: 各类编程开发类文章
-image:
+image:cover.jpg
 
 # Badge style
 style:
