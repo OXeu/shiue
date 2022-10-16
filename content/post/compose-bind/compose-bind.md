@@ -4,7 +4,7 @@ date: 2022-7-13T12:58:52+08:00
 draft: false
 description: 在Compose 1.2.0-alpha08 以前，可以使用以下代码:...
 slug: compose-bind
-image: cover/cover3.jpg
+image: cover.jpg
 categories:
 - 开发
 tags:

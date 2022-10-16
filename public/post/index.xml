@@ -7,11 +7,11 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>zh-cn</language><atom:link href="https://usfl.cn/post/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>Jetpack Compose Accompanist IME弹出状态问题</title>
-        <link>https://usfl.cn/post/compose-ime/</link>
+        <link>https://usfl.cn/post/compose-ime/compose-ime/</link>
         <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
         
-        <guid>https://usfl.cn/post/compose-ime/</guid>
-        <description>&lt;img src="https://usfl.cn/cover/cover1.png" alt="Featured image of post Jetpack Compose Accompanist IME弹出状态问题" /&gt;&lt;blockquote&gt;
+        <guid>https://usfl.cn/post/compose-ime/compose-ime/</guid>
+        <description>&lt;img src="https://usfl.cn/cover1.png" alt="Featured image of post Jetpack Compose Accompanist IME弹出状态问题" /&gt;&lt;blockquote&gt;
 &lt;p&gt;封面来源 &lt;a class=&#34;link&#34; href=&#34;https://www.deviantart.com/donlope01/art/En-haut-du-toboggan-931098411&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;En-haut-du-toboggan&lt;/a&gt;&lt;/p&gt;
 &lt;/blockquote&gt;
@@ -40,11 +40,11 @@
         </item>
         <item>
         <title>Jetpack Compose ViewPager 滑动手感优化</title>
-        <link>https://usfl.cn/post/compose-fling/</link>
+        <link>https://usfl.cn/post/compose-fling/compose-fling/</link>
         <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
         
-        <guid>https://usfl.cn/post/compose-fling/</guid>
-        <description>&lt;img src="https://usfl.cn/cover/cover2.jpg" alt="Featured image of post Jetpack Compose ViewPager 滑动手感优化" /&gt;&lt;blockquote&gt;
+        <guid>https://usfl.cn/post/compose-fling/compose-fling/</guid>
+        <description>&lt;img src="https://usfl.cn/cover2.jpg" alt="Featured image of post Jetpack Compose ViewPager 滑动手感优化" /&gt;&lt;blockquote&gt;
 &lt;p&gt;封面来源 &lt;a class=&#34;link&#34; href=&#34;https://www.deviantart.com/bisbiswas/art/Watching-Sunset-929518803&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;Watching-Sunset&lt;/a&gt;&lt;/p&gt;
 &lt;/blockquote&gt;
@@ -159,11 +159,11 @@
         </item>
         <item>
         <title>Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</title>
-        <link>https://usfl.cn/post/compose-bind/</link>
+        <link>https://usfl.cn/post/compose-bind/compose-bind/</link>
         <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
         
-        <guid>https://usfl.cn/post/compose-bind/</guid>
-        <description>&lt;img src="https://usfl.cn/cover/cover3.jpg" alt="Featured image of post Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题" /&gt;&lt;blockquote&gt;
+        <guid>https://usfl.cn/post/compose-bind/compose-bind/</guid>
+        <description>&lt;img src="https://usfl.cn/cover.jpg" alt="Featured image of post Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题" /&gt;&lt;blockquote&gt;
 &lt;p&gt;封面来源 &lt;a class=&#34;link&#34; href=&#34;https://www.deviantart.com/bisbiswas/art/Cloud-Burst-880532543&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;Cloud-Burst&lt;/a&gt;&lt;/p&gt;
 &lt;/blockquote&gt;

@@ -4,7 +4,7 @@ date: 2022-2-14T16:31:52+08:00
 draft: false
 description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
 slug: compose-ime
-image: cover/cover1.png
+image: cover1.png
 categories:
 - 开发
 tags:
