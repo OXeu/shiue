@@ -5,14 +5,175 @@
         <link>https://usfl.cn/post/</link>
         <description>Recent content in Posts on Shiue world</description>
         <generator>Hugo -- gohugo.io</generator>
-        <language>zh-cn</language>
-        <lastBuildDate>Sun, 16 Oct 2022 21:48:52 +0800</lastBuildDate><atom:link href="https://usfl.cn/post/index.xml" rel="self" type="application/rss+xml" /><item>
-        <title>Hello</title>
-        <link>https://usfl.cn/post/hello/</link>
-        <pubDate>Sun, 16 Oct 2022 21:48:52 +0800</pubDate>
+        <language>zh-cn</language><atom:link href="https://usfl.cn/post/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>Jetpack Compose Accompanist IME弹出状态问题</title>
+        <link>https://usfl.cn/post/compose-ime/</link>
+        <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
         
-        <guid>https://usfl.cn/post/hello/</guid>
-        <description>&lt;p&gt;Hello World&lt;/p&gt;
+        <guid>https://usfl.cn/post/compose-ime/</guid>
+        <description>&lt;h2 id=&#34;问题&#34;&gt;问题&lt;/h2&gt;
+&lt;p&gt;实际使用&lt;em&gt;&lt;strong&gt;WindowInset.ime.bottom&lt;/strong&gt;&lt;/em&gt;和&lt;em&gt;&lt;strong&gt;WindowInset.ime.isVisible&lt;/strong&gt;&lt;/em&gt;时得到的结果比较奇怪：&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;下文使用(int,bool)代表获取到的WindowInset.ime.bottom和WindowInset.ime.isVisible值&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;即(WindowInset.ime.bottom,WindowInset.ime.isVisible)&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;使用max代表获取到的WindowInset.ime.bottom最大值，即软键盘的像素高度&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;软键盘唤起的时：&lt;em&gt;(0,false) -&amp;gt; (0,true) -&amp;gt; &amp;hellip; -&amp;gt;(max,true)&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;软键盘关闭时：&lt;em&gt;(0,true) -&amp;gt; (max,false) -&amp;gt; &amp;hellip; -&amp;gt;(0,false)&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;实际使用时，可能还会出现某对值多次出现的情况[比如(0,true)]，&lt;/p&gt;
+&lt;p&gt;所以实际获取到的键盘高度可能会突然变成0，然后恢复正常，特别是在关闭键盘的瞬间，可能会造成界面闪烁。&lt;/p&gt;
+&lt;h2 id=&#34;解决方案&#34;&gt;解决方案&lt;/h2&gt;
+&lt;p&gt;解决方案也十分简单，可以看出会导致状态异常的主要就是关闭键盘一瞬间产生的(0,true)，只要将其过滤掉即可，但是由于过滤掉后仍然无法得知真实高度，因此选择使用remember一个键盘高度变量，如果获取的值为(0,true)，那么直接不对键盘高度进行处理，直接使用上次正常的键盘高度即可，反之则直接将WindowInset.ime.bottom赋值给remember的变量即可&lt;/p&gt;
+&lt;h2 id=&#34;另外&#34;&gt;另外&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;imePadding()&lt;/code&gt;与 &lt;code&gt;‌systemBarPadding()&lt;/code&gt; 合用时有时会失效，大概率是由于这两个方法所在的包不一致导致的（androidx.compose.foundation.layout 和 com.google.accompanist 中都有这两个方法），个人推测是由于WindowInset为单例，无法被两个包同时持有，在一个Activity中使用不同包的方法会导致持有WindowInset冲突，导致方法失效。&lt;/p&gt;
+&lt;p&gt;&lt;a class=&#34;link&#34; href=&#34;https://github.com/google/accompanist/issues/1016&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;https://github.com/google/accompanist/issues/1016&lt;/a&gt;&lt;/p&gt;
+</description>
+        </item>
+        <item>
+        <title>Jetpack Compose ViewPager 滑动手感优化</title>
+        <link>https://usfl.cn/post/compose-fling/</link>
+        <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+        
+        <guid>https://usfl.cn/post/compose-fling/</guid>
+        <description>&lt;p&gt;与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等&lt;/p&gt;
+&lt;p&gt;其中默认的 ViewPager Fling手感(快速滑动松手后的惯性运动效果)相较于原生 ViewPager 特别奇怪，尤其是速度够快时能够同时滑过多个页面，且Fling滑到边界时还会有边缘效果(边缘水波纹效果)，就像约束过小导致刹不住车一样，而原生ViewPager不存在这种情况。因此我参考ViewPager相关滑动源码及&lt;a class=&#34;link&#34; href=&#34;https://www.cnblogs.com/dikeboy/p/15256819.html&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;Jetpack Compose实现类似Viewpager滚动 - dikeboyR - 博客园 (cnblogs.com)&lt;/a&gt;进行改造，实现了与原生ViewPager Fling手感完全一致的Fling效果，且避免了由于&lt;/p&gt;
+&lt;p&gt;PagerState.currentPage延迟更新或打断动画而导致的错误判断&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-Kotlin&#34; data-lang=&#34;Kotlin&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; androidx.compose.animation.core.animate
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; androidx.compose.animation.rememberSplineBasedDecay
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; androidx.compose.foundation.gestures.FlingBehavior
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; androidx.compose.foundation.gestures.ScrollScope
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; androidx.compose.runtime.Composable
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; androidx.compose.runtime.remember
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; com.google.accompanist.pager.ExperimentalPagerApi
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; com.google.accompanist.pager.PagerState
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; kotlin.math.abs
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;import&lt;/span&gt; kotlin.math.sign
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@OptIn&lt;/span&gt;(ExperimentalPagerApi&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@Composable&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fun&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;pagerFlingBehavior&lt;/span&gt;(state: PagerState): FlingBehavior {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; flingSpec = rememberSplineBasedDecay&amp;lt;Float&amp;gt;()
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; remember(flingSpec) {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            PagerFling(state)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@ExperimentalPagerApi&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;PagerFling&lt;/span&gt;(
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; state: PagerState
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;) : FlingBehavior {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;private&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; childWidth = width()&lt;span style=&#34;color:#75715e&#34;&gt;//Pager页面宽度，这里用屏幕宽度代替
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;override&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;suspend&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;fun&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;ScrollScope&lt;/span&gt;.performFling(initialVelocity: Float): Float {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (abs(initialVelocity) &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0f&lt;/span&gt;) {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; stOffset = state.currentPageOffset - state.currentPageOffset.toInt()&lt;span style=&#34;color:#75715e&#34;&gt;// 减去 offset 整数部分
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; targetPosition = determineTargetPage(
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            stOffset,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            initialVelocity
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            ) &lt;span style=&#34;color:#75715e&#34;&gt;// 计算目标页面
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; destValue: Float = (targetPosition - stOffset) * childWidth &lt;span style=&#34;color:#75715e&#34;&gt;// 根据目标页面计算动画偏移的目标像素
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;var&lt;/span&gt; deltaX: Float &lt;span style=&#34;color:#75715e&#34;&gt;// 剩余速度,由大到小
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;var&lt;/span&gt; startPos = &lt;span style=&#34;color:#ae81ff&#34;&gt;0f&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;// 开始位置
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            &lt;span style=&#34;color:#75715e&#34;&gt;// 执行动画
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            animate(&lt;span style=&#34;color:#ae81ff&#34;&gt;0f&lt;/span&gt;, destValue, &lt;span style=&#34;color:#ae81ff&#34;&gt;0f&lt;/span&gt;) { &lt;span style=&#34;color:#66d9ef&#34;&gt;value&lt;/span&gt;, _ &lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                &lt;span style=&#34;color:#75715e&#34;&gt;// value 从 0f -&amp;gt; destValue 由大到小分成有限块
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                deltaX = &lt;span style=&#34;color:#66d9ef&#34;&gt;value&lt;/span&gt; - startPos
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                scrollBy(deltaX) &lt;span style=&#34;color:#75715e&#34;&gt;// 滚动位移差
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                startPos = &lt;span style=&#34;color:#66d9ef&#34;&gt;value&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;// 设置开始位置
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                &lt;span style=&#34;color:#ae81ff&#34;&gt;0f&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                } &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                    initialVelocity
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                    }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                    }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                    }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// 最小 Fling Offset 距离常数,单位:像素,从 ViewPager 复制而来
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;private&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; MIN_DISTANCE_FOR_FLING = &lt;span style=&#34;color:#ae81ff&#34;&gt;25&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;// dips
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// 最小 Fling Velocity 速度常数,从 ViewPager 复制而来
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;private&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; MIN_FLING_VELOCITY = &lt;span style=&#34;color:#ae81ff&#34;&gt;400&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;// dips
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;/**
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;* 根据 offset 和 velocity 决定目标页面
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;*
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;* 经由原生 ViewPager 复制修改而来
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;* @author [Xeu](http://blog.usfl.cn)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;* @param pageOffset 页面 offset ,介于 -1.0~1.0 之间,需减去由于 [PagerState.currentPage] 延迟更新
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;* 或打断动画导致 offset 超过 -1~1 范围的整数部分
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;* @param velocity 速度大小,大于0时速度指向下一页,小于0时指向上一页
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;* @return Int 目标页面 -1上一页 0当前页面 1下一页
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;private&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;fun&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;determineTargetPage&lt;/span&gt;(
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;pageOffset: Float,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;velocity: Float,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;): Int {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; density = Resources.getSystem().displayMetrics.density
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; currentPage = sign(pageOffset).toInt()
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; mMinimumVelocity = (MIN_FLING_VELOCITY * density).toInt()
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; mFlingDistance = (MIN_DISTANCE_FOR_FLING * density)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;var&lt;/span&gt; targetPage: Int =
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (abs(pageOffset * width()) &amp;gt; mFlingDistance &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; abs(velocity) &amp;gt; mMinimumVelocity) {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (velocity * pageOffset &amp;lt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        currentPage
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        } &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; truncator = &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (currentPage &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;) &lt;span style=&#34;color:#ae81ff&#34;&gt;0.4f&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0.6f&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            currentPage + (pageOffset + truncator).toInt()
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#75715e&#34;&gt;// Only let the user target pages we have items for
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            targetPage = targetPage.coerceIn(-&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; targetPage
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            }
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;strong&gt;使用示例&lt;/strong&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-Groovy&#34; data-lang=&#34;Groovy&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;implementation &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;com.google.accompanist:accompanist-pager:0.24.2-alpha&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;val state &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; rememberPagerState&lt;span style=&#34;color:#f92672&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;HorizontalPager&lt;span style=&#34;color:#f92672&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;count &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;state &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; state&lt;span style=&#34;color:#f92672&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;contentPadding &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; PaddingValues&lt;span style=&#34;color:#f92672&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;dp&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;),&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;flingBehavior &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; pagerFlingBehavior&lt;span style=&#34;color:#f92672&#34;&gt;(&lt;/span&gt;state &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; state&lt;span style=&#34;color:#f92672&#34;&gt;),&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;)&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;{&lt;/span&gt; page &lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    Box&lt;span style=&#34;color:#f92672&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    Modifier&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;fillMaxSize&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;(),&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    contentAlignment &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Alignment&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Center&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#f92672&#34;&gt;)&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        Text&lt;span style=&#34;color:#f92672&#34;&gt;(&lt;/span&gt;text &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Page:$page&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#f92672&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#f92672&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;strong&gt;优化累计耗时：3h51min&lt;/strong&gt;&lt;/p&gt;
+</description>
+        </item>
+        <item>
+        <title>Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</title>
+        <link>https://usfl.cn/post/compose-bind/</link>
+        <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+        
+        <guid>https://usfl.cn/post/compose-bind/</guid>
+        <description>&lt;p&gt;在Compose 1.2.0-alpha08 以前，可以使用以下代码&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-Kotlin&#34; data-lang=&#34;Kotlin&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; dialog = Dialog(context)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;dialog.window&lt;span style=&#34;color:#f92672&#34;&gt;?.&lt;/span&gt;decorView&lt;span style=&#34;color:#f92672&#34;&gt;?.&lt;/span&gt;apply {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    ViewTreeLifecycleOwner.&lt;span style=&#34;color:#66d9ef&#34;&gt;set&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@MainActivity&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    ViewTreeViewModelStoreOwner.&lt;span style=&#34;color:#66d9ef&#34;&gt;set&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@MainActivity&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    ViewTreeSavedStateRegistryOwner.&lt;span style=&#34;color:#66d9ef&#34;&gt;set&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@MainActivity&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    }
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;在Compose 1.2.0-alpha08以后，&lt;code&gt;ViewTreeSavedStateRegistryOwner&lt;/code&gt;的API发生了变更&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-Kotlin&#34; data-lang=&#34;Kotlin&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;val&lt;/span&gt; dialog = BottomSheetDialog(&lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@MainActivity&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;dialog.window&lt;span style=&#34;color:#f92672&#34;&gt;?.&lt;/span&gt;decorView&lt;span style=&#34;color:#f92672&#34;&gt;?.&lt;/span&gt;apply {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    ViewTreeLifecycleOwner.&lt;span style=&#34;color:#66d9ef&#34;&gt;set&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@MainActivity&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    ViewTreeViewModelStoreOwner.&lt;span style=&#34;color:#66d9ef&#34;&gt;set&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@MainActivity&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    setViewTreeSavedStateRegistryOwner(&lt;span style=&#34;color:#66d9ef&#34;&gt;this&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;@MainActivity&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    }
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;参考内容&#34;&gt;参考内容&lt;/h2&gt;
+&lt;p&gt;&lt;a class=&#34;link&#34; href=&#34;https://android.googlesource.com/platform/frameworks/support/&amp;#43;/6d15b0171dfefdc911f9eda905855cebbd8da231&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;更新日志： Update ViewTreeSavedStateRegistryOwner use in Compose UI&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a class=&#34;link&#34; href=&#34;https://android.googlesource.com/platform/frameworks/support/&amp;#43;/6d15b0171dfefdc911f9eda905855cebbd8da231/activity/activity-compose/src/main/java/androidx/activity/compose/ComponentActivity.kt&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;ComponentActivity 源码 1.2.0-alpha08&lt;/a&gt;&lt;/p&gt;
 </description>
         </item>
         

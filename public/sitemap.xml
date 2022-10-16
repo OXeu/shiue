@@ -2,16 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://usfl.cn/post/hello/</loc>
-    <lastmod>2022-10-16T21:48:52+08:00</lastmod>
+    <loc>https://usfl.cn/categories/</loc>
+  </url><url>
+    <loc>https://usfl.cn/post/compose-ime/</loc>
+  </url><url>
+    <loc>https://usfl.cn/post/compose-fling/</loc>
+  </url><url>
+    <loc>https://usfl.cn/post/compose-bind/</loc>
   </url><url>
     <loc>https://usfl.cn/post/</loc>
-    <lastmod>2022-10-16T21:48:52+08:00</lastmod>
   </url><url>
     <loc>https://usfl.cn/</loc>
-    <lastmod>2022-10-16T21:48:52+08:00</lastmod>
-  </url><url>
-    <loc>https://usfl.cn/categories/</loc>
   </url><url>
     <loc>https://usfl.cn/tags/</loc>
   </url>
