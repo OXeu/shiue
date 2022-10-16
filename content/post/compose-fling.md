@@ -4,14 +4,15 @@ date: 2022-2-12T11:28:52+08:00
 draft: false
 description: 与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
 slug: compose-ime
-image: cover2.jpg
+image: cover/cover2.jpg
 categories:
 - 开发
 tags:
 - Compose
 - Android
 ---
-> 封面来源 [Watching-Sunset](https://www.deviantart.com/bisbiswas/art/Watching-Sunset-929518803)
+> 封面来源 [Watching-Sunset](https://www.deviantart.com/bisbiswas/art/Watching-Sunset-929518803)  
+
 与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
 
 其中默认的 ViewPager Fling手感(快速滑动松手后的惯性运动效果)相较于原生 ViewPager 特别奇怪，尤其是速度够快时能够同时滑过多个页面，且Fling滑到边界时还会有边缘效果(边缘水波纹效果)，就像约束过小导致刹不住车一样，而原生ViewPager不存在这种情况。因此我参考ViewPager相关滑动源码及[Jetpack Compose实现类似Viewpager滚动 - dikeboyR - 博客园 (cnblogs.com)](https://www.cnblogs.com/dikeboy/p/15256819.html)进行改造，实现了与原生ViewPager Fling手感完全一致的Fling效果，且避免了由于
