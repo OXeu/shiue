@@ -2,7 +2,18 @@
 title: "Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题"
 date: 2022-7-13T12:58:52+08:00
 draft: false
+description: 在Compose 1.2.0-alpha08 以前，可以使用以下代码:...
+slug: compose-ime
+image: cover3.jpg
+categories:
+- 开发
+tags:
+- Compose
+- Android
 ---
+
+> 封面来源 [Cloud-Burst](https://www.deviantart.com/bisbiswas/art/Cloud-Burst-880532543)
+
 在Compose 1.2.0-alpha08 以前，可以使用以下代码
 
 ```Kotlin

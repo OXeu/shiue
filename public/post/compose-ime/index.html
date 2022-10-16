@@ -1,47 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-cn" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content='问题 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪：
-下文使用(int,bool)代表获取到的WindowInset.ime.bottom和WindowInset.ime.isVisible值
-即(WindowInset.ime.bottom,WindowInset.ime.isVisible)
-使用max代表获取到的WindowInset.ime.bottom最大值，即软键盘的像素高度
-软键盘唤起的时：(0,false) -&amp;gt; (0,true) -&amp;gt; &amp;hellip; -&amp;gt;(max,true)
-软键盘关闭时：(0,true) -&amp;gt; (max,false) -&amp;gt; &amp;hellip; -&amp;gt;(0,false)
-实际使用时，可能还会出现某对值多次出现的情况[比如(0,true)]，
-所以实际获取到的键盘高度可能会突然变成0，然后恢复正常，特别是在关闭键盘的瞬间，可能会造成界面闪烁。
-解决方案 解决方案也十分简单，可以看出会导致状态异常的主要就是关闭键盘一瞬间产生的(0,true)，只要将其过滤掉即可，但是由于过滤掉后仍然无法得知真实高度，因此选择使用remember一个键盘高度变量，如果获取的值为(0,true)，那么直接不对键盘高度进行处理，直接使用上次正常的键盘高度即可，反之则直接将WindowInset.ime.bottom赋值给remember的变量即可
-另外 imePadding()与 ‌systemBarPadding() 合用时有时会失效，大概率是由于这两个方法所在的包不一致导致的（androidx.compose.foundation.layout 和 com.google.accompanist 中都有这两个方法），个人推测是由于WindowInset为单例，无法被两个包同时持有，在一个Activity中使用不同包的方法会导致持有WindowInset冲突，导致方法失效。
-https://github.com/google/accompanist/issues/1016'><title>Jetpack Compose Accompanist IME弹出状态问题</title>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content='与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等'><title>Jetpack Compose ViewPager 滑动手感优化</title>
 
 <link rel='canonical' href='https://usfl.cn/post/compose-ime/'>
 
-<link rel="stylesheet" href="/scss/style.min.18145888f21de6cb02d8cb0891be8240096206785da14eda35f6c23c239b966a.css"><meta property='og:title' content='Jetpack Compose Accompanist IME弹出状态问题'>
-<meta property='og:description' content='问题 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪：
-下文使用(int,bool)代表获取到的WindowInset.ime.bottom和WindowInset.ime.isVisible值
-即(WindowInset.ime.bottom,WindowInset.ime.isVisible)
-使用max代表获取到的WindowInset.ime.bottom最大值，即软键盘的像素高度
-软键盘唤起的时：(0,false) -&amp;gt; (0,true) -&amp;gt; &amp;hellip; -&amp;gt;(max,true)
-软键盘关闭时：(0,true) -&amp;gt; (max,false) -&amp;gt; &amp;hellip; -&amp;gt;(0,false)
-实际使用时，可能还会出现某对值多次出现的情况[比如(0,true)]，
-所以实际获取到的键盘高度可能会突然变成0，然后恢复正常，特别是在关闭键盘的瞬间，可能会造成界面闪烁。
-解决方案 解决方案也十分简单，可以看出会导致状态异常的主要就是关闭键盘一瞬间产生的(0,true)，只要将其过滤掉即可，但是由于过滤掉后仍然无法得知真实高度，因此选择使用remember一个键盘高度变量，如果获取的值为(0,true)，那么直接不对键盘高度进行处理，直接使用上次正常的键盘高度即可，反之则直接将WindowInset.ime.bottom赋值给remember的变量即可
-另外 imePadding()与 ‌systemBarPadding() 合用时有时会失效，大概率是由于这两个方法所在的包不一致导致的（androidx.compose.foundation.layout 和 com.google.accompanist 中都有这两个方法），个人推测是由于WindowInset为单例，无法被两个包同时持有，在一个Activity中使用不同包的方法会导致持有WindowInset冲突，导致方法失效。
-https://github.com/google/accompanist/issues/1016'>
+<link rel="stylesheet" href="/scss/style.min.18145888f21de6cb02d8cb0891be8240096206785da14eda35f6c23c239b966a.css"><meta property='og:title' content='Jetpack Compose ViewPager 滑动手感优化'>
+<meta property='og:description' content='与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等'>
 <meta property='og:url' content='https://usfl.cn/post/compose-ime/'>
 <meta property='og:site_name' content='Shiue world'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' />
-<meta name="twitter:title" content="Jetpack Compose Accompanist IME弹出状态问题">
-<meta name="twitter:description" content="问题 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪：
-下文使用(int,bool)代表获取到的WindowInset.ime.bottom和WindowInset.ime.isVisible值
-即(WindowInset.ime.bottom,WindowInset.ime.isVisible)
-使用max代表获取到的WindowInset.ime.bottom最大值，即软键盘的像素高度
-软键盘唤起的时：(0,false) -&amp;gt; (0,true) -&amp;gt; &amp;hellip; -&amp;gt;(max,true)
-软键盘关闭时：(0,true) -&amp;gt; (max,false) -&amp;gt; &amp;hellip; -&amp;gt;(0,false)
-实际使用时，可能还会出现某对值多次出现的情况[比如(0,true)]，
-所以实际获取到的键盘高度可能会突然变成0，然后恢复正常，特别是在关闭键盘的瞬间，可能会造成界面闪烁。
-解决方案 解决方案也十分简单，可以看出会导致状态异常的主要就是关闭键盘一瞬间产生的(0,true)，只要将其过滤掉即可，但是由于过滤掉后仍然无法得知真实高度，因此选择使用remember一个键盘高度变量，如果获取的值为(0,true)，那么直接不对键盘高度进行处理，直接使用上次正常的键盘高度即可，反之则直接将WindowInset.ime.bottom赋值给remember的变量即可
-另外 imePadding()与 ‌systemBarPadding() 合用时有时会失效，大概率是由于这两个方法所在的包不一致导致的（androidx.compose.foundation.layout 和 com.google.accompanist 中都有这两个方法），个人推测是由于WindowInset为单例，无法被两个包同时持有，在一个Activity中使用不同包的方法会导致持有WindowInset冲突，导致方法失效。
-https://github.com/google/accompanist/issues/1016">
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='Compose' /><meta property='article:tag' content='Android' /><meta property='og:image' content='https://usfl.cn/cover1.png' />
+<meta name="twitter:title" content="Jetpack Compose ViewPager 滑动手感优化">
+<meta name="twitter:description" content="与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://usfl.cn/cover1.png' />
     </head>
     <body class="
     article-page
@@ -153,10 +124,26 @@ https://github.com/google/accompanist/issues/1016">
     </ol>
 </aside>
 <main class="main full-width">
-    <article class="main-article">
+    <article class="has-image main-article">
     <header class="article-header">
+        <div class="article-image">
+            <a href="/post/compose-ime/">
+                
+                    <img src="/cover2.jpg" loading="lazy" alt="Featured image of post Jetpack Compose ViewPager 滑动手感优化" />
+                
+            </a>
+        </div>
+    
 
     <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/categories/%E5%BC%80%E5%8F%91/" >
+                开发
+            </a>
+        
+    </header>
     
 
     <div class="article-title-wrapper">
@@ -164,6 +151,10 @@ https://github.com/google/accompanist/issues/1016">
             <a href="/post/compose-ime/">Jetpack Compose Accompanist IME弹出状态问题</a>
         </h2>
     
+        
+        <h3 class="article-subtitle">
+            实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
+        </h3>
         
     </div>
 
@@ -196,33 +187,131 @@ https://github.com/google/accompanist/issues/1016">
     <section class="article-content">
     
     
-    <h2 id="问题">问题</h2>
-<p>实际使用<em><strong>WindowInset.ime.bottom</strong></em>和<em><strong>WindowInset.ime.isVisible</strong></em>时得到的结果比较奇怪：</p>
-<blockquote>
-<p>下文使用(int,bool)代表获取到的WindowInset.ime.bottom和WindowInset.ime.isVisible值</p>
+    <blockquote>
+<p>封面来源 <a class="link" href="https://www.deviantart.com/bisbiswas/art/Watching-Sunset-929518803"  target="_blank" rel="noopener"
+    >Watching-Sunset</a>
+与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等</p>
 </blockquote>
-<blockquote>
-<p>即(WindowInset.ime.bottom,WindowInset.ime.isVisible)</p>
-</blockquote>
-<blockquote>
-<p>使用max代表获取到的WindowInset.ime.bottom最大值，即软键盘的像素高度</p>
-</blockquote>
-<p>软键盘唤起的时：<em>(0,false) -&gt; (0,true) -&gt; &hellip; -&gt;(max,true)</em></p>
-<p>软键盘关闭时：<em>(0,true) -&gt; (max,false) -&gt; &hellip; -&gt;(0,false)</em></p>
-<p>实际使用时，可能还会出现某对值多次出现的情况[比如(0,true)]，</p>
-<p>所以实际获取到的键盘高度可能会突然变成0，然后恢复正常，特别是在关闭键盘的瞬间，可能会造成界面闪烁。</p>
-<h2 id="解决方案">解决方案</h2>
-<p>解决方案也十分简单，可以看出会导致状态异常的主要就是关闭键盘一瞬间产生的(0,true)，只要将其过滤掉即可，但是由于过滤掉后仍然无法得知真实高度，因此选择使用remember一个键盘高度变量，如果获取的值为(0,true)，那么直接不对键盘高度进行处理，直接使用上次正常的键盘高度即可，反之则直接将WindowInset.ime.bottom赋值给remember的变量即可</p>
-<h2 id="另外">另外</h2>
-<p><code>imePadding()</code>与 <code>‌systemBarPadding()</code> 合用时有时会失效，大概率是由于这两个方法所在的包不一致导致的（androidx.compose.foundation.layout 和 com.google.accompanist 中都有这两个方法），个人推测是由于WindowInset为单例，无法被两个包同时持有，在一个Activity中使用不同包的方法会导致持有WindowInset冲突，导致方法失效。</p>
-<p><a class="link" href="https://github.com/google/accompanist/issues/1016"  target="_blank" rel="noopener"
-    >https://github.com/google/accompanist/issues/1016</a></p>
+<p>其中默认的 ViewPager Fling手感(快速滑动松手后的惯性运动效果)相较于原生 ViewPager 特别奇怪，尤其是速度够快时能够同时滑过多个页面，且Fling滑到边界时还会有边缘效果(边缘水波纹效果)，就像约束过小导致刹不住车一样，而原生ViewPager不存在这种情况。因此我参考ViewPager相关滑动源码及<a class="link" href="https://www.cnblogs.com/dikeboy/p/15256819.html"  target="_blank" rel="noopener"
+    >Jetpack Compose实现类似Viewpager滚动 - dikeboyR - 博客园 (cnblogs.com)</a>进行改造，实现了与原生ViewPager Fling手感完全一致的Fling效果，且避免了由于</p>
+<p>PagerState.currentPage延迟更新或打断动画而导致的错误判断</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Kotlin" data-lang="Kotlin"><span style="display:flex;"><span><span style="color:#66d9ef">import</span> androidx.compose.animation.core.animate
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> androidx.compose.animation.rememberSplineBasedDecay
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> androidx.compose.foundation.gestures.FlingBehavior
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> androidx.compose.foundation.gestures.ScrollScope
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> androidx.compose.runtime.Composable
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> androidx.compose.runtime.remember
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> com.google.accompanist.pager.ExperimentalPagerApi
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> com.google.accompanist.pager.PagerState
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> kotlin.math.abs
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">import</span> kotlin.math.sign
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@OptIn</span>(ExperimentalPagerApi<span style="color:#f92672">::</span><span style="color:#66d9ef">class</span>)
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@Composable</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">fun</span> <span style="color:#a6e22e">pagerFlingBehavior</span>(state: PagerState): FlingBehavior {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">val</span> flingSpec = rememberSplineBasedDecay&lt;Float&gt;()
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> remember(flingSpec) {
+</span></span><span style="display:flex;"><span>            PagerFling(state)
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@ExperimentalPagerApi</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">PagerFling</span>(
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">val</span> state: PagerState
+</span></span><span style="display:flex;"><span>) : FlingBehavior {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">private</span> <span style="color:#66d9ef">val</span> childWidth = width()<span style="color:#75715e">//Pager页面宽度，这里用屏幕宽度代替
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">override</span> <span style="color:#66d9ef">suspend</span> <span style="color:#66d9ef">fun</span> <span style="color:#a6e22e">ScrollScope</span>.performFling(initialVelocity: Float): Float {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">if</span> (abs(initialVelocity) <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0f</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">val</span> stOffset = state.currentPageOffset - state.currentPageOffset.toInt()<span style="color:#75715e">// 减去 offset 整数部分
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">val</span> targetPosition = determineTargetPage(
+</span></span><span style="display:flex;"><span>            stOffset,
+</span></span><span style="display:flex;"><span>            initialVelocity
+</span></span><span style="display:flex;"><span>            ) <span style="color:#75715e">// 计算目标页面
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">val</span> destValue: Float = (targetPosition - stOffset) * childWidth <span style="color:#75715e">// 根据目标页面计算动画偏移的目标像素
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">var</span> deltaX: Float <span style="color:#75715e">// 剩余速度,由大到小
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">var</span> startPos = <span style="color:#ae81ff">0f</span> <span style="color:#75715e">// 开始位置
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#75715e">// 执行动画
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            animate(<span style="color:#ae81ff">0f</span>, destValue, <span style="color:#ae81ff">0f</span>) { <span style="color:#66d9ef">value</span>, _ <span style="color:#f92672">-&gt;</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#75715e">// value 从 0f -&gt; destValue 由大到小分成有限块
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                deltaX = <span style="color:#66d9ef">value</span> - startPos
+</span></span><span style="display:flex;"><span>                scrollBy(deltaX) <span style="color:#75715e">// 滚动位移差
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                startPos = <span style="color:#66d9ef">value</span> <span style="color:#75715e">// 设置开始位置
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                }
+</span></span><span style="display:flex;"><span>                <span style="color:#ae81ff">0f</span>
+</span></span><span style="display:flex;"><span>                } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                    initialVelocity
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 最小 Fling Offset 距离常数,单位:像素,从 ViewPager 复制而来
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">private</span> <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">val</span> MIN_DISTANCE_FOR_FLING = <span style="color:#ae81ff">25</span> <span style="color:#75715e">// dips
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// 最小 Fling Velocity 速度常数,从 ViewPager 复制而来
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">private</span> <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">val</span> MIN_FLING_VELOCITY = <span style="color:#ae81ff">400</span> <span style="color:#75715e">// dips
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">/**
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* 根据 offset 和 velocity 决定目标页面
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">*
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* 经由原生 ViewPager 复制修改而来
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* @author [Xeu](http://blog.usfl.cn)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* @param pageOffset 页面 offset ,介于 -1.0~1.0 之间,需减去由于 [PagerState.currentPage] 延迟更新
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* 或打断动画导致 offset 超过 -1~1 范围的整数部分
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* @param velocity 速度大小,大于0时速度指向下一页,小于0时指向上一页
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* @return Int 目标页面 -1上一页 0当前页面 1下一页
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">*/</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">private</span> <span style="color:#66d9ef">fun</span> <span style="color:#a6e22e">determineTargetPage</span>(
+</span></span><span style="display:flex;"><span>pageOffset: Float,
+</span></span><span style="display:flex;"><span>velocity: Float,
+</span></span><span style="display:flex;"><span>): Int {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">val</span> density = Resources.getSystem().displayMetrics.density
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">val</span> currentPage = sign(pageOffset).toInt()
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">val</span> mMinimumVelocity = (MIN_FLING_VELOCITY * density).toInt()
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">val</span> mFlingDistance = (MIN_DISTANCE_FOR_FLING * density)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> targetPage: Int =
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (abs(pageOffset * width()) &gt; mFlingDistance <span style="color:#f92672">&amp;&amp;</span> abs(velocity) &gt; mMinimumVelocity) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (velocity * pageOffset &lt; <span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>        currentPage
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">val</span> truncator = <span style="color:#66d9ef">if</span> (currentPage <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span>) <span style="color:#ae81ff">0.4f</span> <span style="color:#66d9ef">else</span> <span style="color:#ae81ff">0.6f</span>
+</span></span><span style="display:flex;"><span>            currentPage + (pageOffset + truncator).toInt()
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">// Only let the user target pages we have items for
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            targetPage = targetPage.coerceIn(-<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> targetPage
+</span></span><span style="display:flex;"><span>            }
+</span></span></code></pre></div><p><strong>使用示例</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Groovy" data-lang="Groovy"><span style="display:flex;"><span>implementation <span style="color:#e6db74">&#34;com.google.accompanist:accompanist-pager:0.24.2-alpha&#34;</span>
+</span></span><span style="display:flex;"><span>val state <span style="color:#f92672">=</span> rememberPagerState<span style="color:#f92672">()</span>
+</span></span><span style="display:flex;"><span>HorizontalPager<span style="color:#f92672">(</span>
+</span></span><span style="display:flex;"><span>count <span style="color:#f92672">=</span> <span style="color:#ae81ff">5</span><span style="color:#f92672">,</span>
+</span></span><span style="display:flex;"><span>state <span style="color:#f92672">=</span> state<span style="color:#f92672">,</span>
+</span></span><span style="display:flex;"><span>contentPadding <span style="color:#f92672">=</span> PaddingValues<span style="color:#f92672">(</span><span style="color:#ae81ff">0</span><span style="color:#f92672">.</span><span style="color:#a6e22e">dp</span><span style="color:#f92672">),</span>
+</span></span><span style="display:flex;"><span>flingBehavior <span style="color:#f92672">=</span> pagerFlingBehavior<span style="color:#f92672">(</span>state <span style="color:#f92672">=</span> state<span style="color:#f92672">),</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span> page <span style="color:#f92672">-&gt;</span>
+</span></span><span style="display:flex;"><span>    Box<span style="color:#f92672">(</span>
+</span></span><span style="display:flex;"><span>    Modifier<span style="color:#f92672">.</span><span style="color:#a6e22e">fillMaxSize</span><span style="color:#f92672">(),</span>
+</span></span><span style="display:flex;"><span>    contentAlignment <span style="color:#f92672">=</span> Alignment<span style="color:#f92672">.</span><span style="color:#a6e22e">Center</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>        Text<span style="color:#f92672">(</span>text <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;Page:$page&#34;</span><span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">}</span>
+</span></span></code></pre></div><p><strong>优化累计耗时：3h51min</strong></p>
 
 </section>
 
 
     <footer class="article-footer">
     
+    <section class="article-tags">
+        
+            <a href="/tags/compose/">Compose</a>
+        
+            <a href="/tags/android/">Android</a>
+        
+    </section>
+
 
     
     <section class="article-copyright">
@@ -245,6 +334,53 @@ https://github.com/google/accompanist/issues/1016">
     
 
     
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">Related content</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/post/compose-ime/">
+        
+        
+            <div class="article-image">
+                
+                    <img src="/cover1.png" loading="lazy" data-key="compose-ime" data-hash="/cover1.png"/>
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Jetpack Compose Accompanist IME弹出状态问题</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/post/compose-ime/">
+        
+        
+            <div class="article-image">
+                
+                    <img src="/cover1.png" loading="lazy" data-key="compose-ime" data-hash="/cover1.png"/>
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
 
      
     
@@ -346,40 +482,7 @@ https://github.com/google/accompanist/issues/1016">
             >
 
             </main>
-    <aside class="sidebar right-sidebar sticky">
-        
-            
-                
-    <section class="widget archives">
-        <div class="widget-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <line x1="5" y1="9" x2="19" y2="9" />
-  <line x1="5" y1="15" x2="19" y2="15" />
-  <line x1="11" y1="4" x2="7" y2="20" />
-  <line x1="17" y1="4" x2="13" y2="20" />
-</svg>
-
-
-
-        </div>
-        <h2 class="widget-title section-title">Table of contents</h2>
-        
-        <div class="widget--toc">
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#问题">问题</a></li>
-    <li><a href="#解决方案">解决方案</a></li>
-    <li><a href="#另外">另外</a></li>
-  </ul>
-</nav>
-        </div>
-    </section>
-
-            
-        
-    </aside>
-
+    
 
         </div>
         <script 
