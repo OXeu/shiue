@@ -199,7 +199,9 @@ class Search {
     }
 
     private generateResultTitle(resultLen, time) {
-        return this.resultTitleTemplate.replace("#PAGES_COUNT", resultLen).replace("#TIME_SECONDS", time);
+        let res = this.resultTitleTemplate.replace("#PAGES_COUNT", resultLen).replace("#TIME_SECONDS", time);
+        console.log(res);
+        return res;
     }
 
     public async getData() {
