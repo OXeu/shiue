@@ -1,3 +1,6 @@
 baseURL = 'http://usfl.cn/'
 languageCode = 'zh-cn'
 title = 'Shiue world'
+[params]
+description = "Xeu's mini world"
+author = "Xeu"
