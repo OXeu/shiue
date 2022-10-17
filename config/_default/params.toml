@@ -85,72 +85,8 @@ enabled = true
 enabled = true
 provider = "twikoo"
 
-[comments.disqusjs]
-shortname = ""
-apiUrl = ""
-apiKey = ""
-admin = ""
-adminLabel = ""
-
-[comments.utterances]
-repo = ""
-issueTerm = "pathname"
-label = ""
-
-[comments.remark42]
-host = ""
-site = ""
-locale = ""
-
-[comments.vssue]
-platform = ""
-owner = ""
-repo = ""
-clientId = ""
-clientSecret = ""
-autoCreateIssue = false
-
-[comments.waline]
-serverURL = ""
-lang = ""
-visitor = ""
-avatar = ""
-emoji = ["https://cdn.jsdelivr.net/gh/walinejs/emojis/weibo"]
-requiredMeta = ["name", "email", "url"]
-placeholder = ""
-
-[comments.waline.locale]
-admin = "Admin"
-
 [comments.twikoo]
 envId = "https://shiue-comment.vercel.app"
 #region = ""
 #path = "https://shiue-comment.vercel.app"
 lang = "zh-CN"
-
-[comments.cactus]
-defaultHomeserverUrl = "https://matrix.cactus.chat:8448"
-serverName = "cactus.chat"
-siteName = ""
-
-[comments.giscus]
-repo = ""
-repoID = ""
-category = ""
-categoryID = ""
-mapping = ""
-lightTheme = ""
-darkTheme = ""
-reactionsEnabled = 1
-emitMetadata = 0
-
-[comments.gitalk]
-owner = ""
-admin = ""
-repo = ""
-clientID = ""
-clientSecret = ""
-
-[comments.cusdis]
-host = ""
-id = ""

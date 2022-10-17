@@ -11,5 +11,12 @@ menu:
         params:
             icon: link
 
-comments: false
+comments: true
 ---
+欢迎各位大佬互换友链，最好按以下格式回复：
+```
+名称：
+简介：
+图标：
+```
+网址直接填写在网址栏即可
