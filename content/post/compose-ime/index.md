@@ -1,6 +1,6 @@
 ---
 title: "Jetpack Compose Accompanist IME弹出状态问题"
-date: 2022-2-14T16:31:52+08:00
+date: 2022-02-14T16:31:52+08:00
 draft: false
 description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
 slug: compose-ime
