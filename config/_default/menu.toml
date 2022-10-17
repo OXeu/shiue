@@ -5,4 +5,20 @@ name = "GitHub"
 url = "https://github.com/ThankRain"
 
 [social.params]
-icon = "brand-github"
+icon = "github"
+
+[[social]]
+identifier = "bilibili"
+name = "哔哩哔哩"
+url = "https://b23.tv/yUeaTXU"
+
+[social.params]
+icon = "bilibili"
+
+[[social]]
+identifier = "netease"
+name = "网易云音乐"
+url = "https://y.music.163.com/m/user?id=309349925"
+
+[social.params]
+icon = "netease"
