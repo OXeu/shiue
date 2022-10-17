@@ -1,11 +1,11 @@
 # Pages placed under these sections will be shown on homepage and archive page.
-mainSections = ["tag-cloud","post"]
+mainSections = ["post"]
 # Output page's full content in RSS.
 rssFullContent = true
 
 [footer]
 since = 2020
-customText = "强力驱动"
+customText = ""
 
 [dateFormat]
 published = "Jan 02, 2006"
@@ -22,7 +22,7 @@ local = true
 src = "img/avatar.png"
 
 [article]
-math = false
+math = true
 readingTime = true
 
 [article.license]
@@ -82,8 +82,8 @@ enabled = true
 
 ## Comments
 [comments]
-enabled = false
-provider = "disqus"
+enabled = true
+provider = "twikoo"
 
 [comments.disqusjs]
 shortname = ""
@@ -123,10 +123,10 @@ placeholder = ""
 admin = "Admin"
 
 [comments.twikoo]
-envId = ""
-region = ""
-path = ""
-lang = ""
+envId = "https://shiue-comment.vercel.app"
+#region = ""
+#path = "https://shiue-comment.vercel.app"
+lang = "zh-CN"
 
 [comments.cactus]
 defaultHomeserverUrl = "https://matrix.cactus.chat:8448"
