@@ -5,6 +5,6 @@ image: marek-piwnicki2.jpg
 
 # Badge style
 style:
-    background: "#2a9d8f"
+    background: "#008cff"
     color: "#fff"
 ---
