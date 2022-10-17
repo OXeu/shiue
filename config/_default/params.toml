@@ -5,7 +5,7 @@ rssFullContent = true
 
 [footer]
 since = 2020
-customText = ""
+customText = "强力驱动"
 
 [dateFormat]
 published = "Jan 02, 2006"
