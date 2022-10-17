@@ -18,4 +18,4 @@ menu:
 [钢琴键](https://www.coolapk.com/apk/201165)
 [lit浏览器](https://www.coolapk.com/apk/249180)
 [BBHUST](https://bb.hust.online)
-喜欢新技术、特别喜欢交流技术、假二次元(低浓度二次元)
+喜欢新技术、假二次元(低浓度二次元)  
