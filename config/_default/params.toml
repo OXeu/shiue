@@ -33,6 +33,13 @@ default = "Licensed CC BY-NC-SA 4.0"
 [[widgets.homepage]]
 type = "search"
 
+
+[[widgets.homepage]]
+type = "about"
+
+[widgets.homepage.params]
+limit = 5
+
 [[widgets.homepage]]
 type = "archives"
 
