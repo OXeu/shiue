@@ -28,32 +28,45 @@ menu:
 
 [BBHUST](https://bb.hust.online)
 
-接触过的技术债：
+## 接触过的技术债：
 
-Android(Java) 钢琴键、Lit浏览器是用Java写的（因为当时高中没法用电脑，在手机上用AIDE写的，
+### Android(Java) 
+
+钢琴键、Lit浏览器是用Java写的（因为当时高中没法用电脑，在手机上用AIDE写的，
 后来项目有些东西AIDE没法编译的，当时就整了个AIDE通过Git Push触发Github Action编译构建APK文件，然后下载下来Matlog调试，
 单次调试需要花五六分钟，而且还是高中半夜悄悄躲在被窝里搞，~~虽然现在看来挺蠢的~~，而且也相当程度的影响了我的学业，~~但也确实没学到多少东西~~,
-当时学的最深的可能是WebView的底层工作原理，为了Hook`WebView`实现自定义播放器当时下了很大的功夫，从WebView源码一直翻到的Chromium源码。直到现在还印象深刻
+当时学的最深的可能是WebView的底层工作原理，为了Hook`WebView`实现自定义播放器当时下了很大的功夫，从WebView源码一直翻到的Chromium源码。直到现在还印象深刻，~~虽然到最后也没研究出来就是了~~
 ）
 
-Android(Kotlin) 目前是主力，BBHUST就是纯Kotlin写的
+### Android(Kotlin) 
+目前是主力，BBHUST就是纯Kotlin写的
 
-Kotlin 一般纯Kotlin用来写一些小脚本，特别是文件批处理很方便
+### Kotlin 
+一般纯Kotlin用来写一些小脚本，特别是文件批处理很方便
 
-PHP: 曾经用来写过钢琴键和Lit浏览器后台，从 ThinkPHP 写到 Laravel。
+### PHP
+曾经用来写过钢琴键和Lit浏览器后台，从 ThinkPHP 写到 Laravel。
 
-Lua：曾经接触过一段时间 AndroLua。
+### Lua
+曾经接触过一段时间 AndroLua。
 
-Golang：主要用来写后台，后面也写过网页脚本，比如[sjtu的超市预约](https://git.kafi.work/xeu/sjtu_market)和[hust的自动过校园网认证](https://git.kafi.work/xeu/hust_pass)。
+### Golang
+主要用来写后台，后面也写过网页脚本，比如[sjtu的超市预约](https://git.kafi.work/xeu/sjtu_market)和[hust的自动过校园网认证](https://git.kafi.work/xeu/hust_pass)。
 
-Rust：在学中（其实也没怎么在学），目前只用来写了个给服务器做每日备份至腾讯云COS的小程序。
+### Rust
+在学中（其实也没怎么在学），目前只用来写了个给服务器做每日备份至腾讯云COS的小程序。
 
-Swift: 在学中，感觉Kotlin与Swift很多特性特别像，基本上可以无痛迁移。
+### Swift
+在学中，感觉Kotlin与Swift很多特性特别像，基本上可以无痛迁移。
 
-Jetpack Compose: Android 主力 UI 构建框架，常规 XML 布局已经不怎么会写了。
+### Jetpack Compose
+Android 主力 UI 构建框架，常规 XML 布局已经不怎么会写了。
 
-Swift UI： 在学中。
+### Swift UI
+在学中。
 
-Flutter： 学过一段时间，曾经简单用Flutter写过BBHUST。
+### Flutter
+学过一段时间，曾经简单用Flutter写过BBHUST。
 
-Vue：学过，不怎么会。只用来构建过之前的博客，但因为个人原因最终只实现了查看博客列表和详情功能。后面整体迁移至Hugo（总共也只有3篇文章）
+### Vue
+学过，不怎么会。只用来构建过之前的博客，但因为个人原因最终只实现了查看博客列表和详情功能。后面整体迁移至Hugo（总共也只有3篇文章）
