@@ -1,6 +1,6 @@
 name = "Noto+Serif+SC"
 
-google_fonts = "Noto+Serif+SC:500"
+google_fonts = "Noto+Serif+SC:wght@700"
 
 heading_font = "Noto Serif SC"
 mono_font = "Noto Serif SC"
