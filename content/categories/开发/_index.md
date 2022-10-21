@@ -1,7 +1,7 @@
 ---
 title: 开发
 description: 各类编程开发类文章
-image: marek-piwnicki2.jpg
+image: 101243110_p0.png
 
 # Badge style
 style:
