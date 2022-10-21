@@ -5,7 +5,7 @@ image: 97807314_p0.png
 
 # Badge style
 style:
-background: "#ff2a64"
-color: "#fff"
+    background: "#ff2a64"
+    color: "#fff"
 ---
 
