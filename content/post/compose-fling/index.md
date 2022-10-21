@@ -4,14 +4,14 @@ date: 2022-02-12T11:28:52+08:00
 draft: false
 description: 与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
 slug: compose-fling
-image: cover2.jpg
+image: 101520945_p0.jpg
 categories:
 - 开发
 tags:
 - Compose
 - Android
 ---
-> 封面来源 [Watching-Sunset](https://www.deviantart.com/bisbiswas/art/Watching-Sunset-929518803)
+> 封面来源 [Pixiv](https://www.pixiv.net/artworks/101520945)
 
 与Jetpack Compose相关联的伴生库Accompanist提供了一些Android必要的,但是Compose基本库没提供的控件,比如ViewPager、SwipeRefreshLayout等
 

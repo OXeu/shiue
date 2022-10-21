@@ -4,15 +4,14 @@ date: 2022-07-13T12:58:52+08:00
 draft: false
 description: 在Compose 1.2.0-alpha08 以前，可以使用以下代码:...
 slug: compose-bind
-image: cover.jpg
+image: 98201801_p0.jpg
 categories:
 - 开发
 tags:
 - Compose
 - Android
 ---
-
-> 封面来源 [Cloud-Burst](https://www.deviantart.com/bisbiswas/art/Cloud-Burst-880532543)  
+> 封面来源 [Pixiv](https://www.pixiv.net/artworks/98201801)
 
 在Compose 1.2.0-alpha08 以前，可以使用以下代码
 

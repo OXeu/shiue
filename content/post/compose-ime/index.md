@@ -4,14 +4,14 @@ date: 2022-02-14T16:31:52+08:00
 draft: false
 description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
 slug: compose-ime
-image: cover1.png
+image: 94416502_p0.png
 categories:
 - 开发
 tags:
 - Compose
 - Android
 ---
-> 封面来源 [En-haut-du-toboggan](https://www.deviantart.com/donlope01/art/En-haut-du-toboggan-931098411)  
+> 封面来源 [Pixiv](https://www.pixiv.net/artworks/94416502)
 
 ## 问题
 
