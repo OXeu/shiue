@@ -6,7 +6,7 @@ description: 在Compose 1.2.0-alpha08 以前，可以使用以下代码:...
 slug: compose-bind
 image: 98201801_p0.jpg
 categories:
-- 开发
+- Android
 tags:
 - Compose
 - Android

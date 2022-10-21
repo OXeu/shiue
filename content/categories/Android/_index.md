@@ -1,6 +1,6 @@
 ---
-title: 开发
-description: 各类编程开发类文章
+title: Android
+description: 主要可能还是Jetpack Compose
 image: 101243110_p0.png
 
 # Badge style

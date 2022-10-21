@@ -6,7 +6,7 @@ description: 与Jetpack Compose相关联的伴生库Accompanist提供了一些An
 slug: compose-fling
 image: 101520945_p0.jpg
 categories:
-- 开发
+- Android
 tags:
 - Compose
 - Android

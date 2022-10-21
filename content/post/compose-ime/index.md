@@ -6,7 +6,7 @@ description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时�
 slug: compose-ime
 image: 94416502_p0.png
 categories:
-- 开发
+- Android
 tags:
 - Compose
 - Android
