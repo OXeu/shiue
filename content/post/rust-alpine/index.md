@@ -1,7 +1,7 @@
 ---
 title: "解决Rust二进制程序无法部署在Alpine容器中的问题"
 date: 2022-10-21T23:08:41+08:00
-description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
+description: "使用Rust开发的程序通过cargo build构建成功后在Ubuntu环境中运行良好，但当通过Docker使用Alpine容器部署该程序时，Dockerfile文件如下"
 slug: rust-alpine
 image: 88911364_p0.png
 categories:
