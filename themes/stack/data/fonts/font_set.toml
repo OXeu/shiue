@@ -4,3 +4,5 @@ google_fonts = "Noto+Serif+SC:500"
 
 heading_font = "Noto Serif SC"
 mono_font = "Noto Serif SC"
+body_font = "Noto Serif SC"
+nav_font = "Noto Serif SC"
