@@ -3,7 +3,7 @@ title: "解决Rust二进制程序无法部署在Alpine容器中的问题"
 date: 2022-10-21T23:08:41+08:00
 description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
 slug: rust-alpine
-image: 88911364_p0.jpg
+image: 88911364_p0.png
 categories:
 - Rust
 tags:
