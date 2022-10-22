@@ -5,7 +5,7 @@ description: "魔改 Stack 主题使其更加符合自己的审美习惯"
 slug: stack-prettify
 image: 87508475_p0.jpg
 categories:
-- 开发
+- 博客
 tags:
 - Stack
 - Prettify
