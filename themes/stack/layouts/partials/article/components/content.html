@@ -1,9 +1,5 @@
-<link rel="stylesheet"
-href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/styles/default.min.css">
 <section class="article-content">
     <!-- Refer to https://discourse.gohugo.io/t/responsive-tables-in-markdown/10639/5 -->
     {{ $wrappedTable := printf "<div class=\"table-wrapper\">${1}</div>" }}
     {{ .Content | replaceRE "(<table>(?:.|\n)+?</table>)" $wrappedTable | safeHTML }}
 </section>
-<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/highlight.min.js"></script>
-<script>hljs.initHighlightingOnLoad();</script>
