@@ -1,7 +1,6 @@
-baseURL = 'http://usfl.cn/'
+baseURL = ''
 languageCode = 'zh-cn'
 title = 'Shiue world'
 [params]
 description = "Xeu's mini world"
 author = "Xeu"
-syntaxHighlighter = "highlight.js"
