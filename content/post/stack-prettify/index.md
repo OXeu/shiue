@@ -1,7 +1,7 @@
 ---
-title: "Stack Prettify"
+title: "Stack 主题的魔改之路"
 date: 2022-10-22T12:59:19+08:00
-description: "Stack Prettify"
+description: "魔改 Stack 主题使其更加符合自己的审美习惯"
 slug: stack-prettify
 image: 87508475_p0.jpg
 categories:
