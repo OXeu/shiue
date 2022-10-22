@@ -3,14 +3,7 @@
 <link rel="stylesheet" href="{{ $style.RelPermalink }}">
 {{ if eq .Site.Params.syntaxHighlighter "highlight.js" }}
 <link rel="stylesheet"
-href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/styles/default.min.css">
-<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/highlight.min.js"></script>
+href="/styles/default.min.css">
+<script src="/highlight.min.js"></script>
 <script>hljs.highlightAll();</script>
-<script>
-document.addEventListener('DOMContentLoaded', (event) => {
-    document.querySelectorAll('pre code').forEach((el) => {
-        hljs.highlightElement(el);
-    });
-});
-</script>
 {{ end }}
