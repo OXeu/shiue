@@ -38,7 +38,7 @@ pre,
     margin-left: calc((var(--card-padding)) * -1);
     margin-right: calc((var(--card-padding)) * -1);
     width: calc(100% + var(--card-padding) * 2);
-    }
+}
 ```
 
 修改为：
@@ -54,7 +54,7 @@ pre,
 .table-wrapper,
 .s_video_simple {
     width: 100%;
-    }
+}
 ```
 
 即可。不过同时也会将`figure`,`highlight`,`pre`,`gallery`,`video-wrapper`,`table-wrapper`,`s_video_simple`的负边距给去掉,可以自己酌情修改。
@@ -83,8 +83,8 @@ a {
     color: var(--accent-color-text);
     background-color: var(--accent-color-darker);
     }
-    }
-    }
+  }
+}
 ```
 
 ## 修改代码块样式
@@ -101,7 +101,8 @@ Hugo自带的代码高亮总感觉有问题，特别是`Kotlin`高亮亮了等�
 <pre class="custom">
     <code class="language-{{.Type}}">
         {{- .Inner | safeHTML }}
-        </code></pre>
+    </code>
+</pre>
 ```
 
 同时引入`Highlight.js`，可以直接使用CDN引入
@@ -156,7 +157,7 @@ pre {
     //  keep Codeblocks LTR
     [dir="rtl"] & {
         direction: ltr;
-        }
+    }
         code {
             border: none;
             padding: 0;
@@ -164,7 +165,7 @@ pre {
             background: #282c34;
             border-radius: 5px;
             }
-            }
+}
 
 .custom {
     border-radius: 5px;
@@ -186,7 +187,7 @@ pre {
     margin-bottom: -7px;
     border-radius: 5px;
     background-position: 10px 10px;
-    }
+}
 ```
 
 其中`/code-header.svg`为代码块顶部的macOS风格的红绿灯小图标，在根目录创建`static`文件夹，创建`code-header.svg`文件：
@@ -195,7 +196,7 @@ pre {
     <ellipse cx="65" cy="65" rx="50" ry="52" stroke="rgb(220,60,54)" stroke-width="2" fill="rgb(237,108,96)"/>
     <ellipse cx="225" cy="65" rx="50" ry="52"  stroke="rgb(218,151,33)" stroke-width="2" fill="rgb(247,193,81)"/>
     <ellipse cx="385" cy="65" rx="50" ry="52"  stroke="rgb(27,161,37)" stroke-width="2" fill="rgb(100,200,86)"/>
-    </svg>
+</svg>
 ```
 
 ## 修改滚动条样式
