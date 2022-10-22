@@ -318,6 +318,10 @@
         border-radius: 5px;
     }
 
+.hljs-deletion, .hljs-number, .hljs-quote, .hljs-selector-class, .hljs-selector-id, .hljs-string, .hljs-template-tag, .hljs-type {
+        color: #5daf34;
+    }
+
  .custom:before {
         content: '';
         display: block;
