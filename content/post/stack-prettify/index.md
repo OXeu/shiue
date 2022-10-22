@@ -14,13 +14,14 @@ draft: false
 
 > 封面来源 [Pixiv](https://www.pixiv.net/artworks/87508475)
 
+
+> 下文中的theme/stack为Stack主题的文件目录，我将Stack主题默认文件路径（似乎是theme/hugo-theme-stack）修改到theme/stack了
+
 ## 修改引用块
 
 默认的引用块格式是直接顶满整个正文宽度，跟常规的引用块效果不太一样
 
 ![默认样式](image1.png)
-
-> 下文中的theme/stack为Stack主题的文件目录，我将Stack主题默认文件路径（似乎是theme/hugo-theme-stack）修改到theme/stack了
 
 将`theme/stack/assets/scss/partical/article.scss`中的以下内容：
 
