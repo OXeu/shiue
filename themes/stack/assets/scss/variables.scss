@@ -91,7 +91,7 @@ $defaultTagColors: #fff, #fff, #fff, #fff, #fff;
 *   Article content font settings
 */
 :root {
-    --article-font-family: var(--base-font-family);
+    --article-font-family: 'Noto Serif SC',  var(--base-font-family);
     --article-font-size: 1.6rem;
 
     @include respond(md) {
