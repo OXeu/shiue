@@ -275,6 +275,7 @@
         padding: 2px 8px;
         border-radius: var(--tag-border-radius);
         font-family: var(--code-font-family);
+        word-break: break-all;
     }
 
     .gallery {
