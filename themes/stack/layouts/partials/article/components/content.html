@@ -5,5 +5,5 @@ href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/styles/default.
     {{ $wrappedTable := printf "<div class=\"table-wrapper\">${1}</div>" }}
     {{ .Content | replaceRE "(<table>(?:.|\n)+?</table>)" $wrappedTable | safeHTML }}
 </section>
-<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/highlight.min.js"/>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/highlight.min.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
