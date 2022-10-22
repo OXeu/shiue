@@ -208,17 +208,13 @@ pre {
     width: 6px;
     height: 6px;
     }
-    ::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
         border-radius: 3px;
-        background: rgba(0,0,0,.12);
-        /* box-shadow: inset 0 0 10px rgb(0 0 0 / 20%); */
         }
-        ::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
             border-radius: 3px;
             background: rgba(0,0,0,.06);
-            box-shadow: inset 0 0 5px rgba(0,0,0,8%);
             }
-
 ```
 
 > 其实Stack的滚动条样式在`themes/stack/assets/scss/partials/base.scss`里，但是我懒得改了
