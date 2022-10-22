@@ -1,6 +1,9 @@
+{{ $sass := resources.Get "scss/style.scss" }}
+{{ $style := $sass | resources.ToCSS | minify | resources.Fingerprint "sha256" }}
+<link rel="stylesheet" href="{{ $style.RelPermalink }}">
 {{ if eq .Site.Params.syntaxHighlighter "highlight.js" }}
 <style id="code-theme">
-.hljs {
+.article-content pre code.hljs {
 display: block;
 overflow-x: auto;
 padding: 16px;
@@ -80,6 +83,3 @@ text-decoration: underline;
 <script src="/highlight.min.js"></script>
 <script>hljs.highlightAll();</script>
 {{ end }}
-{{ $sass := resources.Get "scss/style.scss" }}
-{{ $style := $sass | resources.ToCSS | minify | resources.Fingerprint "sha256" }}
-<link rel="stylesheet" href="{{ $style.RelPermalink }}">
