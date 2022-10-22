@@ -134,7 +134,8 @@ static
 > Original One Dark Syntax theme from (one-dark-syntax)[https://github.com/atom/one-dark-syntax]
 
 ```html
-<!--themes/stack/layouts/partials/head/style.html-->{{ if eq .Site.Params.syntaxHighlighter "highlight.js" }}
+<!--themes/stack/layouts/partials/head/style.html,在最前面添加，否则部分样式可能会被覆盖-->
+{{ if eq .Site.Params.syntaxHighlighter "highlight.js" }}
 <style id="code-theme">
     .hljs {
         display: block;
