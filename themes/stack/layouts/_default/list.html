@@ -15,19 +15,7 @@
                 <div class="section-image">
                     {{ if $image.resource }}
                         {{- $Permalink := $image.resource.RelPermalink -}}
-                        {{- $Width := $image.resource.Width -}}
-                        {{- $Height := $image.resource.Height -}}
-    
-                        {{- if (default true .Page.Site.Params.imageProcessing.cover.enabled) -}}
-                            {{- $thumbnail := $image.resource.Fill "120x120" -}}
-                            {{- $Permalink = $thumbnail.RelPermalink -}}
-                            {{- $Width = $thumbnail.Width -}}
-                            {{- $Height = $thumbnail.Height -}}
-                        {{- end -}}
-                        
-                        <img src="{{ $Permalink }}" 
-                            width="{{ $Width }}"
-                            height="{{ $Height }}" 
+                        <img src="{{ $Permalink }}"
                             loading="lazy">
                     {{ else }}
                         <img src="{{ $image.permalink }}" loading="lazy" />
