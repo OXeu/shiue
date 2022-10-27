@@ -1,7 +1,7 @@
 ---
 title: Android
 description: 主要可能还是Jetpack Compose
-image: 101243110_p0.png
+image: daniel-romero-jcJFOwBTEck-unsplash.jpg
 
 # Badge style
 style:

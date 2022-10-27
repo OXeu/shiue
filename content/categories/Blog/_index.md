@@ -1,7 +1,7 @@
 ---
 title: "博客"
 description: "博客的改造之路"
-image: 76962331_p0.png
+image: lukas-blazek-GnvurwJsKaY-unsplash.jpg
 slug: "blog"
 
 # Badge style

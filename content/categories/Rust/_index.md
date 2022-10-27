@@ -1,7 +1,7 @@
 ---
 title: "Rust"
 description: "Rust永远入不了门人"
-image: 97807314_p0.png
+image: javier-allegue-barros-C7B-ExXpOIE-unsplash.jpg
 
 # Badge style
 style:
