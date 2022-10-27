@@ -4,14 +4,15 @@ date: 2022-02-14T16:31:52+08:00
 draft: false
 description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
 slug: compose-ime
-image: 94416502_p0.png
+image: /william-warby.jpg
 categories:
 - Android
 tags:
 - Compose
 - Android
 ---
-> 封面来源 [Pixiv](https://www.pixiv.net/artworks/94416502)
+
+> 封面来源 [Unsplash](https://unsplash.com/photos/ld4wZGqlLF4)
 
 ## 问题
 

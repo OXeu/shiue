@@ -3,7 +3,7 @@ title: "Stack 主题的魔改之路"
 date: 2022-10-22T12:59:19+08:00
 description: "魔改 Stack 主题使其更加符合自己的审美习惯"
 slug: stack-prettify
-image: 87508475_p0.jpg
+image: /shubham-dhage-rzqjQjGvOBQ-unsplash.jpg
 categories:
 - Blog
 tags:
@@ -12,7 +12,8 @@ tags:
 draft: false
 ---
 
-> 封面来源 [Pixiv](https://www.pixiv.net/artworks/87508475)
+
+> 封面来源 [Unsplash](https://unsplash.com/photos/rzqjQjGvOBQ)
 
 
 > 下文中的theme/stack为Stack主题的文件目录，我将Stack主题默认文件路径（似乎是theme/hugo-theme-stack）修改到theme/stack了

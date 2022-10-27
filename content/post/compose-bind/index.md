@@ -11,7 +11,8 @@ tags:
 - Compose
 - Android
 ---
-> 封面来源 [Pixiv](https://www.pixiv.net/artworks/98201801)
+
+> 封面来源 [Unsplash](https://unsplash.com/photos/_9bDW5I9D_8)
 
 在Compose 1.2.0-alpha08 以前，可以使用以下代码
 
