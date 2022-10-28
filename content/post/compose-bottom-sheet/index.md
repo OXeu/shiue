@@ -18,6 +18,10 @@ draft: true
 
 Compose 其实是提供了 BottomSheet 的实现方式的，就是用官方的 `BottomSheetScaffold` ，但是却没有实现 `BottomSheetDialog` ，导致想要像 Dialog 那样使用 BottomSheetDialog 难以实现，每次都要在外面套一层 BottomSheetScaffold 大大加重了心智负担与嵌套复杂性。因此我将官方的 BottomSheet 实现直接全部 Copy 出来了一份稍作修改，实现独立的 BottomSheetDialog。
 
+## 效果图
+按规矩先上效果图：
+![图源App：BBHUST](effect.png)
+
 以下是文件结构：
 
 ```
