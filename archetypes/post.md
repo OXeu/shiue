@@ -8,7 +8,7 @@ categories:
 - 开发
 tags:
 - {{ replace .Name "-" "\n- " | title }}
-draft: true
+draft: false
 ---
 
 > 封面来源 [Unsplash](https://unsplash.com/photos/)
