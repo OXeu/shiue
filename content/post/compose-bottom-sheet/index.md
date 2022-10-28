@@ -5,7 +5,7 @@ description: "从官方BottomSheetScaffold的实现中抄一份出来稍作改�
 slug: compose-bottom-sheet
 image: robert-palmer-apcVUAd_o9M-unsplash.jpg
 categories:
-- 开发
+- Android
 tags:
 - Compose
 - BottomSheetDialog

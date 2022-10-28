@@ -5,7 +5,7 @@ description: "对我机器学习入门的一篇文章中，从初学者角度有
 slug: ai-image-colorization
 image: deepmind-D_YZmKGSyic-unsplash.jpg
 categories:
-- 开发
+- AI
 tags:
 - Ai
 - Image
@@ -218,7 +218,7 @@ def colorize():
 
 最终训练效果图（请自行脑补灰度图）：
 
-![1](C:\Users\15738\Documents\临时\下载.png)![2](C:\Users\15738\Documents\临时\下载 (1).png)![3](C:\Users\15738\Documents\临时\下载 (2).png)![4](C:\Users\15738\Documents\临时\下载 (3).png)![5](C:\Users\15738\Documents\临时\下载 (4).png)![6](C:\Users\15738\Documents\临时\下载 (5).png)![7](C:\Users\15738\Documents\临时\下载 (6).png)![8](C:\Users\15738\Documents\临时\下载 (7).png)
+![1](1.png)![2](2.png)![3](3.png)![4](4.png)![5](5.png)![6](6.png)![7](7.png)![8](8.png)
 
 这里只简单摘了几张图片。由于性能问题，训练的图片大小都比较小，看着比较模糊，但整体效果不错。
 
