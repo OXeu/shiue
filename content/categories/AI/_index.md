@@ -6,6 +6,6 @@ slug: AI
 
 # Badge style
 style:
-background: "#f0fcff"
-color: "#000"
+background: "#9999FF"
+color: "#fff"
 ---

@@ -5,7 +5,7 @@ description: "对我机器学习入门的一篇文章中，从初学者角度有
 slug: ai-image-colorization
 image: deepmind-D_YZmKGSyic-unsplash.jpg
 categories:
-- AI
+- ai
 tags:
 - AI
 - Image
