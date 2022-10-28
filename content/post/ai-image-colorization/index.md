@@ -7,7 +7,7 @@ image: deepmind-D_YZmKGSyic-unsplash.jpg
 categories:
 - AI
 tags:
-- Ai
+- AI
 - Image
 - Colorization
 draft: false
