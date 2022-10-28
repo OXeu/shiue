@@ -77,7 +77,7 @@ def build_model():
 
 虽然简单知道了卷积的原理，但是我仍旧不明白为什么模型要这么写。终于，在我翻阅多篇博客和Paper以后，终于在这篇Paper中（[Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks](https://arxiv.org/abs/1703.10593)）找到了这个模型的名字：U-Net（U型网）
 
-更多具体的细节可以去搜一下别的大佬写的文章，以及最初提出U-Net的Paper（[[1505.04597\] U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/abs/1505.04597)），不过U - Net工作原理目前我也不是特别清晰，就暂不进行解读了，有兴趣的UU可以自行研究。![U-Net结构](C:\Users\15738\AppData\Roaming\Typora\typora-user-images\image-20221028214122098.png)
+更多具体的细节可以去搜一下别的大佬写的文章，以及最初提出U-Net的Paper（[[1505.04597\] U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/abs/1505.04597)），不过U - Net工作原理目前我也不是特别清晰，就暂不进行解读了，有兴趣的UU可以自行研究。![U-Net结构](unet.png)
 
 
 
@@ -218,7 +218,9 @@ def colorize():
 
 最终训练效果图（请自行脑补灰度图）：
 
-![1](1.png)![2](2.png)![3](3.png)![4](4.png)![5](5.png)![6](6.png)![7](7.png)![8](8.png)
+![1](1.png)![2](2.png)![3](3.png)![4](4.png)
+
+![5](5.png)![6](6.png)![7](7.png)![8](8.png)
 
 这里只简单摘了几张图片。由于性能问题，训练的图片大小都比较小，看着比较模糊，但整体效果不错。
 
