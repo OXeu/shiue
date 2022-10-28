@@ -1,6 +1,6 @@
 ---
 title: "AI"
-description: "分类描述"
+description: "人工智能/机器学习/对抗神经网络/深度学习"
 image: deepmind-_HnJfS6WhA8-unsplash.jpg
 slug: AI
 
