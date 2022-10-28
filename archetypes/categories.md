@@ -6,6 +6,6 @@ slug: {{ .Name }}
 
 # Badge style
 style:
-background: "#CCCCFF"
-color: "#fff"
+    background: "#CCCCFF"
+    color: "#fff"
 ---
