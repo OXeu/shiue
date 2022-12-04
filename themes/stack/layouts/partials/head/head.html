@@ -6,7 +6,28 @@
 
 {{- $title := partialCached "data/title" . .RelPermalink -}}
 <title>{{ $title }}</title>
-
+<script>
+    let beian, title
+    if (document.domain.includes("usfl.cn")) {
+        title = "有用个人站1"
+        beian = "渝ICP备2021006206号-2"
+    } else if (document.domain.includes("bacor.cn")) {
+        title = "有用个人站2"
+        beian = "渝ICP备2021006206号-1"
+    } else if (document.domain.includes("kafi.work")) {
+        title = "悠枫个人站3"
+        beian = "渝ICP备2021006206号-3"
+    } else if (document.domain.includes("apptrack.cc")) {
+        title = "悠枫个人站4"
+        beian = "渝ICP备2021006206号-4"
+    } else {
+        title = "悠枫个人站"
+        beian = "渝ICP备2021006206号"
+    }
+    if (document.title == "Xeu's world") {
+        document.title = title
+    }
+</script>
 <link rel='canonical' href='{{ .Permalink }}'>
 
 {{- partial "head/style.html" . -}}
@@ -14,11 +35,11 @@
 {{- partial "head/opengraph/include.html" . -}}
 
 {{- range .AlternativeOutputFormats -}}
-    <link rel="{{ .Rel }}" type="{{ .MediaType.Type }}" href="{{ .Permalink | safeURL }}">
+<link rel="{{ .Rel }}" type="{{ .MediaType.Type }}" href="{{ .Permalink | safeURL }}">
 {{- end -}}
 
 {{ with .Site.Params.favicon }}
-    <link rel="shortcut icon" href="{{ . }}" />
+<link rel="shortcut icon" href="{{ . }}"/>
 {{ end }}
 
 {{- template "_internal/google_analytics.html" . -}}
