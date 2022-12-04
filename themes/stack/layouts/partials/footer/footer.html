@@ -1,24 +1,23 @@
 {{- $ThemeVersion := "3.14.0" -}}
 <footer class="site-footer">
     <section class="copyright">
-        &copy; 
+        &copy;
         {{ if and (.Site.Params.footer.since) (ne .Site.Params.footer.since (int (now.Format "2006"))) }}
-            {{ .Site.Params.footer.since }} - 
+        {{ .Site.Params.footer.since }} -
         {{ end }}
         {{ now.Format "2006" }} {{ .Site.Title }}
-    </section>beian
-
+    </section>
     <section class="beian">
-        <p>
-        <a href="https://beian.miit.gov.cn/" target="_blank">渝ICP备2021006206号</a>
-        </p>
-        <div style="width:300px;margin:0 auto; padding:20px 0;">
-        <a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=50023002020253"
-        style="display:inline-block;text-decoration:none;height:20px;line-height:20px;">
-        <img src="/beian.png" style="float:left;" alt=""/>
-        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">渝公网安备
-        50023002020253号</p>
+        <a target="_blank" href="https://beian.miit.gov.cn/"
+           style="display:inline-block;text-decoration:none;height:20px;line-height:20px;">
+            <p id="beian" style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">
+                渝ICP备2021006206号</p>
         </a>
-        </div>
+        <a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=50023002020253"
+           style="display:inline-block;text-decoration:none;height:20px;line-height:20px;">
+            <img src="/img/beian.png" style="float:left;" alt=""/>
+            <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">渝公网安备
+                50023002020253号</p>
+        </a>
     </section>
 </footer>
