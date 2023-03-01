@@ -24,3 +24,22 @@
         </a>
     </section>
 </footer>
+<script>
+            let beian = ""
+            if (document.domain.includes("usfl.cn")){
+                document.title = "有用个人站1"
+                beian = "渝ICP备2021006206号-2"
+            }else if (document.domain.includes("bacor.cn")){
+                document.title = "有用个人站2"
+                beian = "渝ICP备2021006206号-1"
+            }else if (document.domain.includes("kafi.work")){
+                document.title = "悠枫个人站3"
+                beian = "渝ICP备2021006206号-3"
+            }else if (document.domain.includes("apptrack.cc")){
+                document.title = "悠枫个人站4"
+                beian = "渝ICP备2021006206号-4"
+            }else{
+                beian = "渝ICP备2021006206号"
+            }
+            document.getElementById("beian").innerText = beian
+    </script>
