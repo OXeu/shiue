@@ -5,6 +5,10 @@ links:
     description: React Native大佬、职业画大饼选手
     website: https://bin.zmide.com/
     image: https://bin.zmide.com/wp-content/themes/this_bin/img/logo.png
+  - title: YiNN
+    description: 好漂亮的博客，我也想整一个
+    website: https://just-plain.fun/
+    image: https://avatars.githubusercontent.com/u/86649490?v=4
 menu:
     main:
         weight: 4
@@ -13,10 +17,3 @@ menu:
 
 comments: true
 ---
-欢迎各位大佬互换友链，最好按以下格式回复：
-```
-名称：
-简介：
-图标：
-```
-网址直接填写在网址栏即可
