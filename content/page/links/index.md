@@ -9,6 +9,10 @@ links:
     description: 好漂亮的博客，我也想整一个
     website: https://just-plain.fun/
     image: https://avatars.githubusercontent.com/u/86649490?v=4
+  - title: ligen131
+    description: Don't worry, be happy.
+    website: https://ligen.life
+    image: https://avatars.githubusercontent.com/u/61000196
 menu:
     main:
         weight: 4
