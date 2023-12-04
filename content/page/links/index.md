@@ -6,7 +6,7 @@ links:
     website: https://bin.zmide.com/
     image: https://bin.zmide.com/wp-content/themes/this_bin/img/logo.png
   - title: YiNN
-    description: 好漂亮的博客，我也想整一个
+    description: A plain blog
     website: https://just-plain.fun/
     image: https://avatars.githubusercontent.com/u/86649490?v=4
   - title: ligen131
