@@ -20,10 +20,7 @@ draft: false
 # gRPC 与 Protobuf
 
 
-:::info
-在介绍 Binder 之前，我想先简单介绍一下 gRPC 是什么，这对于后续的类比介绍十分重要。如果你已经知道 gRPC 与 protobuf，那么这一节可以直接跳过。
-
-:::
+> 在介绍 Binder 之前，我想先简单介绍一下 gRPC 是什么，这对于后续的类比介绍十分重要。如果你已经知道 gRPC 与 protobuf，那么这一节可以直接跳过。
 
 简单来说，[gRPC](https://grpc.io/) (Google Remote Procedure Call) 是Google开发的一个 RPC 框架，用于客户端直接调用服务端提供的函数，说白了就是一种 API 接口的设计方法，跟 RESTful、GraphQL 一样都只是一个 API 接口框架，gRPC 的优势是使用 *[ProtoBuf  ](https://protobuf.dev/)*作为接口描述、数据交换的格式（RESTful 风格的接口通常使用的是 JSON），而 ProtoBuf 的优势是快、小、平台无关，相较于 JSON 来说使用数据二进制格式封装，结构更紧凑，更易解析，同时通过 protobuf 只需要描述接口与对象，即可自动生成所需语言的数据类与接口，服务端只需要实现生成代码中的接口即可提供服务，客户端只需要初始化时指定服务器的 URL 即可像调用本地函数一样调用服务器的接口。
 
@@ -31,7 +28,7 @@ draft: false
 
 我们可以简单定义一个 protobuf 文件
 
-```clike
+```
 syntax = "proto3";
 // 这部分的内容是关于最后生成的go文件是处在哪个目录哪个包中，../pb代表在当前目录的上一级pb目录中生成，message代表了生成的go文件的包名是message。
 option go_package = "../pb;pb";
@@ -75,7 +72,7 @@ func (MessageSenderServerImpl) Send(context context.Context, request *pb.Message
 }  
 ```
 
-```clike
+```go
 // grpc-practice/pkg/service/main.go
  
 package main
@@ -160,7 +157,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 1. 我们可以使用 AIDL 定义一个接口，相当于 gRPC 使用 protobuf 定义接口：
 
-   ```css
+   ```text
        package my.package;
        interface IFoo {
            int doFoo();
@@ -468,7 +465,7 @@ public class Binder implements IBinder {
 
 全流程图：
 
- ![Binder 流程图](flow.png")
+ ![Binder 流程图](flow.png)
 
 # Binder 原理
 
