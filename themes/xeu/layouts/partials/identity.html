@@ -1,0 +1,3 @@
+{{ $identity := index (hugo.Data.xeu | default dict) "identity" }}
+{{ if not $identity }}{{ errorf "站点图标尚未生成，请使用 npm run build / npm run dev，或先执行 npm run identity" }}{{ end }}
+{{ return $identity }}

@@ -1,0 +1,23 @@
+{
+  "name": "xeu-blog",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "images": "node scripts/prepare-images.mjs",
+    "identity": "node scripts/deploy/identity.mjs",
+    "images:watch": "node scripts/prepare-images.mjs --watch",
+    "build": "node scripts/deploy.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "dev": "bash scripts/hugo.sh server --disableFastRender",
+    "friend:add": "node scripts/add-friend.mjs",
+    "check:friends": "node scripts/check-friends.mjs",
+    "check:deploy": "node --test scripts/deploy.test.mjs scripts/identity.test.mjs",
+    "check": "npm run check:deploy && node scripts/check-friends.mjs && node scripts/check-images.mjs && node scripts/check-build.mjs"
+  },
+  "dependencies": {
+    "blurhash": "2.0.5",
+    "cheerio": "1.2.0",
+    "sharp": "0.35.4"
+  }
+}

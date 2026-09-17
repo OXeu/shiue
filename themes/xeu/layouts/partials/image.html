@@ -1,4 +1,5 @@
 {{- $src := .src -}}
+{{- $path := (urls.Parse $src).Path -}}
 {{- $result := dict "src" $src -}}
 {{- if not (findRE `^(https?:)?//` $src) -}}
   {{- $result = dict "src" (strings.TrimPrefix "/" $src | relURL) -}}
@@ -8,6 +9,49 @@
     {{- $result = dict "src" .RelPermalink -}}
     {{- if reflect.IsImageResourceProcessable . -}}
       {{- $result = merge $result (dict "width" .Width "height" .Height) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $result = merge $result (dict "original" $result.src) -}}
+{{- if not (findRE `^(https?:)?//` $src) -}}
+  {{- $keys := slice -}}
+  {{- with .page.File }}{{ $keys = $keys | append (path.Join "content" .Dir $path) }}{{ end -}}
+  {{- if strings.HasPrefix $src "/" }}{{ $keys = slice (path.Join "static" $path) (path.Join "content" $path) }}{{ else }}{{ $keys = $keys | append (path.Join "static" $path) (path.Join "content" $path) }}{{ end -}}
+  {{- $metadata := dict -}}
+  {{- range $keys -}}
+    {{- if not $metadata }}{{ with index hugo.Data.xeu.images . }}{{ $metadata = . }}{{ end }}{{ end -}}
+  {{- end -}}
+  {{- with $metadata -}}
+    {{- $sizes := "auto, (min-width: 824px) 760px, (max-width: 600px) calc(100vw - 40px), calc(100vw - 64px)" -}}
+    {{- $variants := .variants -}}
+    {{- $fallbackWidth := 960 -}}
+    {{- if eq $.kind "card" -}}
+      {{- $variants = where $variants "width" "le" 960 -}}
+      {{- $fallbackWidth = 640 -}}
+      {{- /* vw 包含滚动条，但网格可用宽度不包含；断点留 20px 余量，避免首图提前按更多列选小图。 */ -}}
+      {{- $sizes = "auto, (min-width: 1264px) 264px, (min-width: 1196px) calc((100vw - 208px) / 4), (min-width: 912px) calc((100vw - 166px) / 3), (min-width: 628px) calc((100vw - 124px) / 2), (max-width: 600px) calc(100vw - 58px), calc(100vw - 82px)" -}}
+      {{- /* 少量卡片在无 JS 的 auto-fit 网格中会展开，不能仍按四列估算首图。 */ -}}
+      {{- $columns := $.columns | default 4 -}}
+      {{- if lt $columns 4 -}}
+        {{- $sizes = "(max-width: 600px) calc(100vw - 58px), calc(100vw - 82px)" -}}
+        {{- if ge $columns 2 }}{{ $sizes = printf "(min-width: 628px) calc((100vw - 124px) / 2), %s" $sizes }}{{ end -}}
+        {{- if ge $columns 3 }}{{ $sizes = printf "(min-width: 912px) calc((100vw - 166px) / 3), %s" $sizes }}{{ end -}}
+        {{- $maximum := sub (div (sub 1200 (mul 24 (sub $columns 1))) $columns) 18 -}}
+        {{- $sizes = printf "auto, (min-width: 1264px) %dpx, %s" (int $maximum) $sizes -}}
+      {{- end -}}
+    {{- end -}}
+    {{- /* sizes=auto 仅适用于懒加载；首图使用同一套响应式尺寸回退。 */ -}}
+    {{- if $.eager }}{{ $sizes = strings.TrimPrefix "auto, " $sizes }}{{ end -}}
+    {{- $srcset := slice -}}
+    {{- $fallback := (index $variants 0).src -}}
+    {{- range $variants -}}
+      {{- $srcset = $srcset | append (printf "%s %dw" (.src | relURL) (int .width)) -}}
+      {{- if le .width $fallbackWidth }}{{ $fallback = .src }}{{ end -}}
+    {{- end -}}
+    {{- $result = merge $result (dict "src" ($fallback | relURL) "srcset" (delimit $srcset ", ") "sizes" $sizes "width" .width "height" .height "blurhash" .blurhash) -}}
+  {{- else -}}
+    {{- if in (slice ".jpg" ".jpeg" ".png" ".webp" ".avif" ".gif" "") (lower (path.Ext $path)) -}}
+      {{- errorf "图片 %s 缺少缩略图数据，请先运行 npm run images。" $src -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}

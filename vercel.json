@@ -1,7 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "",
-  "buildCommand": "bash scripts/hugo.sh --minify",
-  "outputDirectory": "public"
+  "installCommand": "npm ci",
+  "buildCommand": "npm run deploy",
+  "outputDirectory": "public",
+  "functions": {
+    "api/daily-deploy.js": { "maxDuration": 30 }
+  },
+  "crons": [
+    { "path": "/api/daily-deploy", "schedule": "17 3 * * *" }
+  ]
 }

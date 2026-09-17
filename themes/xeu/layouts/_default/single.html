@@ -14,10 +14,10 @@
 {{ else }}
   <div class="reading-layout">
     <div class="reading-column">
-      <article class="article surface">
+      <article class="article surface"{{ if eq .Section "post" }} data-article{{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }} data-article-cover="{{ $cover.original }}"{{ end }}{{ end }}>
         <header class="article-heading">
           {{ if eq .Section "post" }}<div class="article-meta"><time datetime="{{ .Date.Format "2006-01-02" }}">发布于 {{ .Date.Format "2006-01-02" }}</time>{{ if ne .Lastmod .Date }}<time datetime="{{ .Lastmod.Format "2006-01-02" }}">更新于 {{ .Lastmod.Format "2006-01-02" }}</time>{{ end }}<span>{{ .ReadingTime }} 分钟阅读</span></div>{{ end }}
-          <h1>{{ .Title }}</h1>
+          {{ if .Params.profile }}<div class="profile-heading">{{ partial "site-avatar.html" (dict "page" . "size" 80) }}<h1>{{ .Title }}</h1></div>{{ else }}<h1>{{ .Title }}</h1>{{ end }}
           {{ if eq .Section "post" }}<div class="article-tags">{{ range .GetTerms "tags" }}<a href="{{ .RelPermalink }}"># {{ .Title }}</a>{{ end }}</div>{{ end }}
         </header>
         {{ if .Fragments.Headings }}<details class="mobile-toc"><summary>文章目录</summary>{{ .TableOfContents }}</details>{{ end }}
@@ -34,7 +34,7 @@
       {{ end }}
       {{ partial "comments.html" . }}
     </div>
-    {{ if .Fragments.Headings }}<aside class="desktop-toc" aria-label="文章目录"><p>目录</p>{{ .TableOfContents }}</aside>{{ end }}
+    {{ if .Fragments.Headings }}<aside class="desktop-toc" aria-label="文章目录"><div class="toc-panel"><p>目录</p>{{ .TableOfContents }}</div></aside>{{ end }}
   </div>
 {{ end }}
 {{ end }}

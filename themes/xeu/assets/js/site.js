@@ -8,7 +8,9 @@
       button.setAttribute('aria-pressed', String(button.dataset.colorMode === preference));
     });
   };
-  applyMode(root.dataset.colorPreference || 'auto');
+  applyMode(root.dataset.colorPreference || 'light');
+  const appearance = document.querySelector('[data-appearance]');
+  if (appearance) appearance.hidden = false;
   document.querySelectorAll('button[data-color-mode]').forEach(button => {
     button.addEventListener('click', () => {
       applyMode(button.dataset.colorMode);
@@ -17,18 +19,70 @@
   });
   media.addEventListener('change', () => applyMode(root.dataset.colorPreference));
   window.addEventListener('storage', event => {
-    if (event.key === 'xeu-color-mode') applyMode(['light', 'dark'].includes(event.newValue) ? event.newValue : 'auto');
+    if (event.key === 'xeu-color-mode' || event.key === null) {
+      applyMode(['light', 'dark', 'auto'].includes(event.newValue) ? event.newValue : 'light');
+    }
   });
   const header = document.querySelector('.site-header');
-  const updateHeader = () => header.classList.toggle('is-scrolled', scrollY > 24);
+  const navigation = header.querySelector('.site-navigation');
+  const navToggle = navigation?.querySelector('.site-nav-toggle');
+  const nav = navigation?.querySelector('.site-nav');
+  if (navToggle && nav) {
+    const mobileNav = matchMedia('(max-width: 600px)');
+    const setNavOpen = open => {
+      open = mobileNav.matches && open;
+      navToggle.setAttribute('aria-expanded', String(open));
+      navToggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+      nav.inert = mobileNav.matches && !open;
+      nav.setAttribute('aria-hidden', String(nav.inert));
+    };
+    navToggle.hidden = false;
+    navigation.classList.add('is-menu-ready');
+    setNavOpen(false);
+    navToggle.addEventListener('click', () => {
+      navigation.classList.add('is-menu-animated');
+      setNavOpen(navToggle.getAttribute('aria-expanded') !== 'true');
+    });
+    nav.addEventListener('click', event => {
+      if (event.target.closest('a')) setNavOpen(false);
+    });
+    document.addEventListener('click', event => {
+      if (!navigation.contains(event.target)) setNavOpen(false);
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || navToggle.getAttribute('aria-expanded') !== 'true') return;
+      event.preventDefault();
+      setNavOpen(false);
+      navToggle.focus({ preventScroll: true });
+    });
+    navigation.addEventListener('focusout', event => {
+      if (navigation.contains(event.relatedTarget)) return;
+      // CSS 断点可能先隐藏链接，再触发媒体查询事件。
+      const restoreFocus = mobileNav.matches && nav.contains(event.target) &&
+        !event.relatedTarget && getComputedStyle(nav).visibility === 'hidden' && document.hasFocus();
+      setNavOpen(false);
+      if (restoreFocus) navToggle.focus({ preventScroll: true });
+    });
+    mobileNav.addEventListener('change', () => {
+      const restoreFocus = mobileNav.matches && nav.contains(document.activeElement);
+      navigation.classList.remove('is-menu-animated');
+      setNavOpen(false);
+      if (restoreFocus) navToggle.focus({ preventScroll: true });
+    });
+    window.addEventListener('pagehide', () => {
+      navigation.classList.remove('is-menu-animated');
+      setNavOpen(false);
+    });
+  }
+  let wasScrolled;
+  const updateHeader = () => {
+    const scrolled = scrollY > 24;
+    if (scrolled === wasScrolled) return;
+    header.classList.toggle('is-scrolled', scrolled);
+    wasScrolled = scrolled;
+  };
   window.addEventListener('scroll', updateHeader, { passive: true });
   updateHeader();
-  document.addEventListener('error', event => {
-    if (event.target instanceof HTMLImageElement && event.target.closest('.card-cover')) event.target.closest('.card-cover').hidden = true;
-  }, true);
-  document.querySelectorAll('.card-cover img').forEach(img => {
-    if (img.complete && !img.naturalWidth) img.closest('.card-cover').hidden = true;
-  });
   document.querySelectorAll('.copy-code').forEach(button => {
     button.addEventListener('click', async () => {
       try {
@@ -38,39 +92,6 @@
       setTimeout(() => { button.textContent = '复制'; }, 2200);
     });
   });
-  const zoomImages = document.querySelectorAll('[data-zoomable]');
-  if (zoomImages.length) {
-    const dialog = document.createElement('dialog');
-    dialog.className = 'image-dialog';
-    dialog.setAttribute('aria-label', '图片预览');
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = '关闭';
-    const image = document.createElement('img');
-    dialog.append(close, image);
-    document.body.append(dialog);
-    let previousOverflow;
-    const showImage = original => {
-      image.src = original.currentSrc || original.src;
-      image.alt = original.alt;
-      previousOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      dialog.showModal();
-    };
-    close.addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
-    dialog.addEventListener('close', () => { document.body.style.overflow = previousOverflow; });
-    zoomImages.forEach(img => {
-      if (img.closest('a')) return;
-      img.tabIndex = 0;
-      img.setAttribute('role', 'button');
-      img.setAttribute('aria-label', `放大图片：${img.alt || '文章配图'}`);
-      img.addEventListener('click', () => showImage(img));
-      img.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showImage(img); }
-      });
-    });
-  }
   const comments = document.querySelector('[data-comments]');
   comments?.querySelector('[data-load-comments]').addEventListener('click', async event => {
     const button = event.currentTarget;
@@ -88,6 +109,7 @@
       });
       await window.twikoo.init({ envId: comments.dataset.env, el: '#twikoo', lang: comments.dataset.lang, path: comments.dataset.path });
       button.hidden = true;
+      button.closest('.comment-loader').hidden = true;
       status.textContent = '';
     } catch { status.textContent = '评论暂时无法加载，请稍后重试。'; }
     finally { button.disabled = false; }

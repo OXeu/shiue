@@ -1,6 +1,6 @@
 {{ define "main" }}
   {{ $posts := partial "posts.html" . }}
-  <div class="page-heading"><h1>{{ .Title }}</h1><p>共 {{ len $posts }} 篇文章</p></div>
+  <div class="page-heading"><h1>{{ .Title }}</h1></div>
   <div class="timeline">
     {{ range $posts.GroupByDate "2006" }}
     <section class="timeline-year" id="year-{{ .Key }}">

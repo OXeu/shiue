@@ -1,3 +1,5 @@
+import { initializeImages, releaseImages } from './images.js';
+
 (() => {
   const search = document.querySelector('[data-search]');
   if (!search) return;
@@ -5,6 +7,11 @@
   const input = search.querySelector('input');
   const status = search.querySelector('[role="status"]');
   const results = search.querySelector('[data-search-results]');
+  const replaceResults = (cards = []) => {
+    releaseImages(results);
+    results.replaceChildren(...cards);
+    initializeImages(results);
+  };
   let indexPromise;
   let revision = 0;
   let timer;
@@ -22,11 +29,20 @@
       cover.href = item.permalink;
       cover.tabIndex = -1;
       cover.setAttribute('aria-hidden', 'true');
+      cover.dataset.progressiveImage = '';
+      if (item.imageData?.blurhash) cover.dataset.blurhash = item.imageData.blurhash;
+      if (item.imageData?.height) cover.dataset.ratio = item.imageData.width / item.imageData.height;
       const img = document.createElement('img');
-      img.src = item.image;
       img.alt = '';
       img.loading = 'lazy';
       img.decoding = 'async';
+      if (item.imageData?.srcset) {
+        img.sizes = item.imageData.sizes;
+        img.srcset = item.imageData.srcset;
+      }
+      if (item.imageData?.width) img.width = item.imageData.width;
+      if (item.imageData?.height) img.height = item.imageData.height;
+      img.src = item.image;
       cover.append(img);
       card.append(cover);
     }
@@ -52,31 +68,42 @@
     if (query) url.searchParams.set('keyword', query);
     else url.searchParams.delete('keyword');
     history.replaceState(null, '', url);
-    results.replaceChildren();
     if (!query) {
-      status.textContent = '输入关键词开始搜索。';
+      replaceResults();
+      results.removeAttribute('aria-busy');
+      status.textContent = '';
       return;
     }
     status.textContent = '正在搜索…';
+    results.setAttribute('aria-busy', 'true');
     try {
       indexPromise ??= fetch(search.dataset.index).then(response => {
         if (!response.ok) throw new Error('搜索索引加载失败');
         return response.json();
-      }).catch(error => { indexPromise = undefined; throw error; });
+      }).then(items => items.map(item => ({
+        item,
+        title: normalize(item.title),
+        tags: normalize(item.tags.join(' ')),
+        content: normalize(item.content),
+      })))
+      .catch(error => { indexPromise = undefined; throw error; });
       const index = await indexPromise;
       if (current !== revision) return;
       const words = normalize(query).split(/\s+/);
-      const matches = index.map(item => {
-        const title = normalize(item.title);
-        const tags = normalize(item.tags.join(' '));
-        const haystack = `${title} ${tags} ${normalize(item.content)}`;
+      const matches = index.map(({ item, title, tags, content }) => {
+        const haystack = `${title} ${tags} ${content}`;
         return { item, score: words.every(word => haystack.includes(word))
           ? 1 + words.reduce((score, word) => score + (title.includes(word) ? 10 : 0) + (tags.includes(word) ? 5 : 0), 0) : 0 };
       }).filter(result => result.score > 0).sort((a, b) => b.score - a.score);
-      results.replaceChildren(...matches.map(({ item }) => renderCard(item)));
-      status.textContent = matches.length ? `找到 ${matches.length} 篇相关文章` : `没有找到与「${query}」相关的文章，试试其他关键词。`;
+      replaceResults(matches.map(({ item }) => renderCard(item)));
+      status.textContent = matches.length ? `找到 ${matches.length} 篇文章` : `没有找到与「${query}」相关的文章`;
     } catch {
-      if (current === revision) status.textContent = '搜索暂时不可用，请重新搜索以重试。';
+      if (current === revision) {
+        replaceResults();
+        status.textContent = '搜索暂时不可用，请重新搜索以重试。';
+      }
+    } finally {
+      if (current === revision) results.removeAttribute('aria-busy');
     }
   };
   form.addEventListener('submit', event => { event.preventDefault(); clearTimeout(timer); run(); });

@@ -1,2 +1,4 @@
 {{- $image := partial "image.html" (dict "page" .Page "src" .Destination) -}}
-<img src="{{ $image.src }}" alt="{{ .PlainText }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ with $image.width }} width="{{ . }}"{{ end }}{{ with $image.height }} height="{{ . }}"{{ end }} loading="lazy" decoding="async" data-zoomable>
+<span class="content-image" data-progressive-image{{ with $image.blurhash }} data-blurhash="{{ . }}"{{ end }}{{ if and $image.width $image.height }} data-ratio="{{ div (float $image.width) $image.height }}"{{ end }}>
+<img src="{{ $image.src }}"{{ with $image.srcset }} srcset="{{ . }}" sizes="{{ $image.sizes }}"{{ end }} alt="{{ .PlainText }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ with $image.width }} width="{{ . }}"{{ end }}{{ with $image.height }} height="{{ . }}"{{ end }} loading="lazy" decoding="async" data-zoomable data-original="{{ $image.original }}">
+</span>

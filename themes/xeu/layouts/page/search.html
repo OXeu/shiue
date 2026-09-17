@@ -1,12 +1,12 @@
 {{ define "main" }}
-<div class="page-heading"><h1>{{ .Title }}</h1><p>在文章标题、标签和正文中查找</p></div>
+<div class="page-heading"><h1>{{ .Title }}</h1></div>
 <section class="search" data-search data-index="{{ (.OutputFormats.Get "JSON").RelPermalink }}">
   <form class="search-form" role="search" action="{{ .RelPermalink }}">
     <label class="sr-only" for="search-input">搜索文章</label>
     <input type="search" id="search-input" name="keyword" placeholder="输入关键词…" autocomplete="off" enterkeyhint="search">
     <button type="submit">搜索</button>
   </form>
-  <p class="search-status" role="status" aria-live="polite">输入关键词开始搜索。</p>
+  <p class="search-status" role="status" aria-live="polite"></p>
   <div class="article-list" data-masonry data-search-results aria-label="搜索结果"></div>
   <noscript><p>搜索需要启用 JavaScript，也可以<a href="{{ "archives/" | relURL }}">浏览全部归档</a>。</p></noscript>
 </section>

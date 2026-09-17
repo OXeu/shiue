@@ -1,6 +1,7 @@
 ---
 title: 关于
 slug: about
+profile: true
 menu:
     main:
         weight: 5
