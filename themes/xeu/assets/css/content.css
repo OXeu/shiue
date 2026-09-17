@@ -64,7 +64,7 @@
 .adjacent-posts strong { font-size: 15px; font-weight: 500; }
 .adjacent-posts a + a { text-align: right; }
 .desktop-toc { display: none; }
-.mobile-toc { margin-bottom: 28px; padding: 0 18px; background: var(--surface-muted); border-radius: var(--radius-surface); font-size: 14px; }
+.mobile-toc { margin-bottom: 28px; padding: 0 18px; font-size: 14px; }
 .mobile-toc summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding-block: 15px; list-style: none; }
 .mobile-toc summary::-webkit-details-marker { display: none; }
 .mobile-toc summary::after { content: ""; width: 7px; height: 7px; margin-right: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
@@ -74,10 +74,9 @@
 #TableOfContents > ul { padding-left: 0; }
 #TableOfContents li { margin: 6px 0; }
 #TableOfContents a { color: var(--muted); display: block; padding: 4px 8px; margin-inline: -8px; border-radius: 10px; }
-#TableOfContents a:hover { background: var(--surface-muted); }
 #TableOfContents a:hover { color: var(--text); }
 #TableOfContents a[aria-current="location"] { color: var(--accent-text); }
-#TableOfContents a[aria-current="location"] { background: var(--accent-soft); font-weight: 700; }
+#TableOfContents a[aria-current="location"] { font-weight: 700; }
 .comments { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--border); font-size: 14px; }
 .comments h2 { font-size: 18px; margin-bottom: 16px; }
 .comment-loader { display: flex; justify-content: center; padding-block: 32px; }
@@ -101,7 +100,7 @@
 .comments .el-textarea__inner, .comments .tk-preview-container { border-radius: var(--radius-surface); }
 @media (min-width: 1280px) {
   .desktop-toc { display: block; position: absolute; left: calc(100% + 40px); top: 0; width: 180px; height: 100%; font-size: 13px; }
-  .toc-panel { position: sticky; top: 104px; padding: 8px 16px; border-radius: var(--radius-surface); background: var(--surface); }
+  .toc-panel { position: sticky; top: 104px; padding: 8px 16px; }
   .toc-panel > p { padding-bottom: 8px; font-size: 13px; font-weight: 600; }
   .desktop-toc #TableOfContents { max-height: calc(100vh - 172px); overflow-y: auto; scrollbar-width: thin; }
   .mobile-toc { display: none; }

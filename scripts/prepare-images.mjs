@@ -7,8 +7,10 @@ import sharp from 'sharp';
 import { encode } from 'blurhash';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const widths = [320, 640, 960, 1440];
-const recipe = 'v1-webp-q78-blurhash4x3';
+const widths = [320, 480, 640, 768, 960, 1440];
+// 保持画质，使用更充分的构建时压缩；配置变化自动使旧缩略图缓存失效。
+const webpOptions = { quality: 78, effort: 6 };
+const recipe = JSON.stringify({ version: 2, widths, webp: webpOptions, blurhash: [4, 3] });
 const isCandidate = name => /\.(avif|gif|jpe?g|png|webp|tiff?)$/i.test(name) || !path.extname(name);
 const exists = file => access(file).then(() => true, () => false);
 
@@ -61,7 +63,7 @@ export async function prepareImages(root = projectRoot) {
       if (!await exists(target)) {
         const sourceKey = createHash('sha256').update(source).digest('hex').slice(0, 12);
         const temp = `${target}.${process.pid}.${sourceKey}.tmp`;
-        await sharp(input, { animated: true }).rotate().resize({ width: size, withoutEnlargement: true }).webp({ quality: 78, effort: 4 }).toFile(temp);
+        await sharp(input, { animated: true }).rotate().resize({ width: size, withoutEnlargement: true }).webp(webpOptions).toFile(temp);
         await rename(temp, target);
       }
       variants.push({ src: `xeu-images/${name}`, width: size });

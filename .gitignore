@@ -5,3 +5,5 @@ assets/jsconfig.json
 node_modules/
 data/xeu/images.json
 static/xeu-images/
+data/friends.json.lock
+data/friends.json.*.tmp

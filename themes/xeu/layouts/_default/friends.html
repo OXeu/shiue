@@ -1,0 +1,22 @@
+{{ define "main" }}
+  {{ $friends := hugo.Data.friends | default slice }}
+  <div class="page-heading"><h1>{{ .Title }}</h1><p>{{ len $friends }} 位朋友</p></div>
+  {{ $available := slice }}
+  {{ $unavailable := slice }}
+  {{ range $friends }}
+    {{ if .health }}{{ $unavailable = $unavailable | append . }}{{ else }}{{ $available = $available | append . }}{{ end }}
+  {{ end }}
+  <div class="friend-grid">
+    {{ range $available }}{{ partial "friend-card.html" . }}{{ end }}
+  </div>
+  {{ with $unavailable }}
+  <section aria-labelledby="friends-away">
+    <div class="friend-section-heading"><h2 id="friends-away">暂时离开</h2><p>迁移时暂不可用，仍保留这些相遇。</p></div>
+    <div class="friend-grid">
+      {{ range . }}{{ partial "friend-card.html" . }}{{ end }}
+    </div>
+  </section>
+  {{ end }}
+  {{ with .Content }}<div class="prose surface">{{ . }}</div>{{ end }}
+  {{ partial "comments.html" . }}
+{{ end }}

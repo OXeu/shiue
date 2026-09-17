@@ -8,10 +8,13 @@
     "images:watch": "node scripts/prepare-images.mjs --watch",
     "build": "bash scripts/hugo.sh --minify",
     "dev": "bash scripts/hugo.sh server --disableFastRender",
-    "check": "node scripts/check-images.mjs && node scripts/check-build.mjs"
+    "friend:add": "node scripts/add-friend.mjs",
+    "check:friends": "node scripts/check-friends.mjs",
+    "check": "node scripts/check-friends.mjs && node scripts/check-images.mjs && node scripts/check-build.mjs"
   },
   "dependencies": {
     "blurhash": "2.0.5",
+    "cheerio": "1.2.0",
     "sharp": "0.35.4"
   }
 }

@@ -65,6 +65,26 @@ assert.match(home, /<html[^>]*lang=["']?zh-CN/i, '首页缺少中文语言设置
 assert.match(home, /class=["']?article-list/, '首页未渲染文章列表');
 assert.match(home, /<article\b/, '首页缺少文章卡片');
 assert.match(home, /data-masonry/, '首页缺少瀑布流');
+function checkCardImages(html) {
+  const cards = [...html.matchAll(/<article\b[^>]*class=["']?post-card\b[\s\S]*?<\/article>/g)];
+  for (const [index, [card]] of cards.entries()) {
+    const img = card.match(/<img\b[^>]*>/)?.[0];
+    if (!img) continue;
+    assert.match(img, index === 0 ? /loading=["']?eager\b/ : /loading=["']?lazy\b/, '仅首张卡片封面立即加载');
+    if (index === 0) {
+      assert.match(img, /fetchpriority=["']?high\b/, '首张封面应高优先级加载');
+      assert.doesNotMatch(img, /sizes=["']?auto\b/, '立即加载的图片不能使用 sizes=auto');
+    } else assert.doesNotMatch(img, /fetchpriority=["']?high\b/, '其他封面不应抢占高优先级');
+    if (img.includes('srcset=')) {
+      assert.match(img, /\bwidth=/, '必须保留预留尺寸');
+      assert.match(img, /\bheight=/, '必须保留预留尺寸');
+    }
+  }
+}
+checkCardImages(home);
+const firstCover = home.match(/<img\b[^>]*>/)?.[0];
+assert.match(firstCover, /480\.webp 480w/, '首页封面缺少 480px 档位');
+assert.match(firstCover, /768\.webp 768w/, '首页封面缺少 768px 档位');
 const header = home.match(/<header\b[\s\S]*?<\/header>/)?.[0];
 assert.ok(header, '首页缺少页头');
 assert.doesNotMatch(header, /<img\b|<svg\b/, '页头必须为纯文本');
@@ -75,6 +95,17 @@ read('search/index.html');
 read('tags/index.html');
 read('categories/index.html');
 read('links/index.html');
+const friends = JSON.parse(readFileSync(path.join(root, 'data/friends.json'), 'utf8'));
+const friendHTML = read('友链/index.html');
+assert.equal((friendHTML.match(/class=["']?friend-card(?:\s|>|["'])/g) || []).length, friends.length, '友链页条目数与数据不一致');
+const friendIcons = [...friendHTML.matchAll(/<img\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)]
+  .map(match => match[1] || match[2] || match[3]);
+assert.equal(friendIcons.length, friends.length, '每条友链都应有本地图标');
+for (const src of friendIcons) {
+  assert.ok(src.startsWith(`${new URL(baseURL).pathname}friends/`), `友链图标未本地化或缺少子路径：${src}`);
+  localAsset(src);
+}
+if (friends.some(friend => friend.health)) assert.match(friendHTML, /暂时离开/, '源站暂离状态必须保留');
 read('about/index.html');
 read('404.html');
 const rss = read('index.xml');
@@ -92,6 +123,8 @@ for (const article of search) {
     assert.match(article.image, /\/xeu-images\/.*\.webp$/, '搜索结果不应加载原图');
     assert.ok(isBlurhashValid(article.imageData.blurhash).result);
     localAsset(article.imageData.original);
+    assert.ok(article.imageData.sizes.startsWith('auto, '), '搜索封面应保留懒加载自动尺寸');
+    if (article.imageData.width >= 768) assert.match(article.imageData.srcset, /768\.webp 768w/, '搜索结果缺少中间档位');
     for (const candidate of article.imageData.srcset.split(', ')) {
       const [src, width] = candidate.split(' ');
       localAsset(src);
@@ -115,6 +148,7 @@ for (const style of styles) {
 const htmlFiles = readdirSync(destination, { recursive: true }).filter(file => file.endsWith('.html'));
 for (const relative of htmlFiles) {
   const html = read(relative);
+  checkCardImages(html);
   for (const match of html.matchAll(/<(?:img|script)\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
     localAsset(match[1] || match[2] || match[3]);
   }

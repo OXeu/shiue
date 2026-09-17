@@ -24,6 +24,47 @@
     }
   });
   const header = document.querySelector('.site-header');
+  const navigation = header.querySelector('.site-navigation');
+  const navToggle = navigation?.querySelector('.site-nav-toggle');
+  const nav = navigation?.querySelector('.site-nav');
+  if (navToggle && nav) {
+    const mobileNav = matchMedia('(max-width: 600px)');
+    const setNavOpen = open => {
+      navToggle.setAttribute('aria-expanded', String(open));
+      navToggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+    };
+    navToggle.hidden = false;
+    navigation.classList.add('is-menu-ready');
+    navToggle.addEventListener('click', () => {
+      setNavOpen(navToggle.getAttribute('aria-expanded') !== 'true');
+    });
+    nav.addEventListener('click', event => {
+      if (event.target.closest('a')) setNavOpen(false);
+    });
+    document.addEventListener('click', event => {
+      if (!navigation.contains(event.target)) setNavOpen(false);
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || navToggle.getAttribute('aria-expanded') !== 'true') return;
+      event.preventDefault();
+      setNavOpen(false);
+      navToggle.focus({ preventScroll: true });
+    });
+    navigation.addEventListener('focusout', event => {
+      if (navigation.contains(event.relatedTarget)) return;
+      // CSS 断点可能先隐藏链接，再触发媒体查询事件。
+      const restoreFocus = mobileNav.matches && nav.contains(event.target) &&
+        !event.relatedTarget && !nav.getClientRects().length && document.hasFocus();
+      setNavOpen(false);
+      if (restoreFocus) navToggle.focus({ preventScroll: true });
+    });
+    mobileNav.addEventListener('change', () => {
+      const restoreFocus = mobileNav.matches && nav.contains(document.activeElement);
+      setNavOpen(false);
+      if (restoreFocus) navToggle.focus({ preventScroll: true });
+    });
+    window.addEventListener('pagehide', () => setNavOpen(false));
+  }
   let wasScrolled;
   const updateHeader = () => {
     const scrolled = scrollY > 24;

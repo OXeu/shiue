@@ -10,7 +10,7 @@
 
 动画主要使用 `transform` 和 `opacity`，仅在运行期间提示图层提升。瀑布流缓存卡片尺寸，只在容器宽度或卡片实际尺寸变化时重排；滚动只在越过页头阈值时更新样式。BlurHash 仅在接近视口时分帧解码，并复用有限缓存；图片解码完成后释放占位画布，搜索更新时释放旧图片观察器。页头和预览遮罩不使用持续的背景模糊滤镜。
 
-样式令牌集中在 `themes/xeu/assets/css/tokens.css`，布局和文章排版分别在 `layout.css`、`content.css`；交互位于 `assets/js/`。主题使用 Hugo 模板、原生 CSS 与 JavaScript；Node.js 仅用于构建时的图片处理，部署产物仍是静态文件。Cantarell 字体随主题本地提供，许可见 `static/fonts/OFL.txt`。旧头像保留在 `static/avatar.jpg`。
+样式令牌集中在 `themes/xeu/assets/css/tokens.css`，布局和文章排版分别在 `layout.css`、`content.css`；交互位于 `assets/js/`。主题使用 Hugo 模板、原生 CSS 与 JavaScript；Node.js 用于构建时的图片处理和友链维护，部署产物仍是静态文件。Cantarell 字体随主题本地提供，许可见 `static/fonts/OFL.txt`。旧头像保留在 `static/avatar.jpg`。
 
 主题默认使用纯白背景与黑灰文字，控件主色为 `#222`，按钮悬停、键盘焦点和按压逐级加深至 `#111`、`#000`。粉色仅用于普通链接、选中的目录项和 CC 许可链接；卡片、标签、代码高亮、焦点框及文本选区使用中性色或对应的语义色。页面共用间距、圆角和宽度令牌，正文最大宽度为 760px。卡片摘要最多两行，外观切换器直接位于 footer 内，选中样式与顶部导航一致；可选择浅色、深色或跟随系统并记住偏好。搜索仅在提交或输入后显示状态，移动端目录与评论保留按需展开。加载评论按钮居中，上下各留 32px 内边距。
 
@@ -20,11 +20,38 @@
 
 ## 图片加载
 
-构建时用 Sharp 自动处理 `static/` 和 `content/` 的本地位图（也识别无扩展名图片），生成 320、640、960、1440px WebP 和 4×3 BlurHash；小图不会放大，GIF/WebP 动图保留动画。产物按图片内容哈希缓存，替换原图时自动生成新地址。
+构建时用 Sharp 自动处理 `static/` 和 `content/` 的本地位图（也识别无扩展名图片），生成 320、480、640、768、960、1440px WebP 和 4×3 BlurHash；小图不会放大，GIF/WebP 动图保留动画。WebP 质量维持 78，使用 effort 6 提高压缩效率；产物按图片内容及处理配置哈希缓存，替换原图或调整尺寸、压缩配置时自动生成新地址。
 
-列表最多提供 960px 缩略图，正文最多 1440px，通过 `srcset`、`sizes` 按显示尺寸和像素密度选择；默认懒加载。图片加载前由浏览器本地解码 BlurHash 占位，失败时保留占位。点击正文图片才加载原图。首页、分类、标签和搜索使用同一套图片数据。外部图片和 SVG 保留原地址；需要缩略图时可将外部图片保存为本地资源。
+列表最多提供 960px 缩略图，正文最多 1440px，通过 `srcset`、`sizes` 按显示尺寸和像素密度选择；首页、分页和分类/标签列表首张卡片的封面立即加载并设置高优先级，其余图片默认懒加载。立即加载的封面使用响应式 `sizes`，懒加载图片使用 `auto` 加响应式回退。图片加载前由浏览器本地解码 BlurHash 占位，失败时保留占位。点击正文图片才加载原图。首页、分类、标签和搜索使用同一套图片数据。外部图片和 SVG 保留原地址；需要缩略图时可将外部图片保存为本地资源。
 
 `data/xeu/images.json` 与 `static/xeu-images/` 是自动生成并被 Git 忽略的文件。更新图片后执行 `npm run images`；预览时可另开终端运行 `npm run images:watch` 自动更新。BlurHash 解码器采用 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`。
+
+## 友情链接
+
+友链数据统一保存在 `data/friends.json`，图标保存在 `static/friends/`，两者均提交到 Git。友链页不再依赖外站图标或远程 API，原有 `/友链/` 和 `/links/` 路径继续有效。
+
+已于 2026-09-17 从 [xeu.life 的公开友链接口](https://xeu.life/api/friend) 迁移全部 12 条已通过的友链，保留名称、简介、网址、原图标及排列顺序，并保留本项目原有的 YiNN，共 13 条。源站标记暂不可用的 3 条单独显示在「暂时离开」中；这只是迁移时的状态快照，不是实时可用性检测。`health` 为空字符串表示正常，恢复可访问后可手动清空。`iconSource` 仅记录图标来源，不会在页面加载或构建时请求。
+
+安装依赖后，一条命令添加友链：
+
+```bash
+npm run friend:add -- https://example.com
+```
+
+脚本自动读取站点名称（优先 `og:site_name`，其次页面标题）与简介，识别 favicon / Apple Touch Icon，支持重定向、HTML 实体与相对路径；候选图标失败时继续尝试，最后回退到站点根目录的 `/favicon.ico`。不会执行对方网页的 JavaScript。
+
+可覆盖自动信息，或为无法访问的站点指定已知图标：
+
+```bash
+npm run friend:add -- https://example.com \
+  --title "朋友的博客" \
+  --description "记录生活与技术" \
+  --icon https://example.com/avatar.png
+```
+
+`--icon` 也支持 `/favicon.png` 这样的站内相对路径；传入 `--description ""` 可留空简介。同时指定三个选项时不请求站点首页，只下载图标。普通位图与 SVG 转换为最大 128×128、不放大小图的 WebP；ICO 经过结构检查后保留原格式。下载有超时、文件大小与解码像素限制，图标失效时不会添加不完整的条目。页面固定图标显示尺寸，异步解码、懒加载本地小图。
+
+重复网址会报错而不会覆盖已有条目。修改名称、简介、排序或暂离状态可直接编辑 JSON；删除友链时也应删除不再被其他条目引用的本地图标。脚本添加后，将 `data/friends.json` 和新增的 `static/friends/` 文件一起提交即可。查看帮助：`npm run friend:add -- --help`；离线回归测试：`npm run check:friends`。
 
 ## 本地构建
 
@@ -48,7 +75,7 @@ npm ci
 npm run check
 ```
 
-可通过 `HUGO_BIN` 指定 Hugo 可执行文件。验证覆盖图片生成与缓存、BlurHash 有效性、缩略图尺寸、首页、分页、归档、标签、友链、搜索索引、RSS、纯文本页头、代码块，以及所有页面的本地链接、脚本、字体和图片。测试构建产物写入系统临时目录，图片缓存写入上述 Git 忽略目录。设置 `SHIUE_TEST_BASE_URL=https://example.org/blog/` 可验证子目录部署。
+可通过 `HUGO_BIN` 指定 Hugo 可执行文件。验证覆盖友链添加脚本（本地 HTTP 测试站点，无外网依赖）、本地图标、图片生成与缓存、BlurHash 有效性、缩略图尺寸、首页、分页、归档、标签、友链、搜索索引、RSS、纯文本页头、代码块，以及所有页面的本地链接、脚本、字体和图片。测试构建产物写入系统临时目录，图片缓存写入上述 Git 忽略目录。设置 `SHIUE_TEST_BASE_URL=https://example.org/blog/` 可验证子目录部署。
 
 [GitHub Actions](.github/workflows/build.yml) 在推送和拉取请求时使用最新稳定版 Hugo Extended 验证。Linux x86_64 可用同一入口检查新版本：
 
@@ -57,6 +84,8 @@ SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mj
 ```
 
 浏览器回归检查使用 Playwright。先在另一个终端运行 `npm run dev -- --disableLiveReload`，在已安装 Playwright 与 Chromium 的环境中执行 `node scripts/check-theme.mjs`。可用 `PLAYWRIGHT_MODULE` 指向现有 Playwright 的 `index.mjs`，用 `SHIUE_TEST_URL` 指定预览地址。检查覆盖十二档屏宽下的四列上限、卡片重叠与溢出、BlurHash 慢速加载占位、缩略图网络请求、原图按需加载、搜索和失败重试、分页、默认纯白主题、footer 内的主题切换器、代码复制、目录背景、相邻文章对齐及无 JavaScript 回退；截图写入系统临时目录。
+
+`node scripts/check-image-delivery.mjs` 使用相同环境变量，在独立浏览器上下文中检查桌面/手机宽度与 1×/2× 像素密度下的实际图片档位、首图网络优先级、重复下载、其余封面懒加载及无 JavaScript 回退，并保存资源体积测量与截图。
 
 `node scripts/check-motion.mjs` 使用相同环境变量，检查图片 Hero 动画、慢速或失败原图、快速开关、键盘焦点、滚动锁定、手机尺寸、动态修改减少动效偏好、动画 API 降级和返回导航，并记录一次开合过程的帧间隔采样。帧间隔受设备与浏览器运行环境影响，不能视为所有设备上的帧率保证。
 

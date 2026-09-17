@@ -65,7 +65,8 @@ try {
   const imageGate = new Promise(resolve => { releaseImages = resolve; });
   const slowImages = async route => { await imageGate; await route.continue(); };
   await page.route('**/xeu-images/*.webp', slowImages);
-  await open('');
+  // 首张封面立即加载，会阻塞 load；先在 DOM 就绪时检查占位，再释放响应。
+  await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
   const firstCover = page.locator('.card-cover').first();
   await firstCover.locator('canvas').waitFor();
   assert.equal(await firstCover.locator('canvas').evaluate(canvas => canvas.getContext('2d').getImageData(0, 0, 1, 1).data[3]), 255);
@@ -131,7 +132,7 @@ try {
         toc: getComputedStyle(document.querySelector('.toc-panel')).backgroundColor,
       }));
       assert.ok(Math.abs(alignment.text - alignment.adjacent) < 1, '相邻文章未对齐正文');
-      assert.equal(alignment.toc, 'rgb(255, 255, 255)', '目录缺少白色背景');
+      assert.equal(alignment.toc, 'rgba(0, 0, 0, 0)', '目录容器不应有背景');
       const original = await page.locator('[data-zoomable]').first().getAttribute('data-original');
       assert.ok(!imageRequests.includes(new URL(original, baseURL).pathname), '点击放大前不应请求原图');
       await page.locator('[data-zoomable]').first().click();

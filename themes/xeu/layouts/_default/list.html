@@ -1,9 +1,10 @@
 {{ define "main" }}
   {{ $pages := where .RegularPages "Params.hidden" "ne" true }}
+  {{ $cards := (.Paginate $pages.ByDate.Reverse).Pages }}
   <div class="page-heading"><h1>{{ if eq .Kind "term" }}<span class="heading-hash">#</span> {{ end }}{{ .Title }}</h1>{{ with .Description }}<p>{{ . }}</p>{{ end }}</div>
   {{ with .Content }}<div class="prose section-intro">{{ . }}</div>{{ end }}
   <div class="article-list" data-masonry aria-label="文章列表">
-    {{ range (.Paginate $pages.ByDate.Reverse).Pages }}{{ partial "card.html" . }}{{ end }}
+    {{ range $index, $page := $cards }}{{ partial "card.html" (dict "page" $page "eager" (eq $index 0) "count" (len $cards)) }}{{ end }}
   </div>
   {{ partial "pagination.html" .Paginator }}
 {{ end }}
