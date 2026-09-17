@@ -20,6 +20,8 @@ jobs:
           node-version: '24'
       - name: 安装构建与维护依赖
         run: npm ci
+      - name: 验证评论提交、审批与并发发布
+        run: npm run check:comments
       - name: 验证缩略图与 BlurHash 生成
         run: node scripts/check-images.mjs
       - name: 验证最新稳定版 Hugo Extended

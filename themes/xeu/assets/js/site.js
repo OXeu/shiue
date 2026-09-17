@@ -92,28 +92,6 @@
       setTimeout(() => { button.textContent = '复制'; }, 2200);
     });
   });
-  const comments = document.querySelector('[data-comments]');
-  comments?.querySelector('[data-load-comments]').addEventListener('click', async event => {
-    const button = event.currentTarget;
-    const status = comments.querySelector('[role="status"]');
-    button.disabled = true;
-    status.textContent = '正在加载评论…';
-    try {
-      if (!window.twikoo) await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/twikoo@1.5.11/dist/twikoo.all.min.js';
-        const timeout = setTimeout(() => { script.remove(); reject(new Error('评论加载超时')); }, 15000);
-        script.onload = () => { clearTimeout(timeout); resolve(); };
-        script.onerror = () => { clearTimeout(timeout); script.remove(); reject(new Error('评论加载失败')); };
-        document.head.append(script);
-      });
-      await window.twikoo.init({ envId: comments.dataset.env, el: '#twikoo', lang: comments.dataset.lang, path: comments.dataset.path });
-      button.hidden = true;
-      button.closest('.comment-loader').hidden = true;
-      status.textContent = '';
-    } catch { status.textContent = '评论暂时无法加载，请稍后重试。'; }
-    finally { button.disabled = false; }
-  });
   if ('IntersectionObserver' in window) {
     const links = [...document.querySelectorAll('.desktop-toc a')];
     const headings = links.map(link => document.getElementById(decodeURIComponent(link.hash.slice(1)))).filter(Boolean);

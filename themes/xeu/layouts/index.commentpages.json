@@ -1,0 +1,9 @@
+{{- $pages := slice -}}
+{{- if .Site.Params.comments.enabled -}}
+  {{- range where .Site.RegularPages "Section" "post" -}}
+    {{- if ne .Params.comments false -}}
+      {{- $pages = $pages | append (dict "path" .RelPermalink "title" .Title) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $pages | jsonify -}}

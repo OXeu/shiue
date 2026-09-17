@@ -1,0 +1,18 @@
+{{ define "main" }}
+<section class="comment-review" data-comment-review data-endpoint="/api/comments-approve">
+  <div class="page-heading"><h1>评论审核</h1></div>
+  <p class="comment-note">打开此页不会发布评论。请核对原文后，再确认批准。</p>
+  <p class="comment-status" role="status" aria-live="polite">正在读取审批链接…</p>
+  <div data-review-content hidden>
+    <p>文章：<a class="comment-article-link" data-review-article rel="noreferrer" target="_blank"></a></p>
+    <div class="comment-item">
+      <div class="comment-byline"><strong data-review-name></strong><time data-review-time></time></div>
+      <p class="comment-message" data-review-message></p>
+    </div>
+    <p class="comment-note">批准后，昵称和评论会写入公开 Git 仓库；构建与部署成功后才会显示。忽略邮件即可不予发布。</p>
+    <button class="page-link" type="button" data-approve-comment>确认批准并发布</button>
+  </div>
+  <p><a class="comment-article-link" data-workflow-link hidden rel="noreferrer" target="_blank">查看 GitHub 发布任务 →</a></p>
+  <noscript><p>审批操作需要 JavaScript。此页尚未执行任何发布操作。</p></noscript>
+</section>
+{{ end }}

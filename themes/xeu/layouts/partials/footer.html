@@ -1,5 +1,5 @@
 <footer class="site-footer">
-  <p>© {{ .Site.Params.footer.since }}–{{ now.Year }} {{ .Site.Params.name }} <span aria-hidden="true">·</span> <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> / Xeu <span aria-hidden="true">·</span> <a href="{{ "index.xml" | relURL }}">RSS</a></p>
+  <p>© {{ .Site.Params.footer.since }}–{{ now.Year }} {{ with .Site.Params.author.homepage }}<a href="{{ . }}" rel="me noopener noreferrer" target="_blank">{{ $.Site.Params.name }}</a>{{ else }}{{ .Site.Params.name }}{{ end }} <span aria-hidden="true">·</span> <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> / Xeu <span aria-hidden="true">·</span> <a href="{{ "index.xml" | relURL }}">RSS</a></p>
   <div class="color-modes" data-appearance role="group" aria-label="外观模式" hidden>
     <button type="button" data-color-mode="light" aria-pressed="true">浅色</button>
     <button type="button" data-color-mode="auto" aria-pressed="false">跟随系统</button>

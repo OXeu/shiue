@@ -117,3 +117,7 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 接口检查请求方法、密钥、生产环境和 Hook 主机；缺少配置会返回 503，错误密钥返回 401，Hook 调用失败返回 502。Hook 被接受只代表任务已排队，最终是否发布成功仍需查看 Vercel 构建记录。接口不会把 Hook 地址或上游错误中的密钥写入日志。参见 [Cron 鉴权](https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs) 和 [Deploy Hooks](https://vercel.com/docs/deploy-hooks)。
 
 仓库中的配置不会自动创建远端 Hook 或环境变量；完成上述设置并发布之前，每日自动更新尚未启用。若更换托管平台，可由其定时任务每日调用相同部署入口，不需要另写一套预处理流程。
+
+## 评论审批发布
+
+同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 验证签名后写入独立评论文件，执行同一 `npm run deploy` 构建流程，安全推送 Git，再调用 Vercel Deploy Hook 发布。它不依赖数据库或 Twikoo。PoW 不能代替函数执行前的边缘限流；独立挑战密钥、两条 SDK 限流规则、外部服务及手动验收步骤见 [评论系统配置](comments.md)。

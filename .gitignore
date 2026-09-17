@@ -3,6 +3,10 @@ resources
 assets/jsconfig.json
 .hugo_build.lock
 node_modules/
+.env
+.env.*
+!.env.example
+.vercel/
 data/xeu/images.json
 static/xeu-images/
 data/friends.json.lock

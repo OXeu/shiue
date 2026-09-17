@@ -1,9 +1,34 @@
-{{ if and .Site.Params.comments.enabled (ne .Params.comments false) }}
-<section class="comments surface" aria-labelledby="comments-title" data-comments data-env="{{ .Site.Params.comments.envId }}" data-lang="{{ .Site.Params.comments.lang }}" data-path="{{ .RelPermalink }}">
-  <h2 id="comments-title">评论</h2>
-  <div class="comment-loader"><button class="text-button" type="button" data-load-comments>加载评论</button></div>
-  <p class="comment-status" role="status"></p>
-  <div id="twikoo"></div>
-  <noscript><p>启用 JavaScript 后可加载评论。</p></noscript>
+{{ if and .Site.Params.comments.enabled (ne .Params.comments false) (eq .Section "post") }}
+{{ $comments := slice }}
+{{ range hugo.Data.comments }}{{ if eq .path $.RelPermalink }}{{ $comments = $comments | append . }}{{ end }}{{ end }}
+<section class="comments surface" aria-labelledby="comments-title" data-comments>
+  <div class="comment-heading"><h2 id="comments-title">评论</h2><span>{{ len $comments }} 条留言</span></div>
+  {{ if $comments }}
+  <ol class="comment-list">
+    {{ range sort $comments "createdAt" "asc" }}
+    <li id="comment-{{ .id }}" class="comment-item">
+      <div class="comment-byline"><strong>{{ .name }}</strong><time datetime="{{ .createdAt }}">{{ (time.AsTime .createdAt).Format "2006-01-02 15:04" }}</time></div>
+      <p class="comment-message">{{ .message }}</p>
+    </li>
+    {{ end }}
+  </ol>
+  {{ else }}<p class="comment-empty">还没有留言，欢迎分享你的想法。</p>{{ end }}
+  {{ $powWorker := resources.Get "js/comment-pow-worker.js" | minify | fingerprint }}
+  <form class="comment-form" data-comment-form data-path="{{ .RelPermalink }}" data-endpoint="/api/comments-submit" data-challenge-endpoint="/api/comments-challenge" data-pow-worker="{{ $powWorker.RelPermalink }}">
+    <fieldset disabled>
+      <legend>写下你的留言</legend>
+      <label for="comment-name">昵称</label>
+      <input id="comment-name" name="name" autocomplete="nickname" maxlength="40" required placeholder="怎么称呼你">
+      <label for="comment-message">评论</label>
+      <textarea id="comment-message" name="message" rows="5" maxlength="2000" required aria-describedby="comment-note" placeholder="关于这篇文章，你想说些什么？"></textarea>
+      <div class="comment-honeypot" aria-hidden="true"><label for="comment-website">请留空</label><input id="comment-website" name="website" tabindex="-1" autocomplete="off"></div>
+      <p class="comment-note" id="comment-note">提交时浏览器会进行短暂计算以减少垃圾评论。留言通过邮件送交审核，通过后随网站更新显示。支持纯文本，请勿填写隐私信息。</p>
+      <label class="comment-consent"><input type="checkbox" name="consent" required>我同意昵称和留言经审核后公开，并保留在公开 Git 仓库的历史记录中。</label>
+      <button class="page-link" type="submit">提交留言</button>
+    </fieldset>
+    <p class="comment-status" role="status" aria-live="polite"></p>
+    <button class="text-button" type="button" data-cancel-proof hidden>取消验证</button>
+  </form>
+  <noscript><p>查看留言不需要 JavaScript；启用 JavaScript 后可以提交留言。</p></noscript>
 </section>
 {{ end }}

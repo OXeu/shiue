@@ -64,7 +64,7 @@ export function deploymentSteps() {
     {
       id: 'artifacts', title: '检查部署产物',
       async run(context, { log }) {
-        for (const file of ['index.html', '404.html', 'index.xml', '友链/index.html']) {
+        for (const file of ['index.html', '404.html', 'index.xml', '友链/index.html', 'comment-pages.json', 'comment-review/index.html']) {
           const info = await stat(path.join(context.destination, file));
           if (!info.isFile() || !info.size) throw new Error(`部署产物为空：${file}`);
         }

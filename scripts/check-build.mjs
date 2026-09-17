@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, statSync, readdirSync, cpSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,12 @@ for (const [source, image] of Object.entries(images)) {
 const output = mkdtempSync(path.join(tmpdir(), 'shiue-build-'));
 const destination = path.join(output, 'public');
 const baseURL = process.env.SHIUE_TEST_BASE_URL || 'https://example.org/';
+// 测试评论只进入临时 data 目录，不改写真实仓库或发布数据。
+const testData = path.join(output, 'data');
+cpSync(path.join(root, 'data'), testData, { recursive: true });
+mkdirSync(path.join(testData, 'comments'), { recursive: true });
+const fixtureComment = { id: 'e2ae8335-89b2-4f10-97db-cdb4603d23f4', path: new URL('p/ai-random-thoughts/', baseURL).pathname, name: '<img src=x onerror=alert(1)>', message: '<script>alert(1)</script>\n纯文本评论', createdAt: '2026-09-17T20:00:00.000Z' };
+writeFileSync(path.join(testData, 'comments', `${fixtureComment.id}.json`), JSON.stringify(fixtureComment));
 const result = spawnSync(process.env.HUGO_BIN || 'hugo', [
   '--source', root,
   '--destination', destination,
@@ -39,7 +45,7 @@ const result = spawnSync(process.env.HUGO_BIN || 'hugo', [
   '--noBuildLock',
 ], {
   encoding: 'utf8',
-  env: { ...process.env, SHIUE_IMAGES_READY: '1', HUGO_RESOURCEDIR: path.join(output, 'resources') },
+  env: { ...process.env, SHIUE_IMAGES_READY: '1', HUGO_DATADIR: testData, HUGO_RESOURCEDIR: path.join(output, 'resources') },
 });
 process.stdout.write(result.stdout || '');
 process.stderr.write(result.stderr || '');
@@ -69,6 +75,10 @@ function localAsset(url, parent = baseURL) {
 
 const home = read('index.html');
 const $home = load(home);
+const authorLink = $home('.site-footer > p > a').first();
+assert.equal(authorLink.text(), 'Xeu', '版权信息中的作者名称应保留');
+assert.equal(authorLink.attr('href'), 'https://github.com/OXeu', '版权信息中的作者应链接至 GitHub 主页');
+assert.match(authorLink.attr('rel'), /\bnoopener\b/);
 assert.equal($home('link[rel="icon"]').length, 5, '缺少多尺寸 favicon');
 for (const element of $home('link[rel="icon"], link[rel="apple-touch-icon"]').toArray()) {
   const src = $home(element).attr('href');
@@ -151,6 +161,19 @@ assert.match(rss, /<rss\b/);
 assert.match(rss, /<language>zh-CN<\/language>/i);
 assert.match(rss, /<item>/);
 const search = JSON.parse(read('search/index.json'));
+const commentPages = JSON.parse(read('comment-pages.json'));
+assert.ok(commentPages.some(page => page.path === fixtureComment.path));
+assert.ok(!commentPages.some(page => page.path.includes('comment-review')), '审批页不能开放评论');
+const $commentsArticle = load(read('p/ai-random-thoughts/index.html'));
+const renderedComment = $commentsArticle(`#comment-${fixtureComment.id}`);
+assert.equal(renderedComment.find('.comment-message').text(), fixtureComment.message);
+assert.equal(renderedComment.find('strong').text(), fixtureComment.name);
+assert.equal(renderedComment.find('script, img').length, 0, '评论必须作为纯文本转义，不能运行 HTML');
+assert.equal(load(read('p/rin/index.html'))(`#comment-${fixtureComment.id}`).length, 0, '不同文章的评论不能串页');
+const $review = load(read('comment-review/index.html'));
+assert.match($review('meta[name="robots"]').attr('content'), /noindex/);
+assert.equal($review('[data-comment-form]').length, 0);
+assert.equal($review('[data-comment-review]').attr('data-endpoint'), '/api/comments-approve');
 assert.ok(Array.isArray(search) && search.length > 0, '搜索索引为空');
 for (const article of search) {
   const url = new URL(article.permalink, baseURL);
@@ -187,6 +210,14 @@ const htmlFiles = readdirSync(destination, { recursive: true }).filter(file => f
 for (const relative of htmlFiles) {
   const html = read(relative);
   const $ = load(html);
+  for (const comments of $('[data-comments]').toArray()) {
+    assert.equal($(comments).find('[data-comment-form]').attr('data-endpoint'), '/api/comments-submit', `${relative} 应使用本站评论接口`);
+    assert.equal($(comments).find('[data-comment-form]').attr('data-challenge-endpoint'), '/api/comments-challenge');
+    localAsset($(comments).find('[data-comment-form]').attr('data-pow-worker'));
+    assert.equal($(comments).find('[data-cancel-proof][hidden][type="button"]').length, 1);
+    assert.equal($(comments).find('[name="consent"][required]').length, 1, '提交前必须说明公开 Git 历史');
+    assert.equal($(comments).find('[name="message"][maxlength="2000"]').length, 1);
+  }
   // 别名跳转页没有主题资源；所有实际页面都应在 CSS/脚本之前发现字体。
   if ($('link[rel="stylesheet"]').length) {
     const font = $('head link[rel="preload"][as="font"]');

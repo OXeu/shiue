@@ -5,6 +5,7 @@ rssFullContent = true
 
 [author]
 name = "Xeu"
+homepage = "https://github.com/OXeu"
 
 [footer]
 since = 2020
@@ -15,5 +16,3 @@ licenseURL = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 
 [comments]
 enabled = true
-envId = "https://shiue-comment.vercel.app"
-lang = "zh-CN"

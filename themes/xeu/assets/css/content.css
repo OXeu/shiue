@@ -86,25 +86,32 @@
 #TableOfContents a[aria-current="location"] { font-weight: 700; }
 .comments { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--border); font-size: 14px; }
 .comments h2 { font-size: 18px; margin-bottom: 16px; }
-.comment-loader { display: flex; justify-content: center; padding-block: 32px; }
 .text-button { min-height: 44px; border: 1px solid var(--control-border); border-radius: var(--radius-control); padding: 8px 20px; }
 .text-button:is(:hover, :focus-visible) { border-color: var(--focus); background: var(--surface-muted); }
 .text-button:active { background: var(--hover); }
 .comment-status { color: var(--muted); margin-block: 8px; }
 .comment-status:empty { display: none; }
-.comments .tk-comments, .comments .tk-submit { color: var(--text); }
-.comments :is(.el-input__inner, .el-textarea__inner, .tk-preview-container) { background: var(--surface); color: var(--text); border-color: var(--control-border); }
-.comments :is(.el-input__inner, .el-textarea__inner)::placeholder { color: var(--muted); opacity: 1; }
-.comments :is(.el-input-group__prepend, .OwO-body) { background: var(--surface-muted); color: var(--text-soft); border-color: var(--border); }
-.comments :is(.tk-content, .tk-nick) { color: var(--text); }
-.comments :is(.tk-time, .tk-action-icon, .tk-comments-count) { color: var(--muted); }
-.comments .el-button--primary { color: var(--button-text); background: var(--button-fill); border-color: var(--button-fill); }
-.comments .el-button--primary:is(:hover, :focus-visible) { color: var(--button-text); background: var(--button-hover); border-color: var(--button-hover); }
-.comments .el-button--primary:active { background: var(--button-pressed); border-color: var(--button-pressed); }
-.comments .el-input__inner:focus, .comments .el-textarea__inner:focus { border-color: var(--focus); outline: 2px solid var(--focus); outline-offset: 2px; }
-.comments .tk-content a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
-.comments .el-button { border-radius: var(--radius-control); }
-.comments .el-textarea__inner, .comments .tk-preview-container { border-radius: var(--radius-surface); }
+.comment-heading, .comment-byline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; }
+.comment-heading { justify-content: space-between; }
+.comment-heading span, .comment-byline time { color: var(--muted); font-size: 13px; }
+.comment-list { list-style: none; padding: 0; margin: 0 0 32px; }
+.comment-item { padding-block: 24px; border-bottom: 1px solid var(--border); }
+.comment-message { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.85; margin-top: 10px; }
+.comment-empty, .comment-note { color: var(--muted); line-height: 1.75; }
+.comment-form { margin-top: 32px; }
+.comment-form fieldset { border: 0; padding: 0; min-width: 0; margin: 0; }
+.comment-form legend { font-weight: 600; margin-bottom: 20px; padding: 0; font-size: 16px; }
+.comment-form label { display: block; margin-bottom: 8px; }
+.comment-form :is(input:not([type="checkbox"]), textarea) { display: block; width: 100%; padding: 12px 14px; margin-bottom: 20px; border: 1px solid var(--control-border); border-radius: var(--radius-surface); background: var(--surface); color: var(--text); }
+.comment-form input[name="name"] { max-width: 320px; }
+.comment-form textarea { resize: vertical; min-height: 140px; line-height: 1.75; }
+.comment-form :is(input, textarea)::placeholder { color: var(--muted); opacity: 1; }
+.comment-form .comment-consent { display: flex; align-items: flex-start; gap: 10px; margin-block: 16px 24px; color: var(--text-soft); font-size: 13px; }
+.comment-consent input { flex-shrink: 0; margin: 4px 0 0; accent-color: var(--button-fill); }
+.comment-honeypot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.comment-review .comment-note { margin-bottom: 24px; }
+.comment-review .comment-item { margin-bottom: 24px; }
+.comment-article-link { color: var(--accent-text); text-decoration: underline; text-underline-offset: 4px; }
 @media (min-width: 1280px) {
   .desktop-toc { display: block; position: absolute; left: calc(100% + 40px); top: 0; width: 180px; height: 100%; font-size: 13px; }
   .toc-panel { position: sticky; top: 104px; padding: 8px 16px; }

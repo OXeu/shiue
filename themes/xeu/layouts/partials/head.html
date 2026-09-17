@@ -4,6 +4,7 @@
 <title>{{ if not .IsHome }}{{ .Title }} · {{ end }}{{ .Site.Title }}</title>
 <meta name="description" content="{{ .Description | default .Site.Params.description }}">
 <meta name="color-scheme" content="light dark">
+{{ if .Params.noindex }}<meta name="robots" content="noindex, nofollow, noarchive"><meta name="referrer" content="no-referrer">{{ end }}
 <link rel="canonical" href="{{ .Permalink }}">
 {{ $identity := partialCached "identity.html" .Site }}
 <link rel="icon" type="image/x-icon" sizes="{{ $identity.ico.sizes }}" href="{{ $identity.ico.src | relURL }}">
