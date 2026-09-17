@@ -1,3 +1,3 @@
 {{ define "main" }}
-<div class="not-found"><p class="error-code">404</p><h1>这一页走丢了</h1><p>链接可能已变更，试着搜索文章，或回到首页看看。</p><div><a class="page-link" href="{{ .Site.Home.RelPermalink }}">返回首页</a><a href="{{ "search/" | relURL }}">搜索文章 →</a></div></div>
+<div class="not-found"><p class="error-code" aria-hidden="true">404</p><h1>页面未找到</h1><div><a class="page-link" href="{{ .Site.Home.RelPermalink }}">返回首页</a><a href="{{ "search/" | relURL }}">搜索文章 →</a></div></div>
 {{ end }}

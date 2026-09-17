@@ -12,6 +12,12 @@
 
 样式令牌集中在 `themes/xeu/assets/css/tokens.css`，布局和文章排版分别在 `layout.css`、`content.css`；交互位于 `assets/js/`。主题使用 Hugo 模板、原生 CSS 与 JavaScript；Node.js 仅用于构建时的图片处理，部署产物仍是静态文件。Cantarell 字体随主题本地提供，许可见 `static/fonts/OFL.txt`。旧头像保留在 `static/avatar.jpg`。
 
+主题默认使用纯白背景与黑灰文字，控件主色为 `#222`，按钮悬停、键盘焦点和按压逐级加深至 `#111`、`#000`。粉色仅用于普通链接、选中的目录项和 CC 许可链接；卡片、标签、代码高亮、焦点框及文本选区使用中性色或对应的语义色。页面共用间距、圆角和宽度令牌，正文最大宽度为 760px。卡片摘要最多两行，外观切换器直接位于 footer 内，选中样式与顶部导航一致；可选择浅色、深色或跟随系统并记住偏好。搜索仅在提交或输入后显示状态，移动端目录与评论保留按需展开。加载评论按钮居中，上下各留 32px 内边距。
+
+卡片使用 22px 圆角、内嵌封面和轻柔阴影；图片、提示块与目录使用 16px 圆角，导航、标签及按钮采用胶囊形状。鼠标悬停时卡片轻微上浮，按钮按压时回弹，折叠内容短暂淡入；独立的 `translate` 属性避免干扰瀑布流重排，系统开启“减少动态效果”时取消这些位移动画。
+
+文章卡片与正文使用[原生跨文档 View Transition](https://developer.chrome.com/docs/web-platform/view-transitions/cross-document) 连接标题和内容区域；正文包含与卡片相同的封面时，封面一同展开。脚本在 `pageswap` / `pagereveal` 时临时分配快照名称，结束或取消后清理，支持返回与前进。保留正常链接、新标签页和静态页面导航；关闭 JavaScript、浏览器不支持该接口或用户选择减少动态效果时正常打开文章。
+
 ## 图片加载
 
 构建时用 Sharp 自动处理 `static/` 和 `content/` 的本地位图（也识别无扩展名图片），生成 320、640、960、1440px WebP 和 4×3 BlurHash；小图不会放大，GIF/WebP 动图保留动画。产物按图片内容哈希缓存，替换原图时自动生成新地址。
@@ -50,9 +56,13 @@ npm run check
 SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mjs
 ```
 
-浏览器回归检查使用 Playwright。先在另一个终端运行 `npm run dev -- --disableLiveReload`，在已安装 Playwright 与 Chromium 的环境中执行 `node scripts/check-theme.mjs`。可用 `PLAYWRIGHT_MODULE` 指向现有 Playwright 的 `index.mjs`，用 `SHIUE_TEST_URL` 指定预览地址。检查覆盖八档屏宽下的四列上限、卡片重叠与溢出、BlurHash 慢速加载占位、缩略图网络请求、原图按需加载、搜索和失败重试、分页、主题切换、代码复制、目录背景、相邻文章对齐及无 JavaScript 回退；截图写入系统临时目录。
+浏览器回归检查使用 Playwright。先在另一个终端运行 `npm run dev -- --disableLiveReload`，在已安装 Playwright 与 Chromium 的环境中执行 `node scripts/check-theme.mjs`。可用 `PLAYWRIGHT_MODULE` 指向现有 Playwright 的 `index.mjs`，用 `SHIUE_TEST_URL` 指定预览地址。检查覆盖十二档屏宽下的四列上限、卡片重叠与溢出、BlurHash 慢速加载占位、缩略图网络请求、原图按需加载、搜索和失败重试、分页、默认纯白主题、footer 内的主题切换器、代码复制、目录背景、相邻文章对齐及无 JavaScript 回退；截图写入系统临时目录。
 
 `node scripts/check-motion.mjs` 使用相同环境变量，检查图片 Hero 动画、慢速或失败原图、快速开关、键盘焦点、滚动锁定、手机尺寸、动态修改减少动效偏好、动画 API 降级和返回导航，并记录一次开合过程的帧间隔采样。帧间隔受设备与浏览器运行环境影响，不能视为所有设备上的帧率保证。
+
+`node scripts/check-article-transition.mjs` 检查卡片到正文的真实跨页几何关键帧、返回/前进、搜索结果键盘入口、手机布局、动态减少动效、无封面、新标签页及无脚本回退，并保存过渡截图和浏览器生成的关键帧。
+
+`node scripts/check-readability.mjs` 使用相同环境变量，检查主要页面在浅色/深色与桌面/手机下的实际文字对比度（普通文字至少 4.5:1，大号文字至少 3:1）、横向溢出、五类提示、搜索占位文字、按钮悬停和键盘焦点，并保存页面截图。
 
 ## Vercel
 

@@ -14,5 +14,7 @@
 {{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }}<meta property="og:image" content="{{ $cover.original | absURL }}">{{ end }}
 {{ $init := resources.Get "js/color-mode.js" | minify | fingerprint }}
 <script src="{{ $init.RelPermalink }}" integrity="{{ $init.Data.Integrity }}"></script>
+{{ $transitions := resources.Get "js/article-transition.js" | minify | fingerprint }}
+<script src="{{ $transitions.RelPermalink }}" integrity="{{ $transitions.Data.Integrity }}"></script>
 {{ $style := slice (resources.Get "css/tokens.css") (resources.Get "css/layout.css") (resources.Get "css/content.css") (resources.Get "css/syntax.css") (resources.Get "css/motion.css") | resources.Concat "css/xeu.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">

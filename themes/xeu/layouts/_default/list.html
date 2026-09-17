@@ -1,6 +1,6 @@
 {{ define "main" }}
   {{ $pages := where .RegularPages "Params.hidden" "ne" true }}
-  <div class="page-heading"><h1>{{ if eq .Kind "term" }}<span class="heading-hash">#</span> {{ end }}{{ .Title }}</h1><p>{{ with .Description }}{{ . }} · {{ end }}共 {{ len $pages }} 篇文章</p></div>
+  <div class="page-heading"><h1>{{ if eq .Kind "term" }}<span class="heading-hash">#</span> {{ end }}{{ .Title }}</h1>{{ with .Description }}<p>{{ . }}</p>{{ end }}</div>
   {{ with .Content }}<div class="prose section-intro">{{ . }}</div>{{ end }}
   <div class="article-list" data-masonry aria-label="文章列表">
     {{ range (.Paginate $pages.ByDate.Reverse).Pages }}{{ partial "card.html" . }}{{ end }}

@@ -39,13 +39,14 @@ async function checkLayout() {
 }
 
 try {
-  for (const width of [2560, 1920, 1440, 1280, 1024, 768, 390, 320]) {
+  for (const width of [2560, 1920, 1440, 1280, 1024, 768, 608, 601, 600, 590, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     imageRequests.length = 0;
     await open('');
     const columns = await checkLayout();
     assert.equal(await page.locator('.post-card').count(), 12);
     assert.equal(await page.locator('.site-header img, .site-header svg').count(), 0);
+    assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)', '默认背景应为纯白');
     if (width < 600) assert.equal(columns, 1);
     if (width >= 1280) assert.equal(columns, 4);
     assert.ok(columns <= 4, '瀑布流不得超过四列');
@@ -74,6 +75,13 @@ try {
   await page.waitForFunction(() => document.querySelector('.card-cover').classList.contains('image-loaded'));
   assert.ok(Math.abs((await firstCover.boundingBox()).height - coverBefore.height) < 1, '图片加载不应改变封面高度');
   await open('');
+  assert.equal(await page.locator('.site-footer .color-modes').isVisible(), true, '主题切换器应直接显示在 footer 内');
+  const switcherLayout = await page.locator('.color-modes').evaluate(el => ({
+    top: el.getBoundingClientRect().top,
+    footerTop: el.closest('footer').getBoundingClientRect().top,
+    position: getComputedStyle(el).position,
+  }));
+  assert.ok(switcherLayout.top >= switcherLayout.footerTop && switcherLayout.position === 'static');
   await page.getByRole('button', { name: '深色', exact: true }).click();
   await page.reload({ waitUntil: 'load' });
   assert.equal(await page.locator('html').getAttribute('data-color-mode'), 'dark');
@@ -82,6 +90,13 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.colorMode === 'dark');
   await page.emulateMedia({ colorScheme: 'light' });
   await page.waitForFunction(() => document.documentElement.dataset.colorMode === 'light');
+  await page.waitForFunction(() => {
+    const styles = getComputedStyle(document.querySelector('.color-modes [aria-pressed="true"]'));
+    return styles.backgroundColor === 'rgb(34, 34, 34)' && styles.color === 'rgb(255, 255, 255)';
+  });
+  assert.deepEqual(await page.locator('.color-modes [aria-pressed="true"]').evaluate(el => ({
+    color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor,
+  })), { color: 'rgb(255, 255, 255)', background: 'rgb(34, 34, 34)' });
   await page.getByRole('link', { name: '下一页 →' }).click();
   assert.equal(await page.locator('.post-card').count(), 5);
   await checkLayout();
@@ -97,7 +112,8 @@ try {
   await page.waitForFunction(() => document.querySelector('.search-status').textContent.includes('没有找到'));
   assert.equal(await page.locator('.search-status script').count(), 0);
   await page.locator('#search-input').fill('');
-  await page.waitForFunction(() => document.querySelector('.search-status').textContent.includes('输入关键词'));
+  await page.waitForFunction(() => document.querySelector('.search-status').textContent === '');
+  assert.equal(await page.locator('.post-card').count(), 0);
 
   for (const route of ['archives/', 'tags/', 'categories/', 'links/', 'about/', '404.html', 'p/binder-saomang/', 'p/rin/']) {
     await open(route);
@@ -154,6 +170,11 @@ try {
   await noJS.goto(baseURL);
   assert.equal(await noJS.locator('.post-card').count(), 12);
   assert.ok(await noJS.locator('.card-title a').first().getAttribute('href'));
+  assert.equal(await noJS.locator('[data-appearance]').isVisible(), false, '无 JS 时不显示不可用的外观控件');
+  const firstVisit = await browser.newPage({ colorScheme: 'dark' });
+  await firstVisit.goto(baseURL);
+  assert.equal(await firstVisit.locator('html').getAttribute('data-color-mode'), 'light', '首次访问即使系统为深色也默认纯白主题');
+  await firstVisit.close();
   assert.deepEqual(errors, []);
   console.log(`主题检查通过：响应式瀑布流、搜索与失败重试、分页、主题切换、正文交互及无 JS 回退。截图：${artifacts}`);
 } finally {

@@ -8,7 +8,9 @@
       button.setAttribute('aria-pressed', String(button.dataset.colorMode === preference));
     });
   };
-  applyMode(root.dataset.colorPreference || 'auto');
+  applyMode(root.dataset.colorPreference || 'light');
+  const appearance = document.querySelector('[data-appearance]');
+  if (appearance) appearance.hidden = false;
   document.querySelectorAll('button[data-color-mode]').forEach(button => {
     button.addEventListener('click', () => {
       applyMode(button.dataset.colorMode);
@@ -17,7 +19,9 @@
   });
   media.addEventListener('change', () => applyMode(root.dataset.colorPreference));
   window.addEventListener('storage', event => {
-    if (event.key === 'xeu-color-mode') applyMode(['light', 'dark'].includes(event.newValue) ? event.newValue : 'auto');
+    if (event.key === 'xeu-color-mode' || event.key === null) {
+      applyMode(['light', 'dark', 'auto'].includes(event.newValue) ? event.newValue : 'light');
+    }
   });
   const header = document.querySelector('.site-header');
   let wasScrolled;
@@ -55,6 +59,7 @@
       });
       await window.twikoo.init({ envId: comments.dataset.env, el: '#twikoo', lang: comments.dataset.lang, path: comments.dataset.path });
       button.hidden = true;
+      button.closest('.comment-loader').hidden = true;
       status.textContent = '';
     } catch { status.textContent = '评论暂时无法加载，请稍后重试。'; }
     finally { button.disabled = false; }

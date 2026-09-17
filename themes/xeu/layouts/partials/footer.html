@@ -1,8 +1,8 @@
 <footer class="site-footer">
   <p>© {{ .Site.Params.footer.since }}–{{ now.Year }} {{ .Site.Params.name }} <span aria-hidden="true">·</span> <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> / Xeu <span aria-hidden="true">·</span> <a href="{{ "index.xml" | relURL }}">RSS</a></p>
-  <div class="color-modes" role="group" aria-label="外观模式">
-    <button type="button" data-color-mode="light" aria-pressed="false">浅色</button>
-    <button type="button" data-color-mode="auto" aria-pressed="true">跟随系统</button>
+  <div class="color-modes" data-appearance role="group" aria-label="外观模式" hidden>
+    <button type="button" data-color-mode="light" aria-pressed="true">浅色</button>
+    <button type="button" data-color-mode="auto" aria-pressed="false">跟随系统</button>
     <button type="button" data-color-mode="dark" aria-pressed="false">深色</button>
   </div>
 </footer>

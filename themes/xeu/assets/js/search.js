@@ -71,7 +71,7 @@ import { initializeImages, releaseImages } from './images.js';
     if (!query) {
       replaceResults();
       results.removeAttribute('aria-busy');
-      status.textContent = '输入关键词开始搜索。';
+      status.textContent = '';
       return;
     }
     status.textContent = '正在搜索…';
@@ -96,7 +96,7 @@ import { initializeImages, releaseImages } from './images.js';
           ? 1 + words.reduce((score, word) => score + (title.includes(word) ? 10 : 0) + (tags.includes(word) ? 5 : 0), 0) : 0 };
       }).filter(result => result.score > 0).sort((a, b) => b.score - a.score);
       replaceResults(matches.map(({ item }) => renderCard(item)));
-      status.textContent = matches.length ? `找到 ${matches.length} 篇相关文章` : `没有找到与「${query}」相关的文章，试试其他关键词。`;
+      status.textContent = matches.length ? `找到 ${matches.length} 篇文章` : `没有找到与「${query}」相关的文章`;
     } catch {
       if (current === revision) {
         replaceResults();

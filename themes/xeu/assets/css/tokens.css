@@ -1,4 +1,4 @@
-/* 明亮色用于小面积标记；正文、链接和控件各自使用满足对比度的颜色。 */
+/* 黑色用于控件；粉色仅用于普通链接、当前目录项与许可链接。 */
 @font-face {
   font-family: Cantarell;
   font-style: normal;
@@ -9,11 +9,9 @@
 }
 :root {
   color-scheme: light;
-  --accent: #ff5c8a;
-  --accent-text: #c51d55;
-  --accent-hover: #e72c68;
+  --accent-text: #d61c59;
   --accent-soft: #fff0f5;
-  --focus: #c51d55;
+  --focus: #222;
   --canvas: #fff;
   --surface: #fff;
   --surface-muted: #f7f7f8;
@@ -21,23 +19,26 @@
   --text: #202024;
   --text-soft: #505057;
   --muted: #686870;
+  --footer-text: #767676;
   --border: #e8e8ec;
   --border-hover: #c9c9d0;
   --control-border: #85858e;
   --header-fill: #fff;
-  --button-fill: #202024;
+  --button-fill: #222;
+  --button-hover: #111;
+  --button-pressed: #000;
   --button-text: #fff;
   --nav-active-fill: #222;
   --nav-active-text: #fff;
-  --selection: #ffd6e3;
+  --selection: #e5e5e5;
   --note: #38bdf8;
   --note-soft: #eff9ff;
   --tip: #34d399;
   --tip-soft: #edfcf5;
   --warning: #fbbf24;
   --warning-soft: #fffae8;
-  --caution: #fb7185;
-  --caution-soft: #fff1f3;
+  --caution: #f87171;
+  --caution-soft: #fff3f0;
   --important: #a78bfa;
   --important-soft: #f6f2ff;
   --overlay: rgb(9 9 11 / .8);
@@ -47,7 +48,6 @@
   --card-border: #eeeef1;
   --shadow-rest: 0 2px 8px rgb(32 32 36 / .025), 0 8px 24px rgb(32 32 36 / .025);
   --shadow-lift: 0 6px 16px rgb(32 32 36 / .04), 0 16px 36px rgb(32 32 36 / .06);
-  --shadow-popup: 0 8px 32px rgb(32 32 36 / .1);
   --gap: 24px;
   --card-min: 260px;
   --columns-max: 4;
@@ -67,25 +67,22 @@
   --text: #fafafa;
   --text-soft: #d4d4d8;
   --muted: #b0b0b8;
+  --footer-text: #a6a6a6;
   --border: #35353c;
   --border-hover: #565660;
   --card-border: #35353c;
   --shadow-rest: 0 2px 12px rgb(0 0 0 / .12);
   --shadow-lift: 0 8px 28px rgb(0 0 0 / .24);
-  --shadow-popup: 0 8px 32px rgb(0 0 0 / .3);
   --control-border: #83838e;
   --header-fill: #18181b;
-  --button-fill: #fafafa;
-  --button-text: #202024;
   --accent-text: #ff8cb0;
-  --accent-hover: #ff8cb0;
   --accent-soft: #39232d;
-  --focus: #ff8cb0;
-  --selection: #603047;
+  --focus: #eee;
+  --selection: #444;
   --note-soft: #1c2b33;
   --tip-soft: #1c2d28;
   --warning-soft: #302b1d;
-  --caution-soft: #332329;
+  --caution-soft: #332522;
   --important-soft: #292438;
 }
 * { box-sizing: border-box; }
@@ -96,7 +93,7 @@ a, button { -webkit-tap-highlight-color: transparent; }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:disabled { cursor: wait; opacity: .65; }
-a:hover { color: var(--accent-text); }
+a:hover { color: var(--text); }
 button, a { transition: color 160ms, background-color 160ms, border-color 160ms; }
 img { display: block; max-width: 100%; height: auto; }
 h1, h2, h3, p { margin: 0; }
