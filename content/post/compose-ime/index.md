@@ -1,18 +1,19 @@
 ---
-title: "Jetpack Compose Accompanist IME弹出状态问题"
-date: 2022-02-14T16:31:52+08:00
-draft: false
-description: 实际使用WindowInset.ime.bottom和WindowInset.ime.isVisible时得到的结果比较奇怪...
-slug: compose-ime
-image: /william-warby.jpg
+aliases:
+- /feed/8/
 categories:
 - Android
+date: 2022-02-14T00:31:52.000Z
+description: Compose 修复关闭键盘时闪烁的问题
+draft: false
+image: /william-warby.jpg
+lastmod: 2022-02-14T00:31:52.000Z
+slug: compose-ime
 tags:
-- Compose
 - Android
+- Compose
+title: Jetpack Compose Accompanist IME弹出状态问题
 ---
-
-> 封面来源 [Unsplash](https://unsplash.com/photos/ld4wZGqlLF4)
 
 ## 问题
 
