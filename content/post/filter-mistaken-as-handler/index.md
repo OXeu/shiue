@@ -1,27 +1,33 @@
 ---
-title: "错把过滤器当处理函数"
-date: 2024-03-22T07:08:04.950Z
-slug: filter-mistaken-as-handler
-description: 谢师傅使用RICQ框架和Atri插件化框架搭建聊天机器人的过程中遇到了一些问题，包括插件构建和加载、异步代码编写等，最终成功解决了问题。
+aliases:
+- /feed/9/
 categories:
 - Rust
+date: 2024-03-21T23:08:04.000Z
+description: ''
+draft: false
+image: /images/dc4b997f65dd4c0e72f83119.png
+lastmod: 2026-01-15T16:00:04.000Z
+slug: filter-mistaken-as-handler
 tags:
 - RICQ
 - Atri
 - 插件化
 - 异步编程
-image: undefined
-draft: false
+title: 错把过滤器当处理函数
 ---
 下午一点，外面天气正好，刚起床没多久的谢师傅灵机一动想写一个能帮自己整理内容的聊天机器人。
 
 考虑到之前使用 cqhttp 容易被风控，加之自己最近正在练手 Rust，于是谢师傅决定掏出自己很久以前看到的 **RICQ\[1\]** 框架。
 
- ![图片](https://mmbiz.qpic.cn/sz_mmbiz_png/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6zVibqQIrZPhnkCd3tY5iaJvoQcia29FxhoDRJPg7D1346KaRwgTQFHyQ6w/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
+![d1c2628b-1441-4c6e-9d4c-496be6ccee8e.png](/images/dc4b997f65dd4c0e72f83119.png)
+
 
 正巧看到 RCIQ 主页的衍生项目里有一个支持插件化的框架 **Atri\[2\]** ，于是便开始了今天的马戏团小丑之旅。
 
- ![Atri](https://mmbiz.qpic.cn/sz_mmbiz_png/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6zCiaMczrVGxnzIjLLnYRO8nHzQuCibHCchfic4myoLgoLK06MOyhaIeZqA/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1 "right-50")
+![640.png](/images/d0bcc7abe7d8295151389b29.png)
+
+
 
 # **冷漠的 Atri**
 
@@ -33,17 +39,21 @@ draft: false
 
 但是似乎 Atri 假装什么都没发生，明明动态链接库就在那里，它却假装什么都没有，Atri 一脸冷漠的告诉谢师傅它加载了 0 个插件。
 
- ![图片](https://mmbiz.qpic.cn/sz_mmbiz_png/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6zDlZiakOae0CEoDwatKJYqg70WSFjvKEvyyDDFs7K0E1UyH50H3icK1GQ/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
+![640-1.png](/images/95eb9eb2d912ed9e0a2180f2.png)
+
 
 谢师傅傻了，他想了半天也没想明白他做错了什么，会让 Atri 如此冷漠，对他的插件熟视无睹。他找遍了 Github 的 Issue，只发现了一个 **MUSL无法加载插件 #6\[3\]** 的问题，谢师傅想起来他好像就是用的 musl 版本，于是又哼哧哧把 Atri 换成 GNU 版本的，但 Atri 还是不理他。
 
-谢师傅人傻了，就在谢师傅一筹莫展之时，他不经意瞟见一行字： ![图片](https://mmbiz.qpic.cn/sz_mmbiz_png/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6zCfFIh66ibTiatiaOWO9T2sTicVSNA3njU45bYrYJxen75dCEds7dOODdaA/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
+谢师傅人傻了，就在谢师傅一筹莫展之时，他不经意瞟见一行字：![640.png](/images/d63ed64c66b196a9f7b7c160.png)
+
+
 
 armv7-unknown-linux-musleabihf ？谢师傅突然想起来一些关于跨平台交叉编译的事，这才后知后觉发现自己因为 sshfs 把文件系统给打通了让他下意识忽略了交叉编译的事！
 
 谢师傅又是一顿折腾，这才给 cargo 加上交叉编译的工具链，直接make deploy，果不其然，这次 Atri 终于接受了谢师傅的插件：
 
- ![](https://mmbiz.qpic.cn/sz_mmbiz_png/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6z4PX6XPhedA6ozBbJiaY0ia07JGneoV2mtpTRcJwRm3hickYCFEQS4AkVA/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
+![640-1.png](/images/2d34ef7a2e043b19162348e5.png)
+
 
 # **选择性失明**
 
@@ -112,18 +122,29 @@ async fn test() {
 
 最后在谢师傅几近崩溃临近放弃之时随手将 Listener::next_event 方法的返回值赋值给了一个变量，谢师傅惊奇的发现这玩意居然有返回值！并且就是谢师傅一直需要的 FriendMessageEvent
 
- ![图片](https://mmbiz.qpic.cn/sz_mmbiz_jpg/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6zqsbicY2OZMicDW68pgEbQUqCoPGt8O1iat9FauyV64VRTFmqSicW7anJPA/640?wx_fmt=jpeg&wxfrom=5&wx_lazy=1&wx_co=1)
+![640.jpg](/images/3b726df74e62a0649dfb7647.jpg)
 
-那这不是意味着谢师傅没必要在闭包里写代码了吗？谢师傅高兴起来，直接把所有代码都迁到闭包外面了，而此时谢师傅也注意到了后面闭包的参数签名：**filter** ![图片](https://mmbiz.qpic.cn/sz_mmbiz_png/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6zLYcUvPbpjrJ5L6icUcqaMLaV7YCf1wBc8hB1iczHkkINickbx9UVbLhUA/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)反应迟钝的谢师傅这才意识到，他三个小时都在研究怎么在 filter 里写异步代码！
 
-谢师傅抑郁了。谢师傅这时想到他其实一开始就看到 IDE 提示他的那个小小的 filter，但是正高兴于 Atri 接受他的插件之时的谢师傅理所当然认为 Listener::next_event 与 Listener::listening_on_always 一样都是在回调里写逻辑于是直接忽略了 filter，并且对自己的写法笃信不疑。 ![图片](https://mmbiz.qpic.cn/sz_mmbiz_jpg/EkhJTM5kB9cFuA4icXsROn9n1VF9dDO6zqdgLoP8auZibmiaicYibzVKx5h5qX12BzaLXdrhkOA4luxD8KAba3ueiatA/640?wx_fmt=jpeg&wxfrom=5&wx_lazy=1&wx_co=1)好消息是谢师傅刚刚改完的代码终于成功跑起来了。
+那这不是意味着谢师傅没必要在闭包里写代码了吗？谢师傅高兴起来，直接把所有代码都迁到闭包外面了，而此时谢师傅也注意到了后面闭包的参数签名：**filter** ![640.png](/images/c055ed67f8f2bef67068b2f5.png)
+
+反应迟钝的谢师傅这才意识到，他三个小时都在研究怎么在 filter 里写异步代码！
+
+谢师傅抑郁了。谢师傅这时想到他其实一开始就看到 IDE 提示他的那个小小的 filter，但是正高兴于 Atri 接受他的插件之时的谢师傅理所当然认为 Listener::next_event 与 Listener::listening_on_always 一样都是在回调里写逻辑于是直接忽略了 filter，并且对自己的写法笃信不疑。 
+![640.jpg](/images/cb6e7f9ad15052872b5ac5d2.jpg)
+
+
+
+好消息是谢师傅刚刚改完的代码终于成功跑起来了。
 
 坏消息是这只会显得谢师傅这三个多小时是有多么的小丑。
 
-### **参考资料**
+# 引用
 
-\[1\] RICQ: *https://github.com/lz1998/ricq*
+1. RICQ: *https://github.com/lz1998/ricq*
 
-\[2\] Atri: *https://atrikawaii.github.io/atri_doc/*
+2. Atri: *https://atrikawaii.github.io/atri_doc/*
 
-\[3\] MUSL无法加载插件 #6: *https://github.com/LaoLittle/atri_bot/issues/6*
+3. MUSL无法加载插件 #6: *https://github.com/LaoLittle/atri_bot/issues/6*
+
+ 
+~话说...我最开始是打算干嘛来着？~
