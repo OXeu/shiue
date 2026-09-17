@@ -1,32 +1,40 @@
 ---
-title: "Binder 扫盲"
-date: 2024-03-27T23:28:58+08:00
-description: "Binder 是什么，怎么用，是如何运作的？"
-slug: binder
-image: binder.png
+aliases:
+- /feed/5/
 categories:
 - android
+date: 2024-03-27T07:28:58.000Z
+description: Binder 是什么，怎么用，是如何运作的？
+draft: false
+image: /images/07844401bab2b2815b3d8aaa.png
+lastmod: 2026-01-15T15:29:26.000Z
+slug: binder
 tags:
 - Android
-draft: false
+- Binder
+title: Binder 是什么
 ---
 
-## Binder 是什么
+![b1baf704-e441-474e-a1b1-afb02f00c9ea.png](/images/07844401bab2b2815b3d8aaa.png)
 
-也许你已经看过许多篇文章讲 AIDL、Binder 是什么但是仍然摸不着头脑，也搞不清楚什么 Stub、Proxy、IBinder等等是是什么，但是一提到 App 与服务器通信的接口与接口风格，你也许马上能够想到 RESTful、GraphQl、gRPC 等一系列内容，下文将通过与 gRPC 类比的带你理解 Binder 中各部分分别是什么。
+# Binder 是什么
 
-## gRPC 与 Protobuf
+也许你已经看过许多篇文章讲 AIDL、Binder 是什么但是仍然摸不着头脑，也搞不清楚什么 Stub、Proxy、IBinder等等是什么，但是一提到 App 与服务器通信的接口与接口风格，你也许马上能够想到 RESTful、GraphQL、gRPC 等一系列内容，下文将通过与 gRPC 类比的带你理解 Binder 中各部分分别是什么。
+
+# gRPC 与 Protobuf
 
 
-> 在介绍 Binder 之前，我想先简单介绍一下 gRPC 是什么，这对于后续的类比介绍十分重要。如果你已经知道 gRPC 与 protobuf，那么这一节可以直接跳过。
+> [!TIP]
+在介绍 Binder 之前，我想先简单介绍一下 gRPC 是什么，这对于后续的类比介绍十分重要。如果你已经知道 gRPC 与 protobuf，那么这一节可以直接跳过。
 
-简单来说，[gRPC](https://grpc.io/) (Google Remote Procedure Call) 是Google开发的一个 RPC 框架，用于客户端直接调用服务端提供的函数，说白了就是一种 API 接口的设计方法，跟 RESTful、GraphQL 一样都只是一个 API 接口框架，gRPC 的优势是使用 *[ProtoBuf  ](https://protobuf.dev/)*作为接口描述、数据交换的格式（RESTful 风格的接口通常使用的是 JSON），而 ProtoBuf 的优势是快、小、平台无关，相较于 JSON 来说使用数据二进制格式封装，结构更紧凑，更易解析，同时通过 protobuf 只需要描述接口与对象，即可自动生成所需语言的数据类与接口，服务端只需要实现生成代码中的接口即可提供服务，客户端只需要初始化时指定服务器的 URL 即可像调用本地函数一样调用服务器的接口。
+
+简单来说，[gRPC](https://grpc.io/) (Google Remote Procedure Call) 是Google开发的一个 RPC 框架，用于客户端直接调用服务端提供的函数，说白了就是一种 API 接口的设计方法，跟 RESTful、GraphQL 一样都只是一个 API 接口框架，gRPC 的优势是使用 [ProtoBuf  ](https://protobuf.dev/)作为接口描述、数据交换的格式（RESTful 风格的接口通常使用的是 JSON），而 ProtoBuf 的优势是快、小、平台无关，相较于 JSON 来说数据使用二进制格式封装，结构更紧凑，更易解析，同时通过 protobuf 只需要描述接口与对象，即可自动生成所需语言的数据类与接口，服务端只需要实现生成代码中的接口即可提供服务，客户端只需要初始化时指定服务器的 URL 即可像调用本地函数一样调用服务器的接口。
 
 下面引用 <https://www.cnblogs.com/zhangmingcheng/p/16329237.html> 的例子：
 
 我们可以简单定义一个 protobuf 文件
 
-```
+```clike
 syntax = "proto3";
 // 这部分的内容是关于最后生成的go文件是处在哪个目录哪个包中，../pb代表在当前目录的上一级pb目录中生成，message代表了生成的go文件的包名是message。
 option go_package = "../pb;pb";
@@ -70,7 +78,7 @@ func (MessageSenderServerImpl) Send(context context.Context, request *pb.Message
 }  
 ```
 
-```go
+```clike
 // grpc-practice/pkg/service/main.go
  
 package main
@@ -128,7 +136,7 @@ func main() {
 }
 ```
 
-使用其他语言也是一样，如使用客户端使用 Rust：
+使用其他语言也是一样，如客户端使用 Rust：
 
 ```rust
 #[tokio::main]
@@ -148,20 +156,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 可以看到使用 gRPC 不需要使用大量的代码构建 HTTP 请求，解析响应，整套请求流程与调用对象的函数几乎一样，大大简化了客户端与服务器通信接口的实现（这一切主要靠 protobuf 自动生成的代码来实现）
 
-## Binder 与 AIDL
+# Binder 与 AIDL
 
-简单来说，Binder是 Android 进程间通信 IPC (Inter-Process Communication) 的一种协议/机制，可以理解为进程间通信的 gRPC 协议。而 AIDL(Android Interface Definition Language) 就是 Binder 中的 protobuf，负责定义接口。
+简单来说，Binder是 Android 进程间通信 IPC (Inter-Process Communication) 的一种协议/机制，可以理解为进程间通信中的 gRPC。而 AIDL(Android Interface Definition Language) 就是 Binder 中的 protobuf，负责定义接口。
 
 
 1. 我们可以使用 AIDL 定义一个接口，相当于 gRPC 使用 protobuf 定义接口：
 
-   ```text
+   ```css
        package my.package;
        interface IFoo {
            int doFoo();
        }
    ```
-2. 接着Rebuild一下项目后IDE就会自动生成由 aidl 文件生成桩代码，相当于通过 protobuf 文件生成接口定义文件和抽象，其生成的代码大致为以下结构：
+2. 接着 Rebuild 一下项目后 IDE 就会自动生成 aidl 文件对应的中间代码，相当于 gRPC 中通过 protobuf 文件生成接口定义文件和抽象，其生成的代码大致为以下结构：
 
    ```java
    public interface IFooService extends android.os.IInterface {
@@ -295,11 +303,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 以上代码基本将 Binder 与 gRPC 中的内容对应起来，相信对于理解 Binder 以及 AIDL 是什么，怎么用已经有了一个初步的认识，接下来就是 AIDL 中生成的代码中各内容是什么
 
-## AIDL 生成的都是些什么
+# AIDL 生成的都是些什么
 
 那么 AIDL 生成的代码中的IFooService, IInterface, Stub, Proxy…都是些什么呢？
 
-### IFooService
+## IFooService
 
 `IFooService` 应该是最清晰的一个，他就是由我们定义的 AIDL 代码中的 `interface IFoo`，里面有我们定义的接口 `int doFoo();`，而 `IFooService` 继承了 `IInterface`，而他的定义很简单：
 
@@ -319,13 +327,13 @@ public interface IInterface
 }
 ```
 
-只定义了一个 asBinder 方法，而该方法在 Stub 类和 Proxy 类中分别实现，用于使接口能返回相关联的Binder。
+只定义了一个 asBinder 方法，而该方法在 Stub 类和 Proxy 类中分别实现，用于使接口能返回相关联的 Binder。
 
-### Stub
+## Stub
 
 Stub 是一个抽象类，继承了 `Binder`，实现了 `IFooService`，用户实际的接口代码也是后续通过继承 Stub 实现的，所以实现 `IFooService` 接口是很自然的，`Stub` 中生成的 `asInterface` 方法用于客户端中将获取到的实现了 `IBinder` 接口的对象强制转型为(可以理解为反序列化)为实现了 `IFooService` 的对象
 
-### Binder 与 IBinder
+## Binder 与 IBinder
 
 [Binder](https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/os/Binder.java) 类实现了 [IBinder](https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/os/IBinder.java) 接口，其中最关键的代码是实现了 `transact` 方法：
 
@@ -463,17 +471,18 @@ public class Binder implements IBinder {
 
 全流程图：
 
- ![Binder 流程图](flow.png)
+![9075dc6b-7a09-4422-a85c-a3b24e4911ae.png](/images/099012818b3548ed61c1f6f0.png)
 
-## Binder 原理
+
+# Binder 原理
 
 相信到这里你已经对 Binder 是什么以及其工作流程图已经有了大概的了解，此时再回过头去看 Binder 的实现原理也会更加轻松，有很多其他文章讲解原理已经十分清晰了，这里就不再赘述，可以参考这篇文章：
 
 [Android : 跟我学Binder --- (1) 什么是Binder IPC？为何要使用Binder机制？](https://www.cnblogs.com/blogs-of-lxl/p/10088548.html)
 
-## References
+# References
 
 
 1. [AIDL 后端](https://source.android.com/docs/core/architecture/aidl/aidl-backends?hl=zh-cn)
-2. **[不得不说的 Android Binder 机制与 AIDL](https://juejin.cn/post/6994057245113729038)**
+2. [不得不说的 Android Binder 机制与 AIDL](https://juejin.cn/post/6994057245113729038)
 3. [Android跨进程通信：图文详解 Binder 机制原理](https://blog.csdn.net/carson_ho/article/details/73560642)
