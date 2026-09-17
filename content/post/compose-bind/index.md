@@ -1,19 +1,19 @@
 ---
-title: "Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题"
-date: 2022-07-13T12:58:52+08:00
-draft: false
-description: 在Compose 1.2.0-alpha08 以前，可以使用以下代码:...
-slug: compose-bind
-image: /renato-ramos-puma.jpg
+aliases:
+- /feed/6/
 categories:
 - Android
+date: 2022-07-12T20:58:52.000Z
+description: ''
+draft: false
+image: /renato-ramos-puma.jpg
+lastmod: 2022-07-12T20:58:52.000Z
+slug: compose-bind
 tags:
-- Compose
 - Android
+- Compose
+title: Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题
 ---
-
-> 封面来源 [Unsplash](https://unsplash.com/photos/_9bDW5I9D_8)
-
 在Compose 1.2.0-alpha08 以前，可以使用以下代码
 
 ```Kotlin
