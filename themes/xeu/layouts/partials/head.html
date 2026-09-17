@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preload" href="{{ "fonts/cantarell-latin-400.woff2" | relURL }}" as="font" type="font/woff2" crossorigin="anonymous">
 <title>{{ if not .IsHome }}{{ .Title }} · {{ end }}{{ .Site.Title }}</title>
 <meta name="description" content="{{ .Description | default .Site.Params.description }}">
 <meta name="color-scheme" content="light dark">

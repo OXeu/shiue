@@ -62,7 +62,7 @@ try {
     await page.evaluate(mode => localStorage.setItem('xeu-color-mode', mode), mode);
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const route of ['', 'page/2/', 'archives/', 'tags/', 'categories/', 'links/', 'about/', 'search/?keyword=Binder', '404.html', 'p/rin/', 'p/binder-saomang/']) {
+      for (const route of ['', 'page/2/', 'archives/', 'tags/', 'categories/', 'links/', 'about/', 'search/?keyword=Binder', '404.html', 'p/rin/', 'p/binder-saomang/', 'p/ai-random-thoughts/']) {
         await page.goto(new URL(route, baseURL).href, { waitUntil: 'load' });
         await page.locator('main h1').first().waitFor();
         await page.evaluate(() => document.fonts.ready);
@@ -74,6 +74,10 @@ try {
         checked += result.count;
         minimum = Math.min(minimum, result.minimum);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${route} 横向溢出`);
+        for (const license of await page.locator('.article-footer a[rel~="license"]').all()) {
+          const decoration = await license.evaluate(el => getComputedStyle(el).textDecorationLine);
+          assert.ok(decoration.includes('underline'), `${mode} / ${width}px / ${route} 许可链接必须有常驻下划线`);
+        }
         if (mode === 'light' && ['', 'archives/', 'tags/', 'p/rin/', 'search/?keyword=Binder'].includes(route)) {
           await page.screenshot({ path: path.join(artifacts, `${route.split('/')[0] || 'home'}-${width}.png`) });
         }

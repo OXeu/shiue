@@ -61,7 +61,7 @@
 .x-embed-fallback > :first-child { margin-top: 0; }
 .x-embed-fallback > :last-child { margin-bottom: 0; }
 .article-footer { border-top: 1px solid var(--border); margin-top: 40px; padding-top: 24px; font-size: 13px; color: var(--muted); }
-.article-footer a { color: var(--accent-text); }
+.article-footer a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 .adjacent-posts { display: flex; gap: 32px; margin: 32px 0; padding: 8px var(--article-padding); }
 .adjacent-posts a { flex: 1; min-width: 0; }
 .adjacent-posts a:hover { color: var(--accent-text); }

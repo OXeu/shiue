@@ -186,6 +186,19 @@ for (const style of styles) {
 const htmlFiles = readdirSync(destination, { recursive: true }).filter(file => file.endsWith('.html'));
 for (const relative of htmlFiles) {
   const html = read(relative);
+  const $ = load(html);
+  // 别名跳转页没有主题资源；所有实际页面都应在 CSS/脚本之前发现字体。
+  if ($('link[rel="stylesheet"]').length) {
+    const font = $('head link[rel="preload"][as="font"]');
+    assert.equal(font.length, 1, `${relative} 应且仅应预加载一个正文所用字体`);
+    assert.equal(new URL(font.attr('href'), baseURL).href, new URL('fonts/cantarell-latin-400.woff2', baseURL).href, `${relative} 字体预加载路径错误`);
+    assert.equal(font.attr('type'), 'font/woff2');
+    assert.ok(['', 'anonymous'].includes(font.attr('crossorigin')), '字体预加载必须与 @font-face 使用相同的 CORS 模式');
+    localAsset(font.attr('href'));
+    const head = $('head').children().toArray();
+    const firstDependency = $('head script[src], head link[rel="stylesheet"]').first().get(0);
+    assert.ok(head.indexOf(font.get(0)) < head.indexOf(firstDependency), `${relative} 字体应先于 CSS 和脚本预加载`);
+  }
   checkCardImages(html);
   for (const match of html.matchAll(/<(?:img|script)\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
     localAsset(match[1] || match[2] || match[3]);
