@@ -1,0 +1,12 @@
+{{- $url := .Get "url" | default "" -}}
+{{- $matches := findRESubmatch `^https://(?:www\.|mobile\.)?(?:x\.com|twitter\.com)/((?:[A-Za-z0-9_]{1,15}/status|i/web/status)/([0-9]{1,20}))/?(?:[?#].*)?$` $url 1 -}}
+{{- if not $matches -}}
+  {{- errorf "x 短代码需要有效的 X / Twitter 帖子 HTTPS 链接：%s (%s)" $url .Position -}}
+{{- else -}}
+  {{- $match := index $matches 0 -}}
+  {{- $permalink := printf "https://x.com/%s" (index $match 1) -}}
+<div class="x-embed" data-x-embed="{{ index $match 2 }}">
+  <div class="x-embed-fallback">{{ with .Inner }}{{ $.Page.RenderString (dict "display" "block") . }}{{ end }}</div>
+  <p class="x-embed-source"><a href="{{ $permalink }}" target="_blank" rel="noopener noreferrer">在 X 上查看原帖</a></p>
+</div>
+{{- end -}}

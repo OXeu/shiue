@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, readFile, readdir, unlink } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -19,7 +19,8 @@ test('identity fetches on every invocation, generates exact sizes, and never sto
     const url = new URL(href);
     assert.equal(`${url.origin}${url.pathname}`, AVATAR_SOURCE);
     assert.equal(url.searchParams.get('s'), '512');
-    assert.ok(url.searchParams.get('_deploy'));
+    assert.equal(url.searchParams.get('v'), '4');
+    assert.deepEqual([...url.searchParams.keys()].sort(), ['s', 'v']);
     assert.equal(options.cache, 'no-store');
     assert.equal(options.headers['cache-control'], 'no-cache');
     requests.push(href);
@@ -53,7 +54,7 @@ test('identity fetches on every invocation, generates exact sizes, and never sto
   assert.deepEqual(await readIdentity(root), first);
   const second = await prepareIdentity({ root, fetchImpl, log });
   assert.equal(requests.length, 2, '即使已有产物也必须重新请求 GitHub');
-  assert.notEqual(requests[0], requests[1], '每次请求应带独立的缓存破坏参数');
+  assert.equal(requests[0], requests[1], '每次都重新请求标准头像地址，不附加随机查询参数');
   assert.equal(second.fingerprint, first.fingerprint, '内容未变化可保留相同的浏览器资源地址');
   const changed = await prepareIdentity({ root, fetchImpl: async () => response(await picture('#2266aa')), log });
   assert.notEqual(changed.fingerprint, first.fingerprint, '头像变化必须更新浏览器资源地址');
@@ -91,4 +92,43 @@ test('download failures cannot silently reuse old assets or replace the manifest
   controller.abort();
   await assert.rejects(prepareIdentity({ root, signal: controller.signal, fetchImpl: () => assert.fail(), log }));
   assert.equal(await readFile(file, 'utf8'), previous);
+});
+
+test('an HTTP 200 GitHub placeholder retries the canonical user avatar before generating icons', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-identity-placeholder-'));
+  const placeholder = Buffer.from(await readFile(new URL('./fixtures/github-avatar-placeholder.base64', import.meta.url), 'utf8'), 'base64');
+  const png = await picture('#d61c59');
+  const requests = [];
+  const logs = [];
+  const manifest = await prepareIdentity({ root, log: message => logs.push(message), fetchImpl: async (href, options) => {
+    requests.push(href);
+    assert.equal(options.cache, 'no-store');
+    return response(requests.length === 1 ? placeholder : png);
+  } });
+  assert.deepEqual(requests, [`${AVATAR_SOURCE}?v=4&s=512`, `${AVATAR_SOURCE}?v=4`]);
+  assert.ok(logs.some(message => message.includes('默认占位图')));
+  const actual = await sharp(path.join(root, 'static', manifest.socialImage.src)).raw().toBuffer();
+  const expected = await sharp(png).resize(512, 512, { fit: 'cover' }).raw().toBuffer();
+  assert.deepEqual(actual, expected, '图标必须来自重试取得的用户头像');
+
+  const previousManifest = await readFile(path.join(root, 'data/xeu/identity.json'), 'utf8');
+  const previousICO = await readFile(path.join(root, 'static/favicon.ico'));
+  const previousAvatar = await readFile(path.join(root, 'static/avatar.jpg'));
+  const previousFiles = await readdir(path.join(root, 'static/site-identity'));
+  let attempts = 0;
+  await assert.rejects(prepareIdentity({ root, log, fetchImpl: async () => { attempts++; return response(placeholder); } }), /不使用旧缓存.*默认占位图/);
+  assert.equal(attempts, 2);
+  assert.equal(await readFile(path.join(root, 'data/xeu/identity.json'), 'utf8'), previousManifest);
+  assert.deepEqual(await readFile(path.join(root, 'static/favicon.ico')), previousICO);
+  assert.deepEqual(await readFile(path.join(root, 'static/avatar.jpg')), previousAvatar);
+  assert.deepEqual(await readdir(path.join(root, 'static/site-identity')), previousFiles);
+});
+
+test('offline mode rejects assets generated before placeholder validation', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-identity-legacy-'));
+  const manifest = await prepareIdentity({ root, fetchImpl: async () => response(await picture('#333')), log });
+  manifest.recipe = JSON.stringify({ ...JSON.parse(manifest.recipe), version: 1 });
+  await writeFile(path.join(root, 'data/xeu/identity.json'), JSON.stringify(manifest));
+  await assert.rejects(readIdentity(root), /需要重新生成/);
+  await assert.rejects(prepareIdentity({ root, offline: true, fetchImpl: () => assert.fail('离线模式不能访问外网'), log }), /先联网运行 npm run identity/);
 });

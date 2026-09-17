@@ -2,6 +2,20 @@
 
 基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel 静态部署。
 
+## X 帖子嵌入
+
+文章中使用 `x` 短代码接入 [X 官方嵌入组件](https://help.x.com/en/using-x/how-to-embed-a-post)，支持 `x.com` 和 `twitter.com` 的 HTTPS 帖子链接：
+
+```markdown
+{{< x url="https://x.com/nftechie_/status/2098532090874560815" >}}
+> 帖子的文字引用，供加载失败和 RSS 阅读时显示。
+{{< /x >}}
+```
+
+不需要文字引用时可写成 `{{< x url="https://x.com/nftechie_/status/2098532090874560815" />}}`。短代码校验帖子地址，使用 X 官方 `widgets.js` 生成 iframe；接近视口时才加载脚本，同页共用一次加载，并随博客外观切换浅色或深色。原帖链接始终保留；关闭 JavaScript、网络失败或帖子不可用时显示文字引用。构建不请求 X，RSS 保留静态引用，Markdown 的 `unsafe = false` 保持开启。无需在正文粘贴 `<script>` 或原始 iframe。
+
+嵌入区域沿用正文间距和字体，最大宽度为 550px，小屏幕随正文收缩。浏览器回归可运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-x-embeds.mjs`。
+
 ## 主题
 
 首页、标签及分类列表、搜索结果共用卡片样式。文章页包含目录、代码高亮与复制、图片放大和按需加载的 Twikoo 评论；归档、友链、关于及 404 页面使用同一套样式。原有 `/p/:slug/`、文章别名、分页和 RSS 路径继续有效。关闭 JavaScript 后，文章、导航及分页仍可使用，列表回退为普通网格。

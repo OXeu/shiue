@@ -9,7 +9,11 @@ import { writeJSON } from './files.mjs';
 export const AVATAR_SOURCE = 'https://avatars.githubusercontent.com/u/36541432';
 export const AVATAR_SIZES = [48, 80, 96, 160, 192, 240, 320, 512];
 export const ICON_SIZES = [16, 32, 48, 180, 192, 512];
-const recipe = JSON.stringify({ version: 1, avatars: AVATAR_SIZES, icons: ICON_SIZES, webpQuality: 85 });
+// Invalidate assets generated before GitHub's HTTP 200 placeholder was rejected.
+const recipe = JSON.stringify({ version: 2, avatars: AVATAR_SIZES, icons: ICON_SIZES, webpQuality: 85 });
+// GitHub can serve this image with HTTP 200 from a user's avatar URL:
+// https://github.githubassets.com/images/gravatars/gravatar-user-420.png
+const githubPlaceholderHash = '2ae73e12cb1e9989929920c4e9da0b02b6f6f8f0bd1944ac9ebfbf6b4dca746b';
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const manifestFile = root => path.join(root, 'data/xeu/identity.json');
 
@@ -37,8 +41,10 @@ async function fetchAvatar({ signal, fetchImpl, timeoutMs, log }) {
     signal?.throwIfAborted();
     const timeout = AbortSignal.timeout(timeoutMs);
     const url = new URL(AVATAR_SOURCE);
-    url.searchParams.set('s', '512');
-    url.searchParams.set('_deploy', randomUUID());
+    url.searchParams.set('v', '4');
+    // Retry the canonical avatar URL without a size transformation. Keep to
+    // GitHub's own parameters; every invocation still makes a no-store request.
+    if (attempt === 0) url.searchParams.set('s', '512');
     try {
       const response = await fetchImpl(url.href, {
         cache: 'no-store', redirect: 'error',
@@ -58,7 +64,11 @@ async function fetchAvatar({ signal, fetchImpl, timeoutMs, log }) {
           chunks.push(chunk);
         }
         if (!size) throw new Error('GitHub 头像为空');
-        return Buffer.concat(chunks);
+        const bytes = Buffer.concat(chunks);
+        if (createHash('sha256').update(bytes).digest('hex') === githubPlaceholderHash) {
+          throw new Error('GitHub 返回默认占位图，未获取到用户头像');
+        }
+        return bytes;
       } finally {
         if (response.body && !response.body.locked) await response.body.cancel().catch(() => {});
       }
