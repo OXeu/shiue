@@ -27,6 +27,9 @@
   --radius-surface: 16px;
   --gap: 16px;
   --card-min: 260px;
+  --columns-max: 4;
+  --feed-max: 1200px;
+  --article-padding: 24px;
   --font-body: Cantarell, "Source Han Serif CN VF", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
   --font-code: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }

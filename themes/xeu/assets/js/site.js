@@ -23,12 +23,6 @@
   const updateHeader = () => header.classList.toggle('is-scrolled', scrollY > 24);
   window.addEventListener('scroll', updateHeader, { passive: true });
   updateHeader();
-  document.addEventListener('error', event => {
-    if (event.target instanceof HTMLImageElement && event.target.closest('.card-cover')) event.target.closest('.card-cover').hidden = true;
-  }, true);
-  document.querySelectorAll('.card-cover img').forEach(img => {
-    if (img.complete && !img.naturalWidth) img.closest('.card-cover').hidden = true;
-  });
   document.querySelectorAll('.copy-code').forEach(button => {
     button.addEventListener('click', async () => {
       try {
@@ -51,7 +45,7 @@
     document.body.append(dialog);
     let previousOverflow;
     const showImage = original => {
-      image.src = original.currentSrc || original.src;
+      image.src = original.dataset.original || original.currentSrc || original.src;
       image.alt = original.alt;
       previousOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';

@@ -1,4 +1,5 @@
 {{- $src := .src -}}
+{{- $path := (urls.Parse $src).Path -}}
 {{- $result := dict "src" $src -}}
 {{- if not (findRE `^(https?:)?//` $src) -}}
   {{- $result = dict "src" (strings.TrimPrefix "/" $src | relURL) -}}
@@ -8,6 +9,37 @@
     {{- $result = dict "src" .RelPermalink -}}
     {{- if reflect.IsImageResourceProcessable . -}}
       {{- $result = merge $result (dict "width" .Width "height" .Height) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $result = merge $result (dict "original" $result.src) -}}
+{{- if not (findRE `^(https?:)?//` $src) -}}
+  {{- $keys := slice -}}
+  {{- with .page.File }}{{ $keys = $keys | append (path.Join "content" .Dir $path) }}{{ end -}}
+  {{- if strings.HasPrefix $src "/" }}{{ $keys = slice (path.Join "static" $path) (path.Join "content" $path) }}{{ else }}{{ $keys = $keys | append (path.Join "static" $path) (path.Join "content" $path) }}{{ end -}}
+  {{- $metadata := dict -}}
+  {{- range $keys -}}
+    {{- if not $metadata }}{{ with index hugo.Data.xeu.images . }}{{ $metadata = . }}{{ end }}{{ end -}}
+  {{- end -}}
+  {{- with $metadata -}}
+    {{- $sizes := "auto, (min-width: 1280px) 832px, (min-width: 768px) 80vw, calc(100vw - 104px)" -}}
+    {{- $variants := .variants -}}
+    {{- $fallbackWidth := 960 -}}
+    {{- if eq $.kind "card" -}}
+      {{- $variants = where $variants "width" "le" 960 -}}
+      {{- $fallbackWidth = 640 -}}
+      {{- $sizes = "auto, (min-width: 1152px) 288px, (min-width: 876px) calc((100vw - 96px) / 3), (min-width: 600px) calc((100vw - 80px) / 2), (max-width: 380px) calc(100vw - 42px), calc(100vw - 66px)" -}}
+    {{- end -}}
+    {{- $srcset := slice -}}
+    {{- $fallback := (index $variants 0).src -}}
+    {{- range $variants -}}
+      {{- $srcset = $srcset | append (printf "%s %dw" (.src | relURL) (int .width)) -}}
+      {{- if le .width $fallbackWidth }}{{ $fallback = .src }}{{ end -}}
+    {{- end -}}
+    {{- $result = merge $result (dict "src" ($fallback | relURL) "srcset" (delimit $srcset ", ") "sizes" $sizes "width" .width "height" .height "blurhash" .blurhash) -}}
+  {{- else -}}
+    {{- if in (slice ".jpg" ".jpeg" ".png" ".webp" ".avif" ".gif" "") (lower (path.Ext $path)) -}}
+      {{- errorf "图片 %s 缺少缩略图数据，请先运行 npm run images。" $src -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}

@@ -11,7 +11,8 @@
       const styles = getComputedStyle(container);
       const gap = parseFloat(styles.gap) || 16;
       const minimum = parseFloat(styles.getPropertyValue('--card-min')) || 260;
-      const columns = Math.max(1, Math.min(3, Math.floor((width + gap) / (minimum + gap))));
+      const maximum = parseInt(styles.getPropertyValue('--columns-max'), 10) || 4;
+      const columns = Math.max(1, Math.min(maximum, Math.floor((width + gap) / (minimum + gap))));
       const cardWidth = (width - gap * (columns - 1)) / columns;
       const heights = Array(columns).fill(0);
       container.classList.add('is-masonry');

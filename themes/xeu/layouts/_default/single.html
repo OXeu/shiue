@@ -34,7 +34,7 @@
       {{ end }}
       {{ partial "comments.html" . }}
     </div>
-    {{ if .Fragments.Headings }}<aside class="desktop-toc" aria-label="文章目录"><p>目录</p>{{ .TableOfContents }}</aside>{{ end }}
+    {{ if .Fragments.Headings }}<aside class="desktop-toc" aria-label="文章目录"><div class="toc-panel"><p>目录</p>{{ .TableOfContents }}</div></aside>{{ end }}
   </div>
 {{ end }}
 {{ end }}

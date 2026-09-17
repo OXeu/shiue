@@ -22,11 +22,20 @@
       cover.href = item.permalink;
       cover.tabIndex = -1;
       cover.setAttribute('aria-hidden', 'true');
+      cover.dataset.progressiveImage = '';
+      if (item.imageData?.blurhash) cover.dataset.blurhash = item.imageData.blurhash;
+      if (item.imageData?.height) cover.dataset.ratio = item.imageData.width / item.imageData.height;
       const img = document.createElement('img');
-      img.src = item.image;
       img.alt = '';
       img.loading = 'lazy';
       img.decoding = 'async';
+      if (item.imageData?.srcset) {
+        img.sizes = item.imageData.sizes;
+        img.srcset = item.imageData.srcset;
+      }
+      if (item.imageData?.width) img.width = item.imageData.width;
+      if (item.imageData?.height) img.height = item.imageData.height;
+      img.src = item.image;
       cover.append(img);
       card.append(cover);
     }

@@ -2,3 +2,6 @@ public
 resources
 assets/jsconfig.json
 .hugo_build.lock
+node_modules/
+data/xeu/images.json
+static/xeu-images/

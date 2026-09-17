@@ -1,8 +1,8 @@
 <article class="post-card">
   {{ with .Params.image }}
-    {{ $image := partial "image.html" (dict "page" $ "src" .) }}
-    <a class="card-cover" href="{{ $.RelPermalink }}" tabindex="-1" aria-hidden="true">
-      <img src="{{ $image.src }}" alt="" loading="lazy" decoding="async"{{ with $image.width }} width="{{ . }}"{{ end }}{{ with $image.height }} height="{{ . }}"{{ end }}>
+    {{ $image := partial "image.html" (dict "page" $ "src" . "kind" "card") }}
+    <a class="card-cover" href="{{ $.RelPermalink }}" tabindex="-1" aria-hidden="true" data-progressive-image{{ with $image.blurhash }} data-blurhash="{{ . }}"{{ end }}{{ if and $image.width $image.height }} data-ratio="{{ div (float $image.width) $image.height }}"{{ end }}>
+      <img src="{{ $image.src }}"{{ with $image.srcset }} srcset="{{ . }}" sizes="{{ $image.sizes }}"{{ end }} alt="" loading="lazy" decoding="async"{{ with $image.width }} width="{{ . }}"{{ end }}{{ with $image.height }} height="{{ . }}"{{ end }}>
     </a>
   {{ end }}
   <div class="card-body">

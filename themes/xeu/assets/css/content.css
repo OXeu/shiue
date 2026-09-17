@@ -1,4 +1,4 @@
-.surface { background: var(--surface); border-radius: var(--radius-surface); padding: 24px; }
+.surface { background: var(--surface); border-radius: var(--radius-surface); padding: var(--article-padding); }
 .reading-layout { position: relative; }
 .reading-column { min-width: 0; }
 .article-heading { margin-bottom: 32px; }
@@ -20,6 +20,12 @@
 .prose li > p { margin-block: 8px; }
 .prose img { margin-inline: auto; border-radius: 8px; }
 .prose img[data-zoomable] { cursor: zoom-in; }
+.content-image { position: relative; display: block; overflow: hidden; border-radius: 8px; width: fit-content; max-width: 100%; margin-inline: auto; }
+.image-placeholder { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; transition: opacity 200ms; }
+[data-progressive-image] > img { position: relative; transition: opacity 200ms; }
+.has-placeholder:not(.image-loaded) > img { opacity: 0; }
+.image-loaded > .image-placeholder { opacity: 0; }
+.image-failed:not(.has-placeholder) { color: var(--muted); }
 .prose blockquote { padding: 8px 16px; margin-inline: 0; border-left: 3px solid var(--border-hover); color: var(--text-soft); background: var(--surface-muted); border-radius: 0 8px 8px 0; }
 .prose blockquote > :first-child { margin-top: 0; }
 .prose blockquote > :last-child { margin-bottom: 0; }
@@ -46,13 +52,13 @@
 .video-embed iframe { width: 100%; height: 100%; border: 0; border-radius: 8px; }
 .article-footer { border-top: 1px solid var(--border); margin-top: 32px; padding-top: 20px; font-size: 12px; color: var(--muted); }
 .article-footer a { color: var(--accent); }
-.adjacent-posts { display: flex; gap: 24px; margin: 24px 0; }
+.adjacent-posts { display: flex; gap: 24px; margin: 24px 0; padding: 16px var(--article-padding); }
 .adjacent-posts a { flex: 1; min-width: 0; }
 .adjacent-posts span { color: var(--muted); display: block; font-size: 12px; margin-bottom: 8px; }
 .adjacent-posts strong { font-size: 14px; font-weight: 500; }
 .adjacent-posts a + a { text-align: right; }
 .desktop-toc { display: none; }
-.mobile-toc { margin-bottom: 24px; padding: 12px 16px; background: var(--surface-muted); border-radius: 8px; font-size: 14px; }
+.mobile-toc { margin-bottom: 24px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
 .mobile-toc summary { cursor: pointer; }
 #TableOfContents ul { list-style: none; margin: 8px 0; padding-left: 12px; }
 #TableOfContents > ul { padding-left: 0; }
@@ -65,18 +71,23 @@
 .text-button:hover { border-color: var(--border-hover); background: var(--surface-muted); }
 .comment-status { color: var(--muted); margin-block: 8px; }
 .comments .tk-comments, .comments .tk-submit { color: var(--text); }
+.comments :is(.el-input__inner, .el-textarea__inner, .tk-preview-container) { background: var(--surface); color: var(--text); border-color: var(--border); }
+.comments :is(.el-input-group__prepend, .OwO-body) { background: var(--surface-muted); color: var(--text-soft); border-color: var(--border); }
+.comments :is(.tk-content, .tk-nick) { color: var(--text); }
+.comments :is(.tk-time, .tk-action-icon, .tk-comments-count) { color: var(--muted); }
 .image-dialog { max-width: 96vw; max-height: 96dvh; padding: 16px; border: 0; background: transparent; overflow: auto; }
 .image-dialog::backdrop { background: var(--overlay); backdrop-filter: blur(8px); }
 .image-dialog img { max-height: 84dvh; max-width: 90vw; object-fit: contain; margin: auto; }
 .image-dialog button { display: block; margin: 0 0 12px auto; padding: 8px 16px; background: var(--surface); border-radius: 999px; }
 @media (min-width: 1280px) {
   .desktop-toc { display: block; position: absolute; left: calc(100% + 24px); top: 0; width: 180px; height: 100%; font-size: 12px; }
-  .desktop-toc > p { position: sticky; top: 88px; padding-bottom: 8px; font-size: 13px; font-weight: 600; }
-  .desktop-toc #TableOfContents { position: sticky; top: 124px; max-height: calc(100vh - 148px); overflow-y: auto; scrollbar-width: thin; }
+  .toc-panel { position: sticky; top: 88px; padding: 16px; background: var(--surface); border-radius: var(--radius-surface); }
+  .toc-panel > p { padding-bottom: 8px; font-size: 13px; font-weight: 600; }
+  .desktop-toc #TableOfContents { max-height: calc(100vh - 172px); overflow-y: auto; scrollbar-width: thin; }
   .mobile-toc { display: none; }
 }
 @media (max-width: 600px) {
-  .surface { padding: 20px; }
+  :root { --article-padding: 20px; }
   .article-heading h1 { font-size: 25px; }
   .prose { font-size: 15px; }
   .prose h1 { font-size: 24px; }

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, readFile, writeFile, copyFile, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import sharp from 'sharp';
+import { isBlurhashValid } from 'blurhash';
+import { prepareImages } from './prepare-images.mjs';
+
+const root = await mkdtemp(path.join(tmpdir(), 'xeu-images-test-'));
+await mkdir(path.join(root, 'content/post/example'), { recursive: true });
+await mkdir(path.join(root, 'static/images'), { recursive: true });
+const source = path.join(root, 'static/images/cover.jpg');
+await sharp({ create: { width: 1800, height: 1200, channels: 3, background: '#e07a8e' } }).jpeg().toFile(source);
+await copyFile(source, path.join(root, 'content/post/example/extensionless'));
+await writeFile(path.join(root, 'content/post/example/README'), '不是图片');
+await sharp({ create: { width: 40, height: 20, channels: 4, background: '#4288bb' } }).png().toFile(path.join(root, 'static/images/small.png'));
+
+const first = await prepareImages(root);
+assert.equal(Object.keys(first).length, 3);
+const cover = first['static/images/cover.jpg'];
+assert.ok(isBlurhashValid(cover.blurhash).result);
+assert.deepEqual(cover.variants.map(item => item.width), [320, 640, 960, 1440]);
+assert.deepEqual(first['content/post/example/extensionless'], cover, '无扩展名和重复图片应生成相同结果');
+assert.deepEqual(first['static/images/small.png'].variants.map(item => item.width), [40], '小图不得放大');
+assert.equal((await sharp(path.join(root, 'static', cover.variants[0].src)).metadata()).width, 320);
+const before = await stat(path.join(root, 'static', cover.variants[0].src));
+const manifestBefore = await readFile(path.join(root, 'data/xeu/images.json'), 'utf8');
+const second = await prepareImages(root);
+assert.deepEqual(second, first);
+assert.equal((await stat(path.join(root, 'static', cover.variants[0].src))).mtimeMs, before.mtimeMs, '缓存命中不应重写图片');
+assert.equal(await readFile(path.join(root, 'data/xeu/images.json'), 'utf8'), manifestBefore);
+await sharp({ create: { width: 1800, height: 1200, channels: 3, background: '#2266aa' } }).jpeg().toFile(source);
+const third = await prepareImages(root);
+assert.notEqual(third['static/images/cover.jpg'].fingerprint, cover.fingerprint, '替换图片必须使缓存失效');
+assert.notEqual(third['static/images/cover.jpg'].blurhash, cover.blurhash);
+console.log(`图片流水线检查通过：无扩展名、小图、重复文件、缓存及内容更新。产物：${root}`);

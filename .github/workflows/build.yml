@@ -18,6 +18,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '24'
+      - name: 安装图片处理依赖
+        run: npm ci
+      - name: 验证缩略图与 BlurHash 生成
+        run: node scripts/check-images.mjs
       - name: 验证最新稳定版 Hugo Extended
         env:
           SHIUE_HUGO_VERSION: latest

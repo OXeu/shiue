@@ -11,7 +11,7 @@
 <meta property="og:description" content="{{ .Description | default .Site.Params.description }}">
 <meta property="og:url" content="{{ .Permalink }}">
 <meta property="og:type" content="{{ if eq .Section "post" }}article{{ else }}website{{ end }}">
-{{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }}<meta property="og:image" content="{{ $cover.src | absURL }}">{{ end }}
+{{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }}<meta property="og:image" content="{{ $cover.original | absURL }}">{{ end }}
 {{ $init := resources.Get "js/color-mode.js" | minify | fingerprint }}
 <script src="{{ $init.RelPermalink }}" integrity="{{ $init.Data.Integrity }}"></script>
 {{ $style := slice (resources.Get "css/tokens.css") (resources.Get "css/layout.css") (resources.Get "css/content.css") (resources.Get "css/syntax.css") | resources.Concat "css/xeu.css" | minify | fingerprint }}

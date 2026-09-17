@@ -2,6 +2,14 @@
 set -euo pipefail
 
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+case "${1:-}" in
+  version|env|help|completion) ;;
+  *)
+    if [[ "${SHIUE_IMAGES_READY:-0}" != 1 ]]; then
+      node "$project_dir/scripts/prepare-images.mjs"
+    fi
+    ;;
+esac
 version="${SHIUE_HUGO_VERSION:-$(tr -d '\r\n' < "$project_dir/.hugo-version")}"
 
 if [[ "$version" == latest ]]; then

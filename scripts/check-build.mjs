@@ -4,8 +4,21 @@ import { mkdtempSync, readFileSync, existsSync, statSync, readdirSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { prepareImages } from './prepare-images.mjs';
+import { isBlurhashValid } from 'blurhash';
+import sharp from 'sharp';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const images = await prepareImages(root);
+for (const [source, image] of Object.entries(images)) {
+  assert.ok(isBlurhashValid(image.blurhash).result, `BlurHash 无效：${source}`);
+  for (const variant of image.variants) {
+    const metadata = await sharp(path.join(root, 'static', variant.src), { animated: true }).metadata();
+    assert.equal(metadata.format, 'webp');
+    assert.equal(metadata.width, variant.width, `缩略图尺寸不符：${source}`);
+    assert.ok(variant.width <= 1440 && variant.width <= image.width, '缩略图不得放大原图');
+  }
+}
 const output = mkdtempSync(path.join(tmpdir(), 'shiue-build-'));
 const destination = path.join(output, 'public');
 const baseURL = process.env.SHIUE_TEST_BASE_URL || 'https://example.org/';
@@ -19,7 +32,7 @@ const result = spawnSync(process.env.HUGO_BIN || 'hugo', [
   '--noBuildLock',
 ], {
   encoding: 'utf8',
-  env: { ...process.env, HUGO_RESOURCEDIR: path.join(output, 'resources') },
+  env: { ...process.env, SHIUE_IMAGES_READY: '1', HUGO_RESOURCEDIR: path.join(output, 'resources') },
 });
 process.stdout.write(result.stdout || '');
 process.stderr.write(result.stderr || '');
@@ -74,7 +87,17 @@ for (const article of search) {
   const url = new URL(article.permalink, baseURL);
   const html = readFileSync(path.join(outputPath(url.href), 'index.html'), 'utf8');
   assert.match(html, /class=["']?prose/, `文章缺少正文：${article.title}`);
-  if (article.image) localAsset(article.image);
+  if (article.image) {
+    localAsset(article.image);
+    assert.match(article.image, /\/xeu-images\/.*\.webp$/, '搜索结果不应加载原图');
+    assert.ok(isBlurhashValid(article.imageData.blurhash).result);
+    localAsset(article.imageData.original);
+    for (const candidate of article.imageData.srcset.split(', ')) {
+      const [src, width] = candidate.split(' ');
+      localAsset(src);
+      assert.ok(parseInt(width, 10) <= 960, '列表缩略图过大');
+    }
+  }
   for (const match of html.matchAll(/<img\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
     localAsset(match[1] || match[2] || match[3]);
   }
@@ -95,6 +118,9 @@ for (const relative of htmlFiles) {
   for (const match of html.matchAll(/<(?:img|script)\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
     localAsset(match[1] || match[2] || match[3]);
   }
+  for (const match of html.matchAll(/\bsrcset="([^"]+)"/g)) {
+    match[1].split(',').forEach(candidate => localAsset(candidate.trim().split(/\s+/)[0]));
+  }
   for (const match of html.matchAll(/<a\b[^>]*\bhref=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
     const href = match[1] || match[2] || match[3];
     if (!href.startsWith('/') || href.startsWith('//')) continue;
@@ -105,5 +131,7 @@ for (const relative of htmlFiles) {
 }
 assert.match(read('p/binder-saomang/index.html'), /class=["']?copy-code/, '代码块缺少复制按钮');
 assert.match(read('p/rin/index.html'), /markdown-alert/, '提示块未渲染');
+assert.match(read('p/rin/index.html'), /data-original=/, '正文缺少按需加载原图地址');
+assert.match(home, /data-blurhash=/, '缺少 BlurHash 占位数据');
 assert.equal((rss.match(/<item>/g) || []).length, search.length, 'RSS 与搜索收录的文章数不一致');
 console.log(`构建验证通过：${search.length} 篇文章，${htmlFiles.length} 个页面；模板、链接、脚本、字体、图片与 RSS 均通过。产物：${destination}`);
