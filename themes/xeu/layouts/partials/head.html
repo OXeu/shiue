@@ -4,17 +4,22 @@
 <meta name="description" content="{{ .Description | default .Site.Params.description }}">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="{{ .Permalink }}">
-<link rel="icon" type="image/svg+xml" href="{{ "favicon.svg" | relURL }}">
+{{ $identity := partialCached "identity.html" .Site }}
+<link rel="icon" type="image/x-icon" sizes="{{ $identity.ico.sizes }}" href="{{ $identity.ico.src | relURL }}">
+{{ range $identity.favicons }}<link rel="icon" type="image/png" sizes="{{ .size }}x{{ .size }}" href="{{ .src | relURL }}">{{ end }}
+<link rel="apple-touch-icon" sizes="180x180" href="{{ $identity.appleTouchIcon.src | relURL }}">
+<link rel="icon" type="image/png" sizes="192x192" href="{{ $identity.touchIcon.src | relURL }}">
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="{{ "index.xml" | absURL }}">
 <meta property="og:site_name" content="{{ .Site.Title }}">
 <meta property="og:title" content="{{ .Title | default .Site.Title }}">
 <meta property="og:description" content="{{ .Description | default .Site.Params.description }}">
 <meta property="og:url" content="{{ .Permalink }}">
 <meta property="og:type" content="{{ if eq .Section "post" }}article{{ else }}website{{ end }}">
-{{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }}<meta property="og:image" content="{{ $cover.original | absURL }}">{{ end }}
+{{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }}<meta property="og:image" content="{{ $cover.original | absURL }}">
+{{ else }}<meta property="og:image" content="{{ $identity.socialImage.src | absURL }}"><meta property="og:image:width" content="512"><meta property="og:image:height" content="512">{{ end }}
 {{ $init := resources.Get "js/color-mode.js" | minify | fingerprint }}
 <script src="{{ $init.RelPermalink }}" integrity="{{ $init.Data.Integrity }}"></script>
 {{ $transitions := resources.Get "js/article-transition.js" | minify | fingerprint }}
 <script src="{{ $transitions.RelPermalink }}" integrity="{{ $transitions.Data.Integrity }}"></script>
-{{ $style := slice (resources.Get "css/tokens.css") (resources.Get "css/layout.css") (resources.Get "css/content.css") (resources.Get "css/syntax.css") (resources.Get "css/motion.css") | resources.Concat "css/xeu.css" | minify | fingerprint }}
+{{ $style := slice (resources.Get "css/tokens.css") (resources.Get "css/layout.css") (resources.Get "css/content.css") (resources.Get "css/identity.css") (resources.Get "css/syntax.css") (resources.Get "css/motion.css") | resources.Concat "css/xeu.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">

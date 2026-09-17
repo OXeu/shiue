@@ -7,3 +7,11 @@ data/xeu/images.json
 static/xeu-images/
 data/friends.json.lock
 data/friends.json.*.tmp
+data/xeu/friend-health.json
+data/xeu/friend-health.json.*.tmp
+.cache/deploy/
+data/xeu/identity.json
+data/xeu/identity.json.*.tmp
+static/site-identity/
+static/favicon.ico
+static/avatar.jpg

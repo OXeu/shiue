@@ -19,7 +19,19 @@ if (sources.length) {
   const close = document.createElement('button');
   close.className = 'image-dialog-close';
   close.type = 'button';
-  close.textContent = '关闭';
+  close.setAttribute('aria-label', '关闭图片预览');
+  const closeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  closeIcon.setAttribute('viewBox', '0 0 24 24');
+  closeIcon.setAttribute('fill', 'none');
+  closeIcon.setAttribute('stroke', 'currentColor');
+  closeIcon.setAttribute('stroke-width', '2');
+  closeIcon.setAttribute('stroke-linecap', 'round');
+  closeIcon.setAttribute('aria-hidden', 'true');
+  closeIcon.setAttribute('focusable', 'false');
+  const closePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  closePath.setAttribute('d', 'M6 6l12 12M18 6L6 18');
+  closeIcon.append(closePath);
+  close.append(closeIcon);
   const status = document.createElement('p');
   status.className = 'image-dialog-status';
   status.setAttribute('role', 'status');
@@ -66,12 +78,21 @@ if (sources.length) {
   };
   const hide = async () => {
     if (phase === 'closed' || phase === 'closing') return;
+    if (phase === 'preparing') {
+      dialog.close();
+      cleanup();
+      return;
+    }
     const token = ++sequence;
     const currentTransform = getComputedStyle(stage).transform;
     const currentOpacity = getComputedStyle(scrim).opacity;
+    const originalOpacity = getComputedStyle(original).opacity;
     const rect = source.getBoundingClientRect();
     const returnToSource = source.isConnected && rect.width > 0 && rect.bottom > 0 && rect.top < innerHeight;
     setPhase('closing');
+    // 缩回正文前回到同一张缩略图，底图始终不透明，避免交叉淡化时透出背景。
+    dialog.classList.remove('has-original');
+    animateElement(original, [{ opacity: originalOpacity }, { opacity: 0 }], { duration: 160, fill: 'forwards' });
     // 起止位置只测量一次，开合过程只插值 transform 和 opacity。
     const movement = animateElement(stage, [
       { transform: currentTransform, opacity: 1 },
@@ -85,11 +106,10 @@ if (sources.length) {
     dialog.close();
     cleanup();
   };
-  const show = img => {
+  const show = async img => {
     if (phase !== 'closed') return;
     source = img;
     const token = ++sequence;
-    const rect = source.getBoundingClientRect();
     previousOverflow = document.documentElement.style.overflow;
     previousGutter = document.documentElement.style.scrollbarGutter;
     previousPadding = document.body.style.paddingRight;
@@ -102,9 +122,14 @@ if (sources.length) {
     document.documentElement.style.overflow = 'hidden';
     document.documentElement.style.scrollbarGutter = 'auto';
     document.body.style.paddingRight = `${bodyPadding + scrollbarWidth}px`;
+    setPhase('preparing');
     dialog.showModal();
     close.focus({ preventScroll: true });
     position();
+    // 即使 URL 已缓存，新 img 也需要解码后才能接替正文图片。
+    await thumbnail.decode().catch(() => {});
+    if (token !== sequence || phase !== 'preparing') return;
+    const rect = source.getBoundingClientRect();
     setPhase('opening');
     source.classList.add('is-preview-source');
     const opening = animateElement(stage, [{ transform: transformTo(rect) }, { transform: 'none' }], { duration: 360 });
@@ -118,7 +143,6 @@ if (sources.length) {
       status.textContent = '';
       dialog.classList.add('has-original');
       animateElement(original, [{ opacity: 0 }, { opacity: 1 }], { duration: 180 });
-      animateElement(thumbnail, [{ opacity: 1 }, { opacity: 0 }], { duration: 180 });
     };
     original.onerror = () => {
       if (token === sequence && phase !== 'closed') status.textContent = '原图暂时无法加载，当前显示预览图。';
@@ -137,7 +161,7 @@ if (sources.length) {
       if (phase === 'closed' || phase === 'closing') return;
       cancelMotion(stage);
       position();
-      setPhase('open');
+      if (phase !== 'preparing') setPhase('open');
     });
   }, { passive: true });
   window.addEventListener('pagehide', () => { if (dialog.open) { dialog.close(); cleanup(); } });

@@ -30,12 +30,17 @@
   if (navToggle && nav) {
     const mobileNav = matchMedia('(max-width: 600px)');
     const setNavOpen = open => {
+      open = mobileNav.matches && open;
       navToggle.setAttribute('aria-expanded', String(open));
       navToggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+      nav.inert = mobileNav.matches && !open;
+      nav.setAttribute('aria-hidden', String(nav.inert));
     };
     navToggle.hidden = false;
     navigation.classList.add('is-menu-ready');
+    setNavOpen(false);
     navToggle.addEventListener('click', () => {
+      navigation.classList.add('is-menu-animated');
       setNavOpen(navToggle.getAttribute('aria-expanded') !== 'true');
     });
     nav.addEventListener('click', event => {
@@ -54,16 +59,20 @@
       if (navigation.contains(event.relatedTarget)) return;
       // CSS 断点可能先隐藏链接，再触发媒体查询事件。
       const restoreFocus = mobileNav.matches && nav.contains(event.target) &&
-        !event.relatedTarget && !nav.getClientRects().length && document.hasFocus();
+        !event.relatedTarget && getComputedStyle(nav).visibility === 'hidden' && document.hasFocus();
       setNavOpen(false);
       if (restoreFocus) navToggle.focus({ preventScroll: true });
     });
     mobileNav.addEventListener('change', () => {
       const restoreFocus = mobileNav.matches && nav.contains(document.activeElement);
+      navigation.classList.remove('is-menu-animated');
       setNavOpen(false);
       if (restoreFocus) navToggle.focus({ preventScroll: true });
     });
-    window.addEventListener('pagehide', () => setNavOpen(false));
+    window.addEventListener('pagehide', () => {
+      navigation.classList.remove('is-menu-animated');
+      setNavOpen(false);
+    });
   }
   let wasScrolled;
   const updateHeader = () => {

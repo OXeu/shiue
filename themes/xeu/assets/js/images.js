@@ -68,10 +68,17 @@ function initialize(frame) {
       frame.classList.remove('image-failed');
       queue.delete(frame);
       nearby?.unobserve(frame);
-      const removePlaceholder = () => frame.querySelector('canvas')?.remove();
-      img.addEventListener('transitionend', removePlaceholder, { once: true });
+      const removePlaceholder = () => {
+        frame.querySelector('canvas')?.remove();
+        img.removeEventListener('transitionend', onFadeEnd);
+        clearTimeout(fallback);
+      };
+      const onFadeEnd = event => {
+        if (event.target === img && event.propertyName === 'opacity') removePlaceholder();
+      };
+      img.addEventListener('transitionend', onFadeEnd);
       // 减少动态效果时没有 transitionend，仍需释放占位画布。
-      setTimeout(removePlaceholder, 400);
+      const fallback = setTimeout(removePlaceholder, 400);
     }
     else {
       frame.classList.add('image-failed');

@@ -41,7 +41,7 @@ try {
   await page.route(new URL(sourceURL, baseURL).href, async route => { await delayed; await route.continue().catch(() => {}); });
   const before = await source.boundingBox();
   await source.click();
-  assert.equal(await page.locator('.image-dialog').getAttribute('data-state'), 'opening');
+  await page.waitForFunction(() => document.querySelector('.image-dialog').dataset.state === 'opening');
   await page.waitForFunction(() => document.querySelector('.preview-thumbnail').complete && document.querySelector('.preview-thumbnail').naturalWidth > 0);
   assert.equal(await page.locator('.preview-thumbnail').evaluate(img => img.currentSrc), await source.evaluate(img => img.currentSrc));
   assert.equal(await page.locator('.image-dialog').evaluate(dialog => dialog.classList.contains('has-original')), false);
@@ -53,7 +53,22 @@ try {
   await page.screenshot({ path: path.join(artifacts, 'preview-thumbnail.png') });
   release();
   await page.waitForFunction(() => document.querySelector('.image-dialog').classList.contains('has-original'));
-  await page.waitForTimeout(220);
+  const minimumImageOpacity = await page.evaluate(async () => {
+    let minimum = 1;
+    const end = performance.now() + 220;
+    await new Promise(resolve => {
+      const tick = () => {
+        const foreground = Number(getComputedStyle(document.querySelector('.preview-original')).opacity);
+        const background = Number(getComputedStyle(document.querySelector('.preview-thumbnail')).opacity);
+        minimum = Math.min(minimum, foreground + background * (1 - foreground));
+        if (performance.now() < end) requestAnimationFrame(tick);
+        else resolve();
+      };
+      tick();
+    });
+    return minimum;
+  });
+  assert.ok(minimumImageOpacity >= .99, '缩略图切换原图时不应透出背景造成闪烁');
   const scrollBefore = await page.evaluate(() => scrollY);
   await page.mouse.wheel(0, 600);
   await page.waitForTimeout(80);
@@ -64,6 +79,28 @@ try {
   assert.ok(Math.abs(before.x - after.x) < 1 && Math.abs(before.width - after.width) < 1, '开合不应造成正文横向跳动');
   assert.equal(await source.evaluate(img => img === document.activeElement), true, '关闭后应恢复键盘焦点');
   assert.equal(await page.evaluate(() => document.documentElement.style.overflow), '');
+
+  // 解码完成前保留正文图片；此时按 Esc 仍能取消，迟到的解码不得重新打开预览。
+  await page.evaluate(() => {
+    const thumbnail = document.querySelector('.preview-thumbnail');
+    const decode = thumbnail.decode.bind(thumbnail);
+    thumbnail.decode = () => new Promise(resolve => {
+      window.releasePreviewDecode = () => {
+        thumbnail.decode = decode;
+        decode().catch(() => {}).then(resolve);
+      };
+    });
+  });
+  await source.click();
+  await page.waitForFunction(() => document.querySelector('.image-dialog').dataset.state === 'preparing');
+  assert.equal(await source.evaluate(img => getComputedStyle(img).visibility), 'visible', '解码前不能隐藏正文图片');
+  await page.keyboard.press('Escape');
+  await closed();
+  await page.evaluate(async () => {
+    window.releasePreviewDecode();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  assert.equal(await page.locator('.image-dialog').getAttribute('data-state'), 'closed');
 
   // 反向打断打开动画、连续开关，以及窗口尺寸变化。
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -99,7 +136,7 @@ try {
   const reduced = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
   await reduced.goto(new URL('p/rin/', baseURL).href, { waitUntil: 'load' });
   await reduced.locator('[data-zoomable]').first().click();
-  assert.equal(await reduced.locator('.image-dialog').getAttribute('data-state'), 'open');
+  await reduced.waitForFunction(() => document.querySelector('.image-dialog').dataset.state === 'open');
   assert.equal(await reduced.locator('.image-dialog-stage').evaluate(stage => stage.getAnimations().length), 0);
   await reduced.keyboard.press('Escape');
   await reduced.waitForFunction(() => !document.querySelector('dialog[open]'));
@@ -113,6 +150,39 @@ try {
   await fallback.keyboard.press('Escape');
   await fallback.waitForFunction(() => !document.querySelector('dialog[open]'));
   await fallback.close();
+
+  // 悬停缩放先结束时，不得移除仍在支撑图片淡入的占位层。
+  let releaseCovers;
+  const coverGate = new Promise(resolve => { releaseCovers = resolve; });
+  const slowCovers = async route => { await coverGate; await route.continue().catch(() => {}); };
+  await page.route('**/xeu-images/*.webp', slowCovers);
+  await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+  const cover = page.locator('.card-cover').first();
+  await cover.locator('canvas').waitFor();
+  await page.mouse.move(0, 0);
+  await page.locator('.post-card').first().hover();
+  releaseCovers();
+  await page.waitForFunction(() => document.querySelector('.card-cover').classList.contains('image-loaded'));
+  const hoverHandoff = await cover.evaluate(async frame => {
+    const img = frame.querySelector('img');
+    const transform = img.getAnimations().find(animation => animation.transitionProperty === 'transform');
+    if (!transform) return null;
+    return new Promise(resolve => {
+      const onEnd = event => {
+        if (event.propertyName !== 'transform') return;
+        img.removeEventListener('transitionend', onEnd);
+        const placeholder = frame.querySelector('canvas');
+        resolve({ opacity: Number(getComputedStyle(img).opacity), placeholder: !!placeholder, placeholderOpacity: placeholder && getComputedStyle(placeholder).opacity });
+      };
+      img.addEventListener('transitionend', onEnd);
+      transform.finish();
+    });
+  });
+  assert.ok(hoverHandoff && hoverHandoff.opacity < 1, '测试应覆盖悬停与图片淡入重叠');
+  assert.ok(hoverHandoff.placeholder, '悬停结束不应提前移除占位图');
+  assert.equal(hoverHandoff.placeholderOpacity, '1', '图片淡入期间占位图应保持不透明');
+  await page.waitForFunction(() => !document.querySelector('.card-cover canvas'));
+  await page.unroute('**/xeu-images/*.webp', slowCovers);
 
   await open('');
   await page.waitForTimeout(500);

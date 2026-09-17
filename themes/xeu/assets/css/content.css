@@ -27,7 +27,6 @@
 .image-placeholder { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; transition: opacity 200ms; }
 [data-progressive-image] > img { position: relative; transition: opacity 200ms; }
 .has-placeholder:not(.image-loaded) > img { opacity: 0; }
-.image-loaded > .image-placeholder { opacity: 0; }
 .image-failed:not(.has-placeholder) { color: var(--muted); }
 .prose blockquote { padding: 16px 22px; margin-inline: 0; border-radius: var(--radius-surface); background: var(--surface-muted); color: var(--text-soft); }
 .prose blockquote > :first-child { margin-top: 0; }
@@ -64,7 +63,7 @@
 .adjacent-posts strong { font-size: 15px; font-weight: 500; }
 .adjacent-posts a + a { text-align: right; }
 .desktop-toc { display: none; }
-.mobile-toc { margin-bottom: 28px; padding: 0 18px; font-size: 14px; }
+.mobile-toc { margin-bottom: 28px; padding: 0 18px; background: var(--surface-muted); border-radius: var(--radius-surface); font-size: 14px; }
 .mobile-toc summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding-block: 15px; list-style: none; }
 .mobile-toc summary::-webkit-details-marker { display: none; }
 .mobile-toc summary::after { content: ""; width: 7px; height: 7px; margin-right: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
@@ -73,7 +72,8 @@
 #TableOfContents ul { list-style: none; margin: 8px 0; padding-left: 12px; }
 #TableOfContents > ul { padding-left: 0; }
 #TableOfContents li { margin: 6px 0; }
-#TableOfContents a { color: var(--muted); display: block; padding: 4px 8px; margin-inline: -8px; border-radius: 10px; }
+#TableOfContents a { color: var(--muted); display: block; padding: 4px 8px; border-radius: 10px; overflow-wrap: anywhere; }
+#TableOfContents a:focus-visible { outline-offset: -2px; }
 #TableOfContents a:hover { color: var(--text); }
 #TableOfContents a[aria-current="location"] { color: var(--accent-text); }
 #TableOfContents a[aria-current="location"] { font-weight: 700; }
@@ -102,7 +102,7 @@
   .desktop-toc { display: block; position: absolute; left: calc(100% + 40px); top: 0; width: 180px; height: 100%; font-size: 13px; }
   .toc-panel { position: sticky; top: 104px; padding: 8px 16px; }
   .toc-panel > p { padding-bottom: 8px; font-size: 13px; font-weight: 600; }
-  .desktop-toc #TableOfContents { max-height: calc(100vh - 172px); overflow-y: auto; scrollbar-width: thin; }
+  .desktop-toc #TableOfContents { max-height: calc(100vh - 172px); overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; }
   .mobile-toc { display: none; }
 }
 @media (max-width: 600px) {

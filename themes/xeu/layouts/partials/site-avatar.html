@@ -1,0 +1,10 @@
+{{ $identity := partialCached "identity.html" .page.Site }}
+{{ $size := .size | default 80 }}
+{{ $srcset := slice }}
+{{ $src := "" }}
+{{ range $identity.avatars }}
+  {{ $srcset = $srcset | append (printf "%s %dw" (.src | relURL) (int .size)) }}
+  {{ if eq (int .size) (int $size) }}{{ $src = .src | relURL }}{{ end }}
+{{ end }}
+{{ if not $src }}{{ errorf "未生成 %dpx 站点头像" $size }}{{ end }}
+<img class="site-avatar" src="{{ $src }}" srcset="{{ delimit $srcset ", " }}" sizes="{{ $size }}px" width="{{ $size }}" height="{{ $size }}" alt="{{ .page.Site.Params.author.name }} 的头像" decoding="async">

@@ -8,5 +8,5 @@
   {{ with .image }}<img src="{{ strings.TrimPrefix "/" . | relURL }}" alt="" loading="lazy" decoding="async" width="48" height="48">{{ end }}
   {{ if .health }}<h3 class="friend-title">{{ .title }}</h3>{{ else }}<h2 class="friend-title">{{ .title }}</h2>{{ end }}
   {{ with .description }}<p>{{ . }}</p>{{ end }}
-  {{ with $status }}<p class="friend-status">迁移时状态：{{ . }}</p>{{ end }}
+  {{ with $status }}<p class="friend-status">{{ . }}</p>{{ end }}
 </a>

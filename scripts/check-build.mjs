@@ -7,8 +7,15 @@ import { fileURLToPath } from 'node:url';
 import { prepareImages } from './prepare-images.mjs';
 import { isBlurhashValid } from 'blurhash';
 import sharp from 'sharp';
+import { load } from 'cheerio';
+import { prepareIdentity, readIdentity, identityAssets } from './deploy/identity.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// Build verification can reuse validated generated files; a clean checkout
+// needs one download. Production deployments always refresh in the identity step.
+let identity;
+try { identity = await readIdentity(root); }
+catch { identity = await prepareIdentity({ root }); }
 const images = await prepareImages(root);
 for (const [source, image] of Object.entries(images)) {
   assert.ok(isBlurhashValid(image.blurhash).result, `BlurHash 无效：${source}`);
@@ -61,6 +68,26 @@ function localAsset(url, parent = baseURL) {
 }
 
 const home = read('index.html');
+const $home = load(home);
+assert.equal($home('link[rel="icon"]').length, 5, '缺少多尺寸 favicon');
+for (const element of $home('link[rel="icon"], link[rel="apple-touch-icon"]').toArray()) {
+  const src = $home(element).attr('href');
+  assert.ok(src.includes(`/site-identity/${identity.fingerprint}/`), '站点图标必须使用当次头像指纹');
+  localAsset(src);
+}
+assert.equal($home('link[rel="apple-touch-icon"]').attr('sizes'), '180x180');
+assert.equal($home('meta[property="og:image"]').attr('content'), new URL(identity.socialImage.src, baseURL).href);
+for (const asset of identityAssets(identity)) {
+  localAsset(new URL(asset.src, baseURL).href);
+  if (asset.size) {
+    const metadata = await sharp(path.join(destination, asset.src)).metadata();
+    assert.equal(metadata.width, asset.size);
+    assert.equal(metadata.height, asset.size);
+  }
+}
+assert.ok(statSync(path.join(destination, 'favicon.ico')).size > 0);
+assert.ok(statSync(path.join(destination, 'avatar.jpg')).size > 0);
+assert.doesNotMatch(home, /favicon\.svg/);
 assert.match(home, /<html[^>]*lang=["']?zh-CN/i, '首页缺少中文语言设置');
 assert.match(home, /class=["']?article-list/, '首页未渲染文章列表');
 assert.match(home, /<article\b/, '首页缺少文章卡片');
@@ -105,8 +132,19 @@ for (const src of friendIcons) {
   assert.ok(src.startsWith(`${new URL(baseURL).pathname}friends/`), `友链图标未本地化或缺少子路径：${src}`);
   localAsset(src);
 }
-if (friends.some(friend => friend.health)) assert.match(friendHTML, /暂时离开/, '源站暂离状态必须保留');
-read('about/index.html');
+const healthFile = path.join(root, 'data/xeu/friend-health.json');
+const healthSites = existsSync(healthFile) ? JSON.parse(readFileSync(healthFile, 'utf8')).sites : {};
+const awayCount = friends.filter(friend => (healthSites?.[friend.website]?.health ?? friend.health)).length;
+assert.equal((friendHTML.match(/friend-card--away/g) || []).length, awayCount, '暂离分组应使用最近检测状态');
+if (awayCount) assert.match(friendHTML, /暂时离开/, '异常友链应保留在暂离分组');
+assert.doesNotMatch(friendHTML, /迁移时暂不可用|迁移时状态/, '友链页不应再显示迁移文案');
+const $about = load(read('about/index.html'));
+assert.equal($about('.site-avatar').length, 1);
+assert.equal($about('.site-avatar').attr('width'), '80');
+assert.equal($about('.site-avatar').attr('sizes'), '80px');
+assert.match($about('.site-avatar').attr('src'), /\/avatar-80\.webp$/);
+assert.match($about('.site-avatar').attr('srcset'), /avatar-160\.webp 160w/);
+assert.match($about('.site-avatar').attr('srcset'), /avatar-240\.webp 240w/);
 read('404.html');
 const rss = read('index.xml');
 assert.match(rss, /<rss\b/);

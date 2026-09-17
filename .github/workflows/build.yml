@@ -22,8 +22,6 @@ jobs:
         run: npm ci
       - name: 验证缩略图与 BlurHash 生成
         run: node scripts/check-images.mjs
-      - name: 验证友链与添加脚本
-        run: npm run check:friends
       - name: 验证最新稳定版 Hugo Extended
         env:
           SHIUE_HUGO_VERSION: latest

@@ -10,7 +10,7 @@
 
 动画主要使用 `transform` 和 `opacity`，仅在运行期间提示图层提升。瀑布流缓存卡片尺寸，只在容器宽度或卡片实际尺寸变化时重排；滚动只在越过页头阈值时更新样式。BlurHash 仅在接近视口时分帧解码，并复用有限缓存；图片解码完成后释放占位画布，搜索更新时释放旧图片观察器。页头和预览遮罩不使用持续的背景模糊滤镜。
 
-样式令牌集中在 `themes/xeu/assets/css/tokens.css`，布局和文章排版分别在 `layout.css`、`content.css`；交互位于 `assets/js/`。主题使用 Hugo 模板、原生 CSS 与 JavaScript；Node.js 用于构建时的图片处理和友链维护，部署产物仍是静态文件。Cantarell 字体随主题本地提供，许可见 `static/fonts/OFL.txt`。旧头像保留在 `static/avatar.jpg`。
+样式令牌集中在 `themes/xeu/assets/css/tokens.css`，布局和文章排版分别在 `layout.css`、`content.css`；交互位于 `assets/js/`。主题使用 Hugo 模板、原生 CSS 与 JavaScript；Node.js 用于构建时的图片处理和友链维护，部署产物仍是静态文件。Cantarell 字体随主题本地提供，许可见 `static/fonts/OFL.txt`。头像与 favicon 使用每次部署在线获取的 GitHub 头像，不保存到 Git 仓库。
 
 主题默认使用纯白背景与黑灰文字，控件主色为 `#222`，按钮悬停、键盘焦点和按压逐级加深至 `#111`、`#000`。粉色仅用于普通链接、选中的目录项和 CC 许可链接；卡片、标签、代码高亮、焦点框及文本选区使用中性色或对应的语义色。页面共用间距、圆角和宽度令牌，正文最大宽度为 760px。卡片摘要最多两行，外观切换器直接位于 footer 内，选中样式与顶部导航一致；可选择浅色、深色或跟随系统并记住偏好。搜索仅在提交或输入后显示状态，移动端目录与评论保留按需展开。加载评论按钮居中，上下各留 32px 内边距。
 
@@ -26,11 +26,15 @@
 
 `data/xeu/images.json` 与 `static/xeu-images/` 是自动生成并被 Git 忽略的文件。更新图片后执行 `npm run images`；预览时可另开终端运行 `npm run images:watch` 自动更新。BlurHash 解码器采用 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`。
 
+## 站点头像与图标
+
+站点自身的图标来自 `https://avatars.githubusercontent.com/u/36541432`，每次部署重新下载并生成 favicon 16/32/48px、Apple 180px、Android 192px、分享图 512px，以及 48–512px 的响应式 WebP 头像。关于页显示 80px，并为高倍屏选择对应尺寸；页头仍为纯文本。生成文件与清单被 Git 忽略，内容指纹地址避免浏览器显示旧头像；`/favicon.ico` 和 `/avatar.jpg` 保留为构建时生成的兼容地址。可单独执行 `npm run identity` 刷新。详情见 [站点图标](docs/deployment.md#github-头像与站点图标)。这与下述友链图标在添加时下载并提交的规则不同。
+
 ## 友情链接
 
 友链数据统一保存在 `data/friends.json`，图标保存在 `static/friends/`，两者均提交到 Git。友链页不再依赖外站图标或远程 API，原有 `/友链/` 和 `/links/` 路径继续有效。
 
-已于 2026-09-17 从 [xeu.life 的公开友链接口](https://xeu.life/api/friend) 迁移全部 12 条已通过的友链，保留名称、简介、网址、原图标及排列顺序，并保留本项目原有的 YiNN，共 13 条。源站标记暂不可用的 3 条单独显示在「暂时离开」中；这只是迁移时的状态快照，不是实时可用性检测。`health` 为空字符串表示正常，恢复可访问后可手动清空。`iconSource` 仅记录图标来源，不会在页面加载或构建时请求。
+已于 2026-09-17 从 [xeu.life 的公开友链接口](https://xeu.life/api/friend) 迁移全部 12 条已通过的友链，保留名称、简介、网址、原图标及排列顺序，并保留本项目原有的 YiNN，共 13 条。每次部署检测站点状态，异常站点单独显示在「暂时离开」中，卡片直接显示检测状态。结果写入被 Git 忽略的 `data/xeu/friend-health.json`，覆盖初始 `health`，不改写友链名单；站点恢复后自动移回正常分组。没有检测快照时使用名单中的初始状态。`iconSource` 仅记录图标来源，不会在页面加载或构建时请求。
 
 安装依赖后，一条命令添加友链：
 
@@ -62,9 +66,11 @@ npm ci
 npm run build
 ```
 
-产物位于 `public/`。本地预览使用 `npm run dev`。这两个入口都会先准备图片；也可先执行 `npm run images`，再直接运行 `hugo --minify` 或 `hugo server`。主题已在配置中启用，无需额外指定 `--theme`。
+`npm run build` 与 `npm run deploy` 是同一个入口：环境检查 → Hugo 准备 → 在线获取站点图标 → 友链检测 → 图片预处理 → 静态构建 → 产物检查。每步显示进度、日志与耗时，结束后汇总，结构化报告写入 `.cache/deploy/report.json`。产物位于 `public/`，脚本不会自行上传或触发线上发布。
 
-Linux x86_64 也可执行 `bash scripts/hugo.sh --minify`；脚本下载指定版本的官方 Extended 发行包，校验 SHA-256 后构建，下载目录位于系统临时目录。已安装相同版本时直接复用。
+离线构建使用 `npm run build -- --offline`，需要已有 Hugo 和站点图标产物，不请求外网。本地预览使用 `npm run dev`，下载头像、准备图片并启动开发服务器，不检测友链；也可先执行 `npm run identity` 和 `npm run images`，再直接运行 `hugo --minify` 或 `hugo server`。正常部署若无法获取最新头像会失败，不会自动退回旧头像。主题已在配置中启用，无需额外指定 `--theme`。架构、扩展步骤、错误策略和每日刷新配置见 [部署流程](docs/deployment.md)。
+
+Linux x86_64 也可执行 `bash scripts/hugo.sh --minify`，会进入同一部署流程；自动下载指定版本的官方 Extended 发行包并校验 SHA-256，二进制缓存在 `.cache/deploy/hugo/`。已安装相同版本时直接复用。
 
 ## 构建验证
 
@@ -75,7 +81,7 @@ npm ci
 npm run check
 ```
 
-可通过 `HUGO_BIN` 指定 Hugo 可执行文件。验证覆盖友链添加脚本（本地 HTTP 测试站点，无外网依赖）、本地图标、图片生成与缓存、BlurHash 有效性、缩略图尺寸、首页、分页、归档、标签、友链、搜索索引、RSS、纯文本页头、代码块，以及所有页面的本地链接、脚本、字体和图片。测试构建产物写入系统临时目录，图片缓存写入上述 Git 忽略目录。设置 `SHIUE_TEST_BASE_URL=https://example.org/blog/` 可验证子目录部署。
+可通过 `HUGO_BIN` 指定 Hugo 可执行文件。验证覆盖部署流程的计时、失败、取消和日志，友链检测与每日触发器（本地测试与模拟响应，不访问真实友链、不触发真实部署），友链添加脚本、本地图标、图片生成与缓存、BlurHash 有效性、缩略图尺寸、首页、分页、归档、标签、友链、搜索索引、RSS、纯文本页头、代码块，以及所有页面的本地链接、脚本、字体和图片。测试构建产物写入系统临时目录，图片缓存写入上述 Git 忽略目录。设置 `SHIUE_TEST_BASE_URL=https://example.org/blog/` 可验证子目录部署。友链检测暂不接入 CI。
 
 [GitHub Actions](.github/workflows/build.yml) 在推送和拉取请求时使用最新稳定版 Hugo Extended 验证。Linux x86_64 可用同一入口检查新版本：
 
@@ -89,10 +95,12 @@ SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mj
 
 `node scripts/check-motion.mjs` 使用相同环境变量，检查图片 Hero 动画、慢速或失败原图、快速开关、键盘焦点、滚动锁定、手机尺寸、动态修改减少动效偏好、动画 API 降级和返回导航，并记录一次开合过程的帧间隔采样。帧间隔受设备与浏览器运行环境影响，不能视为所有设备上的帧率保证。
 
+`node scripts/check-mobile-controls.mjs` 检查移动端菜单图标切换、popover 入场和退场、快速反向切换、键盘与断点焦点、footer 主题按钮居中、图片预览 SVG 关闭按钮，以及减少动效和无 JavaScript 回退。
+
 `node scripts/check-article-transition.mjs` 检查卡片到正文的真实跨页几何关键帧、返回/前进、搜索结果键盘入口、手机布局、动态减少动效、无封面、新标签页及无脚本回退，并保存过渡截图和浏览器生成的关键帧。
 
 `node scripts/check-readability.mjs` 使用相同环境变量，检查主要页面在浅色/深色与桌面/手机下的实际文字对比度（普通文字至少 4.5:1，大号文字至少 3:1）、横向溢出、五类提示、搜索占位文字、按钮悬停和键盘焦点，并保存页面截图。
 
 ## Vercel
 
-导入仓库后，[vercel.json](vercel.json) 先执行 `npm ci`，再使用 `scripts/hugo.sh` 生成图片并按 `.hugo-version` 构建，输出目录为 `public`。升级部署版本时更新 `.hugo-version` 并执行构建验证。部署状态以 Vercel 的构建结果为准。
+导入仓库后，[vercel.json](vercel.json) 先执行 `npm ci`，再执行统一的 `npm run deploy`，输出目录为 `public`。每天更新由 Vercel Cron 触发同一部署流程；需要在生产环境设置 `CRON_SECRET` 和 `VERCEL_DEPLOY_HOOK_URL` 才能启用，配置步骤见 [每日刷新](docs/deployment.md#每日刷新vercel)。未配置时不会自动触发部署。升级部署版本时更新 `.hugo-version` 并执行构建验证。部署状态以 Vercel 的构建结果为准。

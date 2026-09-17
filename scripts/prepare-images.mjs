@@ -20,14 +20,14 @@ async function sources(root, directory) {
   if (!await exists(folder)) return found;
   for (const entry of await readdir(folder, { withFileTypes: true })) {
     const relative = path.posix.join(directory, entry.name);
-    if (relative === 'static/xeu-images') continue;
+    if (['static/xeu-images', 'static/site-identity', 'static/avatar.jpg'].includes(relative)) continue;
     if (entry.isDirectory()) found.push(...await sources(root, relative));
     else if (entry.isFile() && isCandidate(entry.name)) found.push(relative);
   }
   return found.sort();
 }
 
-export async function prepareImages(root = projectRoot) {
+export async function prepareImages(root = projectRoot, { log = console.log, onProgress } = {}) {
   const manifestPath = path.join(root, 'data/xeu/images.json');
   const destination = path.join(root, 'static/xeu-images');
   await mkdir(destination, { recursive: true });
@@ -73,8 +73,14 @@ export async function prepareImages(root = projectRoot) {
     manifest[source] = { fingerprint, width, height, blurhash: encode(new Uint8ClampedArray(data), info.width, info.height, 4, 3), variants };
     generated++;
   };
+  const total = queue.length;
+  let completed = 0;
   await Promise.all(Array.from({ length: 2 }, async () => {
-    while (queue.length) await processImage(queue.shift());
+    while (queue.length) {
+      const source = queue.shift();
+      await processImage(source);
+      onProgress?.({ completed: ++completed, total, source });
+    }
   }));
   const sorted = Object.fromEntries(Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)));
   const text = `${JSON.stringify(sorted, null, 2)}\n`;
@@ -83,7 +89,7 @@ export async function prepareImages(root = projectRoot) {
     await writeFile(temp, text);
     await rename(temp, manifestPath);
   }
-  console.log(`图片准备完成：${Object.keys(sorted).length} 张图片，${generated} 张新生成缩略图与 BlurHash。`);
+  log(`图片准备完成：${Object.keys(sorted).length} 张图片，${generated} 张新生成缩略图与 BlurHash。`);
   return sorted;
 }
 
@@ -94,7 +100,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let pending = Promise.resolve();
     for (const directory of ['content', 'static']) {
       watch(path.join(projectRoot, directory), { recursive: true }, (_event, name) => {
-        if (!name || name.startsWith('xeu-images') || !isCandidate(name)) return;
+        if (!name || name.startsWith('xeu-images') || name.startsWith('site-identity') || name === 'avatar.jpg' || !isCandidate(name)) return;
         clearTimeout(timer);
         timer = setTimeout(() => {
           pending = pending.then(() => prepareImages()).catch(error => console.error(error));
