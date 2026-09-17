@@ -1,0 +1,40 @@
+{{ define "main" }}
+{{ if .Params.links }}
+  <div class="page-heading"><h1>{{ .Title }}</h1></div>
+  <div class="friend-grid">
+  {{ range .Params.links }}
+    <a class="friend-card" href="{{ .website }}" target="_blank" rel="noopener noreferrer">
+      {{ with .image }}<img src="{{ . }}" alt="" loading="lazy" width="48" height="48">{{ end }}
+      <h2>{{ .title }}</h2><p>{{ .description }}</p>
+    </a>
+  {{ end }}
+  </div>
+  {{ with .Content }}<div class="prose surface">{{ . }}</div>{{ end }}
+  {{ partial "comments.html" . }}
+{{ else }}
+  <div class="reading-layout">
+    <div class="reading-column">
+      <article class="article surface">
+        <header class="article-heading">
+          {{ if eq .Section "post" }}<div class="article-meta"><time datetime="{{ .Date.Format "2006-01-02" }}">发布于 {{ .Date.Format "2006-01-02" }}</time>{{ if ne .Lastmod .Date }}<time datetime="{{ .Lastmod.Format "2006-01-02" }}">更新于 {{ .Lastmod.Format "2006-01-02" }}</time>{{ end }}<span>{{ .ReadingTime }} 分钟阅读</span></div>{{ end }}
+          <h1>{{ .Title }}</h1>
+          {{ if eq .Section "post" }}<div class="article-tags">{{ range .GetTerms "tags" }}<a href="{{ .RelPermalink }}"># {{ .Title }}</a>{{ end }}</div>{{ end }}
+        </header>
+        {{ if .Fragments.Headings }}<details class="mobile-toc"><summary>文章目录</summary>{{ .TableOfContents }}</details>{{ end }}
+        <div class="prose">{{ .Content }}</div>
+        {{ if eq .Section "post" }}
+        <footer class="article-footer"><p>本文采用 <a href="{{ .Site.Params.article.licenseURL }}" rel="license">{{ .Site.Params.article.license }}</a> 许可，转载请注明出处。</p></footer>
+        {{ end }}
+      </article>
+      {{ if eq .Section "post" }}
+      <nav class="adjacent-posts" aria-label="相邻文章">
+        {{ with .NextInSection }}<a href="{{ .RelPermalink }}"><span>← 较新文章</span><strong>{{ .Title }}</strong></a>{{ end }}
+        {{ with .PrevInSection }}<a href="{{ .RelPermalink }}"><span>较早文章 →</span><strong>{{ .Title }}</strong></a>{{ end }}
+      </nav>
+      {{ end }}
+      {{ partial "comments.html" . }}
+    </div>
+    {{ if .Fragments.Headings }}<aside class="desktop-toc" aria-label="文章目录"><p>目录</p>{{ .TableOfContents }}</aside>{{ end }}
+  </div>
+{{ end }}
+{{ end }}

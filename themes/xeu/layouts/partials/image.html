@@ -1,0 +1,14 @@
+{{- $src := .src -}}
+{{- $result := dict "src" $src -}}
+{{- if not (findRE `^(https?:)?//` $src) -}}
+  {{- $result = dict "src" (strings.TrimPrefix "/" $src | relURL) -}}
+  {{- $resource := .page.Resources.GetMatch (strings.TrimPrefix "/" $src) -}}
+  {{- if not $resource }}{{ $resource = .page.Site.Home.Resources.GetMatch (strings.TrimPrefix "/" $src) }}{{ end -}}
+  {{- with $resource -}}
+    {{- $result = dict "src" .RelPermalink -}}
+    {{- if reflect.IsImageResourceProcessable . -}}
+      {{- $result = merge $result (dict "width" .Width "height" .Height) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- return $result -}}

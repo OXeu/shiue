@@ -1,0 +1,6 @@
+{{ define "main" }}
+  <div class="page-heading"><h1>{{ if eq .Section "tags" }}标签{{ else }}分类{{ end }}</h1><div class="heading-meta"><p>共 {{ len .Data.Terms }} 个{{ if eq .Section "tags" }}标签{{ else }}分类{{ end }}</p><a href="{{ if eq .Section "tags" }}{{ "categories/" | relURL }}{{ else }}{{ "tags/" | relURL }}{{ end }}">{{ if eq .Section "tags" }}浏览分类{{ else }}浏览标签{{ end }} →</a></div></div>
+  <div class="term-list">
+    {{ range .Data.Terms.ByCount }}<a href="{{ .Page.RelPermalink }}"><span><span class="heading-hash">#</span> {{ .Page.Title }}</span><span class="term-count">{{ .Count }} 篇文章</span></a>{{ end }}
+  </div>
+{{ end }}

@@ -1,0 +1,18 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if not .IsHome }}{{ .Title }} · {{ end }}{{ .Site.Title }}</title>
+<meta name="description" content="{{ .Description | default .Site.Params.description }}">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="{{ .Permalink }}">
+<link rel="icon" type="image/svg+xml" href="{{ "favicon.svg" | relURL }}">
+<link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="{{ "index.xml" | absURL }}">
+<meta property="og:site_name" content="{{ .Site.Title }}">
+<meta property="og:title" content="{{ .Title | default .Site.Title }}">
+<meta property="og:description" content="{{ .Description | default .Site.Params.description }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:type" content="{{ if eq .Section "post" }}article{{ else }}website{{ end }}">
+{{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }}<meta property="og:image" content="{{ $cover.src | absURL }}">{{ end }}
+{{ $init := resources.Get "js/color-mode.js" | minify | fingerprint }}
+<script src="{{ $init.RelPermalink }}" integrity="{{ $init.Data.Integrity }}"></script>
+{{ $style := slice (resources.Get "css/tokens.css") (resources.Get "css/layout.css") (resources.Get "css/content.css") (resources.Get "css/syntax.css") | resources.Concat "css/xeu.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">

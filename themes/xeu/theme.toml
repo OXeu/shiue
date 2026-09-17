@@ -1,0 +1,7 @@
+name = "Xeu"
+license = "MIT"
+description = "独立 Hugo 主题：Rin 极简页头与 Peace 阅读器风格的瀑布流。"
+min_version = "0.166.0"
+
+[author]
+name = "Xeu"

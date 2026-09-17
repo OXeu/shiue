@@ -1,0 +1,15 @@
+<article class="post-card">
+  {{ with .Params.image }}
+    {{ $image := partial "image.html" (dict "page" $ "src" .) }}
+    <a class="card-cover" href="{{ $.RelPermalink }}" tabindex="-1" aria-hidden="true">
+      <img src="{{ $image.src }}" alt="" loading="lazy" decoding="async"{{ with $image.width }} width="{{ . }}"{{ end }}{{ with $image.height }} height="{{ . }}"{{ end }}>
+    </a>
+  {{ end }}
+  <div class="card-body">
+    <div class="card-taxonomy">{{ range first 2 (.GetTerms "categories") }}<a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ else }}{{ range first 2 (.GetTerms "tags") }}<a href="{{ .RelPermalink }}"># {{ .Title }}</a>{{ else }}<span>{{ .Site.Params.name }}</span>{{ end }}{{ end }}</div>
+    <h2 class="card-title"><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+    {{ $summary := .Description | default (.Summary | plainify) }}
+    {{ with $summary }}<p class="card-summary">{{ . }}</p>{{ end }}
+    <div class="card-meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time><span>{{ .ReadingTime }} 分钟阅读</span></div>
+  </div>
+</article>

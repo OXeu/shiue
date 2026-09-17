@@ -1,0 +1,1 @@
+{{ return (where (where .Site.RegularPages "Type" "in" .Site.Params.mainSections) "Params.hidden" "ne" true).ByDate.Reverse }}

@@ -1,0 +1,9 @@
+{{ if and .Site.Params.comments.enabled (ne .Params.comments false) }}
+<section class="comments surface" aria-labelledby="comments-title" data-comments data-env="{{ .Site.Params.comments.envId }}" data-lang="{{ .Site.Params.comments.lang }}" data-path="{{ .RelPermalink }}">
+  <h2 id="comments-title">评论</h2>
+  <button class="text-button" type="button" data-load-comments>加载评论</button>
+  <p class="comment-status" role="status"></p>
+  <div id="twikoo"></div>
+  <noscript><p>启用 JavaScript 后可加载评论。</p></noscript>
+</section>
+{{ end }}

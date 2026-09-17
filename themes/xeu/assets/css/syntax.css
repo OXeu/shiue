@@ -1,0 +1,13 @@
+.chroma { color: var(--text); background: transparent; }
+.chroma .c, .chroma .c1, .chroma .cm, .chroma .cs, .chroma .cp { color: var(--muted); font-style: italic; }
+.chroma .k, .chroma .kc, .chroma .kd, .chroma .kn, .chroma .kp, .chroma .kr, .chroma .nt { color: #a43e82; }
+.chroma .s, .chroma .s1, .chroma .s2, .chroma .sb, .chroma .sc, .chroma .sd, .chroma .sh, .chroma .sx { color: #2b7353; }
+.chroma .m, .chroma .mi, .chroma .mf, .chroma .mh, .chroma .il, .chroma .se { color: #a86018; }
+.chroma .nf, .chroma .nc, .chroma .nb, .chroma .na, .chroma .kt { color: #356db0; }
+.chroma .gd { color: #b42339; background: rgb(180 35 57 / .08); }
+.chroma .gi { color: #237349; background: rgb(35 115 73 / .08); }
+:root[data-color-mode="dark"] .chroma :is(.k,.kc,.kd,.kn,.kp,.kr,.nt) { color: #e3a2d0; }
+:root[data-color-mode="dark"] .chroma :is(.s,.s1,.s2,.sb,.sc,.sd,.sh,.sx,.gi) { color: #a1d4ae; }
+:root[data-color-mode="dark"] .chroma :is(.m,.mi,.mf,.mh,.il,.se) { color: #e9ba85; }
+:root[data-color-mode="dark"] .chroma :is(.nf,.nc,.nb,.na,.kt) { color: #99bfef; }
+:root[data-color-mode="dark"] .chroma .gd { color: #ffa0ac; }

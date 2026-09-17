@@ -1,86 +1,19 @@
-# Pages placed under these sections will be shown on homepage and archive page.
+name = "Xeu"
+description = "Xeu's mini world"
 mainSections = ["post"]
-# Output page's full content in RSS.
 rssFullContent = true
+
+[author]
+name = "Xeu"
 
 [footer]
 since = 2020
-customText = ""
-
-[dateFormat]
-published = "Jan 02, 2006"
-lastUpdated = "Jan 02, 2006 15:04 MST"
-
-[sidebar]
-emoji = "🦀"
-title = "谢雨 - Xeu"
-subtitle = "Android摆烂人/Rust永远入门人/永远温和"
-
-[sidebar.avatar]
-enabled = true
-local = true
-src = "img/avatar.png"
 
 [article]
-math = true
-readingTime = true
+license = "CC BY-NC-SA 4.0"
+licenseURL = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 
-[article.license]
-enabled = true
-default = "Licensed CC BY-NC-SA 4.0"
-
-## Widgets
-[[widgets.homepage]]
-type = "search"
-
-
-[[widgets.homepage]]
-type = "archives"
-
-[widgets.homepage.params]
-limit = 5
-
-[[widgets.homepage]]
-type = "categories"
-
-[widgets.homepage.params]
-limit = 10
-
-[[widgets.homepage]]
-type = "tag-cloud"
-
-[widgets.homepage.params]
-limit = 10
-
-[[widgets.page]]
-type = "toc"
-
-[opengraph.twitter]
-site = ""
-card = "summary_large_image"
-
-[defaultImage.opengraph]
-enabled = false
-local = false
-src = ""
-
-[colorScheme]
-toggle = true
-default = "auto"
-
-[imageProcessing.cover]
-enabled = true
-
-[imageProcessing.content]
-enabled = true
-
-## Comments
 [comments]
 enabled = true
-provider = "twikoo"
-
-[comments.twikoo]
 envId = "https://shiue-comment.vercel.app"
-#region = ""
-#path = "https://shiue-comment.vercel.app"
 lang = "zh-CN"

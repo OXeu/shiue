@@ -1,0 +1,2 @@
+{{- $image := partial "image.html" (dict "page" .Page "src" .Destination) -}}
+<img src="{{ $image.src }}" alt="{{ .PlainText }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ with $image.width }} width="{{ . }}"{{ end }}{{ with $image.height }} height="{{ . }}"{{ end }} loading="lazy" decoding="async" data-zoomable>

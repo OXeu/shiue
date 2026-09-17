@@ -1,0 +1,86 @@
+.surface { background: var(--surface); border-radius: var(--radius-surface); padding: 24px; }
+.reading-layout { position: relative; }
+.reading-column { min-width: 0; }
+.article-heading { margin-bottom: 32px; }
+.article-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); }
+.article-heading h1 { margin-top: 12px; font-size: 30px; line-height: 1.3; font-weight: 700; letter-spacing: -.02em; }
+.article-tags { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 14px; color: var(--muted); }
+.prose { line-height: 1.75; }
+.prose > :first-child { margin-top: 0; }
+.prose p, .prose ul, .prose ol, .prose blockquote, .prose table, .prose .code-block, .prose .video-embed { margin-block: 16px; }
+.prose h1, .prose h2, .prose h3, .prose h4 { margin: 28px 0 16px; line-height: 1.4; scroll-margin-top: 96px; }
+.prose h1 { font-size: 28px; }
+.prose h2 { font-size: 24px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.prose h3 { font-size: 20px; }
+.prose h4 { font-size: 17px; }
+.prose a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.prose a:hover { color: var(--accent-hover); }
+.prose ul, .prose ol { padding-left: 24px; }
+.prose li + li { margin-top: 6px; }
+.prose li > p { margin-block: 8px; }
+.prose img { margin-inline: auto; border-radius: 8px; }
+.prose img[data-zoomable] { cursor: zoom-in; }
+.prose blockquote { padding: 8px 16px; margin-inline: 0; border-left: 3px solid var(--border-hover); color: var(--text-soft); background: var(--surface-muted); border-radius: 0 8px 8px 0; }
+.prose blockquote > :first-child { margin-top: 0; }
+.prose blockquote > :last-child { margin-bottom: 0; }
+.prose hr { margin: 32px 0; border: 0; border-top: 1px solid var(--border); }
+.prose code { padding: 2px 5px; color: var(--accent); background: var(--surface-muted); border-radius: 4px; font: .85em/1.6 var(--font-code); }
+.code-block { overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); }
+.code-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.copy-code { padding: 4px 8px; border-radius: 4px; }
+.copy-code:hover { background: var(--hover); color: var(--text); }
+.prose pre { max-width: 100%; overflow-x: auto; margin: 0; padding: 16px; line-height: 1.6; tab-size: 4; }
+.prose pre code { background: transparent; color: inherit; padding: 0; border-radius: 0; font-size: 13px; white-space: pre; overflow-wrap: normal; }
+.prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 14px; }
+.prose td, .prose th { border: 1px solid var(--border-hover); padding: 8px 12px; }
+.prose th { background: var(--surface-muted); text-align: left; }
+.prose input[type="checkbox"] { accent-color: var(--accent); }
+.markdown-alert { --alert: #6366f1; padding: 16px; margin-block: 16px; border: 1px solid color-mix(in srgb, var(--alert) 30%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--alert) 8%, var(--surface)); }
+.markdown-alert .alert-title { color: var(--alert); font-weight: 700; margin: 0 0 8px; }
+.markdown-alert > :last-child { margin-bottom: 0; }
+.alert-tip { --alert: #259455; }
+.alert-warning { --alert: #a86a09; }
+.alert-caution { --alert: #dd4b52; }
+.alert-important { --alert: #9a57cc; }
+.video-embed { aspect-ratio: 16 / 9; }
+.video-embed iframe { width: 100%; height: 100%; border: 0; border-radius: 8px; }
+.article-footer { border-top: 1px solid var(--border); margin-top: 32px; padding-top: 20px; font-size: 12px; color: var(--muted); }
+.article-footer a { color: var(--accent); }
+.adjacent-posts { display: flex; gap: 24px; margin: 24px 0; }
+.adjacent-posts a { flex: 1; min-width: 0; }
+.adjacent-posts span { color: var(--muted); display: block; font-size: 12px; margin-bottom: 8px; }
+.adjacent-posts strong { font-size: 14px; font-weight: 500; }
+.adjacent-posts a + a { text-align: right; }
+.desktop-toc { display: none; }
+.mobile-toc { margin-bottom: 24px; padding: 12px 16px; background: var(--surface-muted); border-radius: 8px; font-size: 14px; }
+.mobile-toc summary { cursor: pointer; }
+#TableOfContents ul { list-style: none; margin: 8px 0; padding-left: 12px; }
+#TableOfContents > ul { padding-left: 0; }
+#TableOfContents li { margin: 6px 0; }
+#TableOfContents a { color: var(--muted); display: block; }
+#TableOfContents a:hover, #TableOfContents a[aria-current="location"] { color: var(--accent); }
+.comments { margin-top: 24px; font-size: 14px; }
+.comments h2 { font-size: 18px; margin-bottom: 16px; }
+.text-button { border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; }
+.text-button:hover { border-color: var(--border-hover); background: var(--surface-muted); }
+.comment-status { color: var(--muted); margin-block: 8px; }
+.comments .tk-comments, .comments .tk-submit { color: var(--text); }
+.image-dialog { max-width: 96vw; max-height: 96dvh; padding: 16px; border: 0; background: transparent; overflow: auto; }
+.image-dialog::backdrop { background: var(--overlay); backdrop-filter: blur(8px); }
+.image-dialog img { max-height: 84dvh; max-width: 90vw; object-fit: contain; margin: auto; }
+.image-dialog button { display: block; margin: 0 0 12px auto; padding: 8px 16px; background: var(--surface); border-radius: 999px; }
+@media (min-width: 1280px) {
+  .desktop-toc { display: block; position: absolute; left: calc(100% + 24px); top: 0; width: 180px; height: 100%; font-size: 12px; }
+  .desktop-toc > p { position: sticky; top: 88px; padding-bottom: 8px; font-size: 13px; font-weight: 600; }
+  .desktop-toc #TableOfContents { position: sticky; top: 124px; max-height: calc(100vh - 148px); overflow-y: auto; scrollbar-width: thin; }
+  .mobile-toc { display: none; }
+}
+@media (max-width: 600px) {
+  .surface { padding: 20px; }
+  .article-heading h1 { font-size: 25px; }
+  .prose { font-size: 15px; }
+  .prose h1 { font-size: 24px; }
+  .prose h2 { font-size: 21px; }
+  .adjacent-posts { flex-direction: column; }
+  .adjacent-posts a + a { text-align: left; }
+}

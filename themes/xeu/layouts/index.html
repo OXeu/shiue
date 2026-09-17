@@ -1,0 +1,8 @@
+{{ define "main" }}
+  {{ $posts := partial "posts.html" . }}
+  <div class="page-heading"><h1>文章</h1><p>共 {{ len $posts }} 篇文章</p></div>
+  <div class="article-list" data-masonry aria-label="文章列表">
+    {{ range (.Paginate $posts).Pages }}{{ partial "card.html" . }}{{ end }}
+  </div>
+  {{ partial "pagination.html" .Paginator }}
+{{ end }}

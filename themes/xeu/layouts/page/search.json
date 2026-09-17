@@ -1,0 +1,8 @@
+{{- $items := slice -}}
+{{- range partial "posts.html" . -}}
+  {{- $page := . -}}
+  {{- $image := "" -}}
+  {{- with .Params.image }}{{ $image = (partial "image.html" (dict "page" $page "src" .)).src }}{{ end -}}
+  {{- $items = $items | append (dict "title" .Title "permalink" .RelPermalink "content" (.Plain | htmlUnescape) "description" (.Description | default (.Summary | plainify)) "tags" (.Params.tags | default slice) "date" (.Date.Format "2006-01-02") "readingTime" .ReadingTime "image" $image) -}}
+{{- end -}}
+{{- $items | jsonify -}}

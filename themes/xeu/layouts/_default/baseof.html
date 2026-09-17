@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="{{ .Language.Locale | default "zh-CN" }}" data-color-mode="light">
+<head>{{ partial "head.html" . }}</head>
+<body>
+  <a class="skip-link" href="#main">跳至正文</a>
+  {{ partial "header.html" . }}
+  <main id="main" class="site-main" tabindex="-1">{{ block "main" . }}{{ end }}</main>
+  {{ partial "footer.html" . }}
+  {{ $scripts := slice (resources.Get "js/masonry.js") (resources.Get "js/search.js") (resources.Get "js/site.js") | resources.Concat "js/xeu.js" | minify | fingerprint }}
+  <script src="{{ $scripts.RelPermalink }}" integrity="{{ $scripts.Data.Integrity }}" defer></script>
+</body>
+</html>

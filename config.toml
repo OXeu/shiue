@@ -1,7 +1,7 @@
 baseURL = ''
 locale = 'zh-CN'
-theme = 'stack'
-title = 'Shiue world'
+theme = 'xeu'
+title = "Xeu's world"
 [params]
 description = "Xeu's mini world"
 [params.author]

@@ -1,0 +1,14 @@
+{{- $pages := where .RegularPages "Params.hidden" "ne" true -}}
+{{- if .IsHome }}{{ $pages = partial "posts.html" . }}{{ end -}}
+{{- printf "<?xml version=\"1.0\" encoding=\"utf-8\"?>" | safeHTML }}
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
+  <title>{{ .Site.Title }}{{ if not .IsHome }} · {{ .Title }}{{ end }}</title>
+  <link>{{ .Permalink }}</link><description>{{ .Site.Params.description }}</description>
+  <language>{{ .Language.Locale | default "zh-CN" }}</language>
+  {{ with .OutputFormats.Get "RSS" }}<atom:link href="{{ .Permalink }}" rel="self" type="application/rss+xml"/>{{ end }}
+  {{ range $pages.ByDate.Reverse }}<item>
+    <title>{{ .Title }}</title><link>{{ .Permalink }}</link><guid>{{ .Permalink }}</guid>
+    <pubDate>{{ .Date.Format "Mon, 02 Jan 2006 15:04:05 -0700" }}</pubDate>
+    <description>{{ if .Site.Params.rssFullContent }}{{ .Content | html }}{{ else }}{{ .Summary | html }}{{ end }}</description>
+  </item>{{ end }}
+</channel></rss>
