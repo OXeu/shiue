@@ -3,9 +3,17 @@ content:
   - name: pages
     label: Pages
     type: collection
-    path: docs
+    path: content/post
     fields:
       - name: title
         type: string
       - name: body
         type: rich-text
+      - name: date
+        type: date
+      - name: description
+        type: string
+      - name: slug
+        type: string
+      - name: draft
+        type: boolean
