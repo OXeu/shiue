@@ -1,8 +1,7 @@
 ---
 title: 友链
-slug: links
 aliases:
-  - /友链/
+  - /links/
 links:
   - title: 天真的小窝
     description: React Native大佬、职业画大饼选手

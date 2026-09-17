@@ -4,6 +4,7 @@
   <nav class="site-nav" aria-label="主导航">
     {{ range slice (dict "url" "/" "name" "文章" "key" "posts") (dict "url" "/archives/" "name" "归档" "key" "archives") (dict "url" "/tags/" "name" "标签" "key" "tags") (dict "url" "/links/" "name" "友链" "key" "links") (dict "url" "/about/" "name" "关于" "key" "about") (dict "url" "/search/" "name" "搜索" "key" "search") }}
       {{ $url := strings.TrimPrefix "/" .url | relURL }}
+      {{ if eq .key "links" }}{{ with $page.Site.GetPage "page/links" }}{{ $url = .RelPermalink }}{{ end }}{{ end }}
       {{ $active := or (eq $page.RelPermalink $url) (and (eq .key "posts") (eq $page.Section "post")) (and (eq .key "tags") (eq $page.Section "tags")) (and (eq .key "posts") $page.IsHome) }}
       <a href="{{ $url }}"{{ if $active }} aria-current="page"{{ end }}>{{ .name }}</a>
     {{ end }}

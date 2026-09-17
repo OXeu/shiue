@@ -38,6 +38,8 @@ node scripts/check-build.mjs
 SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mjs
 ```
 
+浏览器回归检查使用 Playwright。先在另一个终端运行 `hugo server --disableLiveReload`，在已安装 Playwright 与 Chromium 的环境中执行 `node scripts/check-theme.mjs`。可用 `PLAYWRIGHT_MODULE` 指向现有 Playwright 的 `index.mjs`，用 `SHIUE_TEST_URL` 指定预览地址。检查覆盖六档屏宽下的卡片重叠与溢出、搜索和失败重试、分页、主题切换、代码复制、图片预览、目录及无 JavaScript 回退；截图写入系统临时目录。
+
 ## Vercel
 
 导入仓库后，[vercel.json](vercel.json) 使用 `scripts/hugo.sh` 和 `.hugo-version` 构建，输出目录为 `public`。升级部署版本时更新 `.hugo-version` 并执行构建验证。部署状态以 Vercel 的构建结果为准。

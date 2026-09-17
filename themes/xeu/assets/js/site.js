@@ -80,7 +80,7 @@
     try {
       if (!window.twikoo) await new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/twikoo@1.6.44/dist/twikoo.all.min.js';
+        script.src = 'https://cdn.jsdelivr.net/npm/twikoo@1.5.11/dist/twikoo.all.min.js';
         const timeout = setTimeout(() => { script.remove(); reject(new Error('评论加载超时')); }, 15000);
         script.onload = () => { clearTimeout(timeout); resolve(); };
         script.onerror = () => { clearTimeout(timeout); script.remove(); reject(new Error('评论加载失败')); };
