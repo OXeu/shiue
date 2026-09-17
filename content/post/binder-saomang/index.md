@@ -1,19 +1,18 @@
 ---
-title: "Binder 扫盲"
-date: 2024-03-27T11:29:24.714Z
-slug: binder-saomang
-description: 本文介绍了Binder和AIDL的基本概念和使用方法，并通过与gRPC进行类比，帮助读者更好地理解Binder中各个部分的作用。文章详细介绍了gRPC与Protobuf的使用方法和优势，并通过代码示例演示了如何使用gRPC进行客户端和服务器之间的通信。接着，文章介绍了Binder和AIDL的概念和原理，并通过代码示例演示了如何使用AIDL进行进程间通信。最后，文章简要介绍了AIDL生成的代码中的各个部分的作用，并解释了Binder的工作原理。通过本文的阅读，读者可以对Binder和AIDL有一个基本的了解，并了解它们在Android系统中的应用场景和工作原理。
-
 categories:
 - Android
+date: 2024-03-27T11:29:24.714Z
+description: 本文介绍了Binder和AIDL的基本概念和使用方法，并通过与gRPC进行类比，帮助读者更好地理解Binder中各个部分的作用。文章详细介绍了gRPC与Protobuf的使用方法和优势，并通过代码示例演示了如何使用gRPC进行客户端和服务器之间的通信。接着，文章介绍了Binder和AIDL的概念和原理，并通过代码示例演示了如何使用AIDL进行进程间通信。最后，文章简要介绍了AIDL生成的代码中的各个部分的作用，并解释了Binder的工作原理。通过本文的阅读，读者可以对Binder和AIDL有一个基本的了解，并了解它们在Android系统中的应用场景和工作原理。
+draft: false
+image: f62a365c-a5c1-4a1f-b40f-466f6e85ec95
+slug: binder-saomang
 tags:
 - Android
 - Binder
 - AIDL
 - gRPC
 - Protobuf
-image: f62a365c-a5c1-4a1f-b40f-466f6e85ec95
-draft: false
+title: Binder 扫盲
 ---
 # Binder 是什么
 
@@ -21,15 +20,14 @@ draft: false
 
 # gRPC 与 Protobuf
 
+> [!TIP]
+> 在介绍 Binder 之前，我想先简单介绍一下 gRPC 是什么，这对于后续的类比介绍十分重要。如果你已经知道 gRPC 与 protobuf，那么这一节可以直接跳过。
 
-:::info
-在介绍 Binder 之前，我想先简单介绍一下 gRPC 是什么，这对于后续的类比介绍十分重要。如果你已经知道 gRPC 与 protobuf，那么这一节可以直接跳过。
 
-:::
 
-简单来说，[gRPC](https://grpc.io/) (Google Remote Procedure Call) 是Google开发的一个 RPC 框架，用于客户端直接调用服务端提供的函数，说白了就是一种 API 接口的设计方法，跟 RESTful、GraphQL 一样都只是一个 API 接口框架，gRPC 的优势是使用 [ProtoBuf  ](https://protobuf.dev/)作为接口描述、数据交换的格式（RESTful 风格的接口通常使用的是 JSON），而 ProtoBuf 的优势是快、小、平台无关，相较于 JSON 来说数据使用二进制格式封装，结构更紧凑，更易解析，同时通过 protobuf 只需要描述接口与对象，即可自动生成所需语言的数据类与接口，服务端只需要实现生成代码中的接口即可提供服务，客户端只需要初始化时指定服务器的 URL 即可像调用本地函数一样调用服务器的接口。
+简单来说，[gRPC](https://grpc.io/) (Google Remote Procedure Call) 是Google开发的一个 RPC 框架，用于客户端直接调用服务端提供的函数，说白了就是一种 API 接口的设计方法，跟 RESTful、GraphQL 一样都只是一个 API 接口框架，gRPC 的优势是使用 [ProtoBuf](https://protobuf.dev/)  作为接口描述、数据交换的格式（RESTful 风格的接口通常使用的是 JSON），而 ProtoBuf 的优势是快、小、平台无关，相较于 JSON 来说数据使用二进制格式封装，结构更紧凑，更易解析，同时通过 protobuf 只需要描述接口与对象，即可自动生成所需语言的数据类与接口，服务端只需要实现生成代码中的接口即可提供服务，客户端只需要初始化时指定服务器的 URL 即可像调用本地函数一样调用服务器的接口。
 
-下面引用 <https://www.cnblogs.com/zhangmingcheng/p/16329237.html> 的例子：
+下面引用 [https://www.cnblogs.com/zhangmingcheng/p/16329237.html](https://www.cnblogs.com/zhangmingcheng/p/16329237.html) 的例子：
 
 我们可以简单定义一个 protobuf 文件
 
@@ -159,145 +157,138 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 简单来说，Binder是 Android 进程间通信 IPC (Inter-Process Communication) 的一种协议/机制，可以理解为进程间通信中的 gRPC。而 AIDL(Android Interface Definition Language) 就是 Binder 中的 protobuf，负责定义接口。
 
-
 1. 我们可以使用 AIDL 定义一个接口，相当于 gRPC 使用 protobuf 定义接口：
-
    ```css
-       package my.package;
-       interface IFoo {
-           int doFoo();
-       }
+        package my.package;
+        interface IFoo {
+            int doFoo();
+        }
    ```
 2. 接着 Rebuild 一下项目后 IDE 就会自动生成 aidl 文件对应的中间代码，相当于 gRPC 中通过 protobuf 文件生成接口定义文件和抽象，其生成的代码大致为以下结构：
-
    ```java
-   public interface IFooService extends android.os.IInterface {
+    public interface IFooService extends android.os.IInterface {
    
-     public int doFoo() throws android.os.RemoteException { 
-       ...
-     }
-     
-     // Stub是一个Binder，相当于上一章中的GradeBinder
-     public static abstract class Stub extends android.os.Binder implements IFooService {
-         
-         public static IFooService asInterface(android.os.IBinder obj) {
-           if ((obj == null)) {
-             return null;
-           }
-           android.os.IInterface iin = obj.queryLocalInterface(DESCRIPTOR);
-           if (((iin != null) && (iin instanceof IFooService))) {
-             // 如果是当前进程则直接返回当前 Binder 对象
-             return ((IFooService) iin);
-           }
-           // 跨进程则返回Binder的代理对象
-           return new IFooService.Stub.Proxy(obj);
-         }
-         
-         @Override
-         public boolean onTransact(int code, android.os.Parcel data, android.os.Parcel reply, int flags){
-           ...
-         } 
-         
-         @Override 
-         public android.os.IBinder asBinder() {
-           return this;
-         }
+      public int doFoo() throws android.os.RemoteException { 
+        ...
+      }
    
-     }
-     
-     private static class Proxy implements IFooService {
-       private android.os.IBinder mRemote;
-           
-       Proxy(android.os.IBinder remote) {
-         mRemote = remote;
-       }
-       
-       @Override 
-       public int doFoo() throws android.os.RemoteException { 
-         ...
-       }
-       
-       @Override 
-       public android.os.IBinder asBinder() {
-         return mRemote;
-       }
-     }
-   }
+      // Stub是一个Binder，相当于上一章中的GradeBinder
+      public static abstract class Stub extends android.os.Binder implements IFooService {
+   
+          public static IFooService asInterface(android.os.IBinder obj) {
+            if ((obj == null)) {
+              return null;
+            }
+            android.os.IInterface iin = obj.queryLocalInterface(DESCRIPTOR);
+            if (((iin != null) && (iin instanceof IFooService))) {
+              // 如果是当前进程则直接返回当前 Binder 对象
+              return ((IFooService) iin);
+            }
+            // 跨进程则返回Binder的代理对象
+            return new IFooService.Stub.Proxy(obj);
+          }
+   
+          @Override
+          public boolean onTransact(int code, android.os.Parcel data, android.os.Parcel reply, int flags){
+            ...
+          } 
+   
+          @Override 
+          public android.os.IBinder asBinder() {
+            return this;
+          }
+   
+      }
+   
+      private static class Proxy implements IFooService {
+        private android.os.IBinder mRemote;
+   
+        Proxy(android.os.IBinder remote) {
+          mRemote = remote;
+        }
+   
+        @Override 
+        public int doFoo() throws android.os.RemoteException { 
+          ...
+        }
+   
+        @Override 
+        public android.os.IBinder asBinder() {
+          return mRemote;
+        }
+      }
+    }
    ```
 3. 服务端继承实现 IFoo.Stub 抽象类，等价于 gRPC 实现接口具体的处理
-
    ```java
-       import my.package.IFoo;
-       public class MyFoo extends IFoo.Stub {
-           @Override
-           int doFoo() { ... }
-       }
+        import my.package.IFoo;
+        public class MyFoo extends IFoo.Stub {
+            @Override
+            int doFoo() { ... }
+        }
    ```
 4. 编写服务
-
    ```java
-   public class MyService extends Service {
+    public class MyService extends Service {
    
-       public static final int REQUEST_CODE=1000;
+        public static final int REQUEST_CODE=1000;
    
-       @Nullable
-       @Override
-       public IBinder onBind(Intent intent) {
-           return new MyFoo();
-       }
-   }
+        @Nullable
+        @Override
+        public IBinder onBind(Intent intent) {
+            return new MyFoo();
+        }
+    }
    ```
 5. 注册服务，等价于 gRPC 服务端监听端口提供服务
-
    ```java
-   import android.os.ServiceManager;
-   // registering
-   ServiceManager.addService("service-name", myService);
+    import android.os.ServiceManager;
+    // registering
+    ServiceManager.addService("service-name", myService);
    ```
-6.  客户端绑定 Service 并调用，绑定 Service 相当于 gRPC 中客户端连接服务端
-
+6. 客户端绑定 Service 并调用，绑定 Service 相当于 gRPC 中客户端连接服务端
    ```java
-   public class AidlActivity extends BaseViewBindingActivity<ActivityBinderBinding> {
+    public class AidlActivity extends BaseViewBindingActivity<ActivityBinderBinding> {
    
-       private IFooService mBinderProxy;
+        private IFooService mBinderProxy;
    
-       private final ServiceConnection mServiceConnection = new ServiceConnection() {
-           @Override
-           public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-               // 连接服务后，根据是否跨进程获取Binder或者Binder的代理对象
-               mBinderProxy = IFooService.Stub.asInterface(iBinder);
-           }
+        private final ServiceConnection mServiceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+                // 连接服务后，根据是否跨进程获取Binder或者Binder的代理对象
+                mBinderProxy = IFooService.Stub.asInterface(iBinder);
+            }
    
-           @Override
-           public void onServiceDisconnected(ComponentName componentName) {
-               mBinderProxy = null;
-           }
-       };
+            @Override
+            public void onServiceDisconnected(ComponentName componentName) {
+                mBinderProxy = null;
+            }
+        };
    
-       @Override
-       protected void onCreate(Bundle savedInstanceState) {
-           super.onCreate(savedInstanceState);
-           binding.btnBindService.setOnClickListener(view -> bindGradeService());
-           binding.btnFindGrade.setOnClickListener(view -> getFoo());
-       }
-     
-       // 绑定服务
-       private void bindGradeService() {
-           String action = "android.intent.action.server.aidl.gradeservice";
-           Intent intent = new Intent(action);
-           intent.setPackage(getPackageName());
-           bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
-       }
-     
-       private void getFoo() {
-           int grade = 0;
-           try {
-               bar = mBinderProxy.doFoo();
-           } catch (RemoteException e) {
-               e.printStackTrace();
-           }
-       }
-   }
+        @Override
+        protected void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            binding.btnBindService.setOnClickListener(view -> bindGradeService());
+            binding.btnFindGrade.setOnClickListener(view -> getFoo());
+        }
+   
+        // 绑定服务
+        private void bindGradeService() {
+            String action = "android.intent.action.server.aidl.gradeservice";
+            Intent intent = new Intent(action);
+            intent.setPackage(getPackageName());
+            bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
+        }
+   
+        private void getFoo() {
+            int grade = 0;
+            try {
+                bar = mBinderProxy.doFoo();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+    }
    ```
 
 以上代码基本将 Binder 与 gRPC 中的内容对应起来，相信对于理解 Binder 以及 AIDL 是什么，怎么用已经有了一个初步的认识，接下来就是 AIDL 中生成的代码中各内容是什么
@@ -480,9 +471,8 @@ public class Binder implements IBinder {
 
 # References
 
-
 1. [AIDL 后端](https://source.android.com/docs/core/architecture/aidl/aidl-backends?hl=zh-cn)
-2. **[不得不说的 Android Binder 机制与 AIDL](https://juejin.cn/post/6994057245113729038)**
+2. [**不得不说的 Android Binder 机制与 AIDL**](https://juejin.cn/post/6994057245113729038)
 3. [Android跨进程通信：图文详解 Binder 机制原理](https://blog.csdn.net/carson_ho/article/details/73560642)
 
-\
+\\
