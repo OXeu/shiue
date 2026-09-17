@@ -1,6 +1,8 @@
 baseURL = ''
-languageCode = 'zh-cn'
+locale = 'zh-CN'
+theme = 'stack'
 title = 'Shiue world'
 [params]
 description = "Xeu's mini world"
-author = "Xeu"
+[params.author]
+name = "Xeu"

@@ -1,5 +1,5 @@
 {{ $sass := resources.Get "scss/style.scss" }}
-{{ $style := $sass | resources.ToCSS | minify | resources.Fingerprint "sha256" }}
+{{ $style := $sass | css.Sass | minify | resources.Fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $style.RelPermalink }}">
 {{ if eq .Site.Params.syntaxHighlighter "highlight.js" }}
 <style id="code-theme">

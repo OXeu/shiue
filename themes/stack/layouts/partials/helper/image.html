@@ -17,8 +17,8 @@
             <!-- If image is found under page bundle -->
             {{ $result = merge $result (dict "permalink" $pageResourceImage.RelPermalink) }}
 
-            <!-- Disable SVG image processing, not supported by Hugo -->
-            {{ if ne (path.Ext $imageValue) ".svg" }}
+            {{/* SVG 和无扩展名资源保留原图链接，不调用位图处理方法。 */}}
+            {{ if reflect.IsImageResourceProcessable $pageResourceImage }}
                 {{ $result = merge $result (dict "resource" $pageResourceImage) }}
             {{ end }}
         {{ else }}
@@ -42,7 +42,9 @@
             {{ if $siteResourceImage }}
                 <!-- Try search image under site's assets folder -->
                 {{ $result = merge $result (dict "permalink" $siteResourceImage.RelPermalink) }}
-                {{ $result = merge $result (dict "resource" $siteResourceImage) }}
+                {{ if reflect.IsImageResourceProcessable $siteResourceImage }}
+                    {{ $result = merge $result (dict "resource" $siteResourceImage) }}
+                {{ end }}
             {{ else }}
                 <!-- Can not find the image -->
                 {{ errorf "Failed loading image: %q" $defaultImageSetting.src }}

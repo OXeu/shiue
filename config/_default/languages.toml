@@ -1,7 +1,4 @@
-# Uncomment this file to enable multilanguage site support
-
-#[en]
-#languageName = "English"
-#languagedirection = "ltr"
-#title = "Example Site"
-#weight = 1
+[zh-cn]
+label = "简体中文"
+locale = "zh-CN"
+direction = "ltr"

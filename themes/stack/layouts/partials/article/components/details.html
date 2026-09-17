@@ -50,7 +50,7 @@
             {{ partial "helper/icon" "language" }}
             <div>
                 {{ range .Translations }}
-                    <a href="{{ .Permalink }}" class="link">{{ .Language.LanguageName }}</a>
+                    <a href="{{ .Permalink }}" class="link">{{ .Language.Label }}</a>
                 {{ end }}
             </div>
         </footer>

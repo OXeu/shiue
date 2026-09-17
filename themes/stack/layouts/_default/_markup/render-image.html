@@ -9,10 +9,10 @@
 {{- $galleryImage := false -}}
 
 {{- if $image -}}
-	{{- $notSVG := ne (path.Ext .Destination) ".svg" -}}
+	{{- $processable := reflect.IsImageResourceProcessable $image -}}
 	{{- $Permalink = $image.RelPermalink -}}
 
-	{{- if $notSVG -}}
+	{{- if $processable -}}
 		{{- $Width = $image.Width -}}
 		{{- $Height = $image.Height -}}
 		{{- $galleryImage = true -}}
