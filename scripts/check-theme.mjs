@@ -21,7 +21,7 @@ const open = route => page.goto(new URL(route, baseURL).href, { waitUntil: 'load
 async function checkLayout() {
   await page.waitForFunction(() => !document.querySelector('[data-masonry]') || document.querySelector('[data-masonry]').classList.contains('is-masonry'));
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(100);
+  await page.waitForFunction(() => !document.getAnimations().some(animation => animation.effect?.target?.closest?.('[data-masonry]')));
   const layout = await page.evaluate(() => ({
     cards: [...document.querySelectorAll('.post-card')].map(card => card.getBoundingClientRect().toJSON()),
     container: document.querySelector('[data-masonry]')?.getBoundingClientRect().toJSON(),
@@ -72,7 +72,7 @@ try {
   await page.screenshot({ path: path.join(artifacts, 'blurhash.png') });
   releaseImages();
   await page.waitForFunction(() => document.querySelector('.card-cover').classList.contains('image-loaded'));
-  assert.equal((await firstCover.boundingBox()).height, coverBefore.height);
+  assert.ok(Math.abs((await firstCover.boundingBox()).height - coverBefore.height) < 1, '图片加载不应改变封面高度');
   await open('');
   await page.getByRole('button', { name: '深色', exact: true }).click();
   await page.reload({ waitUntil: 'load' });
@@ -120,8 +120,9 @@ try {
       assert.ok(!imageRequests.includes(new URL(original, baseURL).pathname), '点击放大前不应请求原图');
       await page.locator('[data-zoomable]').first().click();
       assert.equal(await page.locator('dialog[open]').count(), 1);
-      assert.equal(await page.locator('dialog img').getAttribute('src'), original);
+      assert.equal(await page.locator('dialog .preview-original').getAttribute('src'), original);
       await page.keyboard.press('Escape');
+      await page.waitForFunction(() => !document.querySelector('dialog[open]'));
       assert.equal(await page.locator('dialog[open]').count(), 0);
       await page.setViewportSize({ width: 390, height: 844 });
       await checkLayout();

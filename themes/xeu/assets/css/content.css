@@ -75,10 +75,6 @@
 .comments :is(.el-input-group__prepend, .OwO-body) { background: var(--surface-muted); color: var(--text-soft); border-color: var(--border); }
 .comments :is(.tk-content, .tk-nick) { color: var(--text); }
 .comments :is(.tk-time, .tk-action-icon, .tk-comments-count) { color: var(--muted); }
-.image-dialog { max-width: 96vw; max-height: 96dvh; padding: 16px; border: 0; background: transparent; overflow: auto; }
-.image-dialog::backdrop { background: var(--overlay); backdrop-filter: blur(8px); }
-.image-dialog img { max-height: 84dvh; max-width: 90vw; object-fit: contain; margin: auto; }
-.image-dialog button { display: block; margin: 0 0 12px auto; padding: 8px 16px; background: var(--surface); border-radius: 999px; }
 @media (min-width: 1280px) {
   .desktop-toc { display: block; position: absolute; left: calc(100% + 24px); top: 0; width: 180px; height: 100%; font-size: 12px; }
   .toc-panel { position: sticky; top: 88px; padding: 16px; background: var(--surface); border-radius: var(--radius-surface); }

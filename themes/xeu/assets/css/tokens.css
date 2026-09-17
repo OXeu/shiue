@@ -20,7 +20,7 @@
   --muted: #737373;
   --border: #e5e7eb;
   --border-hover: #d1d5db;
-  --header-fill: rgb(255 255 255 / .75);
+  --header-fill: rgb(255 255 255 / .94);
   --tint: rgb(252 70 107 / .15);
   --overlay: rgb(9 9 11 / .8);
   --radius-card: 8px;
@@ -44,7 +44,7 @@
   --muted: #a3a3a3;
   --border: #454545;
   --border-hover: #686868;
-  --header-fill: rgb(28 28 30 / .82);
+  --header-fill: rgb(28 28 30 / .96);
   --tint: rgb(252 70 107 / .2);
   --accent-hover: #ff819b;
 }

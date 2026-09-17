@@ -20,7 +20,13 @@
     if (event.key === 'xeu-color-mode') applyMode(['light', 'dark'].includes(event.newValue) ? event.newValue : 'auto');
   });
   const header = document.querySelector('.site-header');
-  const updateHeader = () => header.classList.toggle('is-scrolled', scrollY > 24);
+  let wasScrolled;
+  const updateHeader = () => {
+    const scrolled = scrollY > 24;
+    if (scrolled === wasScrolled) return;
+    header.classList.toggle('is-scrolled', scrolled);
+    wasScrolled = scrolled;
+  };
   window.addEventListener('scroll', updateHeader, { passive: true });
   updateHeader();
   document.querySelectorAll('.copy-code').forEach(button => {
@@ -32,39 +38,6 @@
       setTimeout(() => { button.textContent = '复制'; }, 2200);
     });
   });
-  const zoomImages = document.querySelectorAll('[data-zoomable]');
-  if (zoomImages.length) {
-    const dialog = document.createElement('dialog');
-    dialog.className = 'image-dialog';
-    dialog.setAttribute('aria-label', '图片预览');
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = '关闭';
-    const image = document.createElement('img');
-    dialog.append(close, image);
-    document.body.append(dialog);
-    let previousOverflow;
-    const showImage = original => {
-      image.src = original.dataset.original || original.currentSrc || original.src;
-      image.alt = original.alt;
-      previousOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      dialog.showModal();
-    };
-    close.addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
-    dialog.addEventListener('close', () => { document.body.style.overflow = previousOverflow; });
-    zoomImages.forEach(img => {
-      if (img.closest('a')) return;
-      img.tabIndex = 0;
-      img.setAttribute('role', 'button');
-      img.setAttribute('aria-label', `放大图片：${img.alt || '文章配图'}`);
-      img.addEventListener('click', () => showImage(img));
-      img.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showImage(img); }
-      });
-    });
-  }
   const comments = document.querySelector('[data-comments]');
   comments?.querySelector('[data-load-comments]').addEventListener('click', async event => {
     const button = event.currentTarget;

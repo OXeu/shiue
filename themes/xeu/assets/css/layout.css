@@ -1,5 +1,7 @@
 .site-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 32px; min-height: 64px; padding: 12px 24px; }
-.site-header.is-scrolled { background: var(--header-fill); backdrop-filter: blur(20px); }
+.site-header { isolation: isolate; }
+.site-header::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--header-fill); opacity: 0; transition: opacity 160ms; pointer-events: none; }
+.site-header.is-scrolled::before { opacity: 1; }
 .site-name { flex-shrink: 0; font-size: 16px; font-weight: 700; letter-spacing: -.025em; }
 .site-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; font-size: 14px; font-weight: 500; color: var(--text-soft); }
 .site-nav a { padding: 8px 0; }
