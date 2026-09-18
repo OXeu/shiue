@@ -50,6 +50,12 @@ try {
       assert.equal(await page.locator('script[src*="twikoo"]').count(), 0);
       const initialCount = await page.locator('.comment-list > li').count();
       const form = page.locator('[data-comment-form]');
+      const popover = page.locator('#comment-editor');
+      const compose = page.locator('[data-new-comment]');
+      const close = page.locator('[data-close-comment]');
+      assert.equal(await form.isHidden(), true, '阅读时不显示编辑面板');
+      await compose.click();
+      assert.equal(await compose.getAttribute('aria-expanded'), 'true');
       await form.locator('[name="name"]').fill('测试读者');
       await form.locator('[name="message"]').fill(message);
       await form.locator('[name="consent"]').check();
@@ -64,22 +70,43 @@ try {
       if (await replies.count()) {
         const target = replies.last();
         parentId = await target.getAttribute('data-reply-id');
+        await close.click();
         await target.click();
         assert.equal(await form.locator('[name="parentId"]').inputValue(), parentId);
         assert.equal(await form.locator('[data-reply-target]').textContent(), await target.getAttribute('data-reply-name'));
         assert.equal(await form.locator('textarea').evaluate(node => node === document.activeElement), true);
-        await form.locator('[data-cancel-reply]').click();
+        assert.equal(await form.locator('textarea').inputValue(), '', '不同回复对象不能共用草稿');
+        await form.locator('[name="name"]').fill('回复读者');
+        await form.locator('[name="message"]').fill('回复草稿');
+        await page.keyboard.press('Escape');
+        assert.equal(await popover.isHidden(), true);
+        assert.equal(await target.evaluate(node => node === document.activeElement), true);
+        await compose.click();
         assert.equal(await form.locator('[name="parentId"]').inputValue(), '');
-        assert.equal(await form.locator('textarea').inputValue(), message, '取消回复不应丢弃草稿');
+        assert.equal(await form.locator('textarea').inputValue(), message, '切回独立留言应恢复其草稿');
         assert.equal(await form.locator('[data-reply-context]').isHidden(), true);
+        await close.click();
         await target.click();
+        assert.equal(await form.locator('textarea').inputValue(), '回复草稿');
+        await form.locator('[name="message"]').fill(message);
+        await form.locator('[name="email"]').fill('browser-reader@example.org');
+        await form.locator('[name="consent"]').check();
       }
+      const bounds = await popover.boundingBox();
+      const anchor = await (parentId ? replies.last() : compose).boundingBox();
+      assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y >= 0 && bounds.y + bounds.height <= 900, 'popover 不应超出视口');
+      assert.ok(Math.min(Math.abs(bounds.y - anchor.y - anchor.height), Math.abs(bounds.y + bounds.height - anchor.y)) <= 9, 'popover 应紧邻触发按钮');
+      await page.screenshot({ path: path.join(artifacts, `editor-${mode}-${width}.png`) });
       const submit = form.locator('[type="submit"]');
       await submit.click();
       await page.waitForFunction(() => document.querySelector('.comment-status').textContent.includes('不可用'));
       assert.equal(await form.locator('textarea').inputValue(), message, '失败后不能丢失草稿');
       assert.equal(await form.locator('[name="email"]').inputValue(), 'browser-reader@example.org');
       assert.equal(await form.locator('[name="parentId"]').inputValue(), parentId || '', '失败后不能丢失回复对象');
+      await page.reload();
+      assert.equal(await form.isHidden(), true);
+      await (parentId ? page.locator(`[data-reply-id="${parentId}"]`) : compose).click();
+      assert.equal(await form.locator('textarea').inputValue(), message, '刷新后应恢复本地草稿及重试编号');
       await submit.click();
       await page.waitForFunction(() => document.querySelector('[data-comment-form] fieldset').disabled);
       await submit.evaluate(button => { button.click(); button.click(); });
@@ -98,15 +125,19 @@ try {
       assert.equal(submissions[1].path, new URL('p/ai-random-thoughts/', baseURL).pathname);
       assert.equal(await form.locator('textarea').inputValue(), '');
       assert.equal(await form.locator('[name="email"]').inputValue(), '');
-      assert.equal(await form.locator('[name="parentId"]').inputValue(), '');
-      assert.equal(await form.locator('[data-reply-context]').isHidden(), true);
+      assert.equal(await form.locator('[name="parentId"]').inputValue(), parentId || '');
+      assert.equal(await page.evaluate(({ articlePath, parentId }) => localStorage.getItem(`xeu-comment-draft:v1:${encodeURIComponent(articlePath)}:${parentId || 'root'}`), { articlePath: new URL(page.url()).pathname, parentId }), null, '成功后清除当前草稿');
       assert.equal(await page.locator('.comment-list > li').count(), initialCount, '待审评论不应直接显示');
       assert.equal(await page.evaluate(() => window.commentXSS), undefined);
       assert.equal(await page.locator('[data-comments] img, [data-comments] script').count(), 0, '留言和回复昵称不能变成 HTML');
       if (parentId) {
         // 回复成功后，继续发顶层留言，不应沿用上次的父编号。
+        await close.click();
+        await compose.click();
+        assert.equal(await form.locator('textarea').inputValue(), message, '回复成功不能清除独立留言的草稿');
         await form.locator('[name="name"]').fill('顶层读者');
         await form.locator('[name="message"]').fill('新的独立留言');
+        await form.locator('[name="email"]').fill('');
         await form.locator('[name="consent"]').check();
         await submit.click();
         await page.waitForFunction(() => document.querySelector('.comment-status').textContent.includes('评论已送交审核'));
@@ -115,10 +146,116 @@ try {
         assert.equal(submissions[2].email, undefined, '不填写邮箱也可提交');
         assert.notEqual(submissions[2].id, submissions[1].id);
       }
+      await close.click();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       await page.locator('[data-comments]').screenshot({ path: path.join(artifacts, `comments-${mode}-${width}.png`) });
       assert.deepEqual(errors, []);
     } finally { release(); await context.close(); }
+  }
+
+  for (const scenario of ['native', 'fallback', 'storage-unavailable']) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+    await context.addInitScript(scenario => {
+      if (scenario === 'fallback') HTMLElement.prototype.showPopover = undefined;
+      if (scenario === 'storage-unavailable') {
+        for (const method of ['getItem', 'setItem', 'removeItem']) Storage.prototype[method] = () => { throw new Error('Storage unavailable'); };
+      }
+    }, scenario);
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto(new URL('p/ai-random-thoughts/', baseURL).href);
+      const compose = page.locator('[data-new-comment]');
+      const form = page.locator('[data-comment-form]');
+      const popover = page.locator('#comment-editor');
+      const close = page.locator('[data-close-comment]');
+      const replies = page.locator('[data-reply-id]');
+      await compose.click();
+      await form.locator('textarea').fill('独立留言草稿');
+      await page.mouse.click(2, 2);
+      assert.equal(await popover.isHidden(), true, '点击外部关闭 popover');
+      await compose.click();
+      assert.equal(await form.locator('textarea').inputValue(), '独立留言草稿');
+      await close.click();
+      if (await replies.count() >= 2) {
+        await replies.nth(0).click();
+        await form.locator('textarea').fill('第一条回复草稿');
+        await close.click();
+        await replies.nth(1).click();
+        assert.equal(await form.locator('textarea').inputValue(), '');
+        await form.locator('textarea').fill('第二条回复草稿');
+        await page.keyboard.press('Escape');
+        await replies.nth(0).click();
+        assert.equal(await form.locator('textarea').inputValue(), '第一条回复草稿', '不同回复之间隔离草稿');
+        const style = await replies.nth(0).evaluate(node => ({ border: getComputedStyle(node).borderWidth, row: node.parentElement.className }));
+        assert.equal(style.border, '0px');
+        assert.equal(style.row, 'comment-byline');
+        await close.click();
+      }
+      await compose.click();
+      await page.setViewportSize({ width: 320, height: 480 });
+      await page.waitForTimeout(100);
+      const bounds = await popover.boundingBox();
+      assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 320 && bounds.y >= 0 && bounds.y + bounds.height <= 480, '缩小视口后面板仍可访问');
+      await page.screenshot({ path: path.join(artifacts, `editor-${scenario}-320.png`) });
+      if (scenario === 'storage-unavailable') {
+        assert.match(await page.locator('[data-draft-note]').textContent(), /未允许保存草稿/);
+      } else {
+        await page.goto(new URL('p/rin/', baseURL).href);
+        await compose.click();
+        assert.equal(await form.locator('textarea').inputValue(), '', '不同文章之间隔离草稿');
+        await page.goto(new URL('p/ai-random-thoughts/', baseURL).href);
+        await compose.click();
+        assert.equal(await form.locator('textarea').inputValue(), '独立留言草稿', '离开文章后返回恢复草稿');
+        await compose.click();
+        assert.equal(await popover.isHidden(), true, '再次点击同一按钮关闭');
+      }
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  }
+
+  for (const timezoneId of ['Asia/Shanghai', 'America/New_York']) {
+    const context = await browser.newContext({ timezoneId, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    const now = Date.parse('2026-09-18T20:00:00Z');
+    await page.clock.install({ time: now });
+    await page.route('**/p/ai-random-thoughts/', async route => {
+      const response = await route.fetch();
+      const elapsed = [0, 180_000, 172_800_000, 259_200_000, 345_600_000, -60_000];
+      let index = 0;
+      const body = (await response.text()).replace(/<time\b[^>]*data-comment-time[^>]*>[\s\S]*?<\/time>/g, () => {
+        const date = new Date(now - elapsed[index++ % elapsed.length]).toISOString();
+        return `<time data-comment-time datetime="${date}">${date}</time>`;
+      });
+      return route.fulfill({ response, body });
+    });
+    try {
+      await page.goto(new URL('p/ai-random-thoughts/', baseURL).href);
+      const times = page.locator('[data-comment-time]');
+      if (await times.count() < 6 && process.env.SHIUE_TEST_REQUIRE_REPLIES !== '1') continue;
+      assert.equal(await times.nth(0).textContent(), '刚刚');
+      assert.equal(await times.nth(1).textContent(), '3 分钟前');
+      assert.equal(await times.nth(2).textContent(), '2 天前');
+      await times.nth(1).click();
+      const absolute = timezoneId === 'Asia/Shanghai' ? '2026-09-19 03:57' : '2026-09-18 15:57';
+      assert.equal(await times.nth(1).textContent(), absolute, '浏览器时区决定绝对时间');
+      await times.nth(1).press('Enter');
+      assert.equal(await times.nth(1).textContent(), '3 分钟前');
+      await times.nth(1).press('Space');
+      assert.equal(await times.nth(1).textContent(), absolute);
+      await times.nth(1).click();
+      assert.equal(await times.nth(1).textContent(), '3 分钟前');
+      for (const index of [3, 4, 5]) {
+        const before = await times.nth(index).textContent();
+        await times.nth(index).click();
+        assert.equal(await times.nth(index).textContent(), before, '三天外及未来时间不可切换');
+        assert.equal(await times.nth(index).getAttribute('role'), null);
+      }
+      await page.clock.fastForward(259_200_000);
+      assert.equal(await times.nth(0).getAttribute('role'), null, '页面停留满三天后不再切换');
+      assert.match(await times.nth(0).textContent(), /^2026-09-/);
+    } finally { await context.close(); }
   }
 
   // Exercise the actual emitted worker at the default odd-nibble difficulty,
@@ -180,12 +317,16 @@ try {
       const reply = page.locator('[data-reply-id]').first();
       const parentId = await reply.count() ? await reply.getAttribute('data-reply-id') : '';
       if (parentId) await reply.click();
+      else await page.locator('[data-new-comment]').click();
       await form.locator('[name="name"]').fill('草稿');
       await form.locator('[name="message"]').fill(message);
       await form.locator('[name="consent"]').check();
       await form.locator('[type="submit"]').click();
       if (scenario === 'cancel' || scenario === 'pagehide') {
         await page.waitForFunction(() => document.querySelector('.comment-status').textContent.includes('已用'));
+        await page.locator('[data-close-comment]').click();
+        await (parentId ? reply : page.locator('[data-new-comment]')).click();
+        assert.equal(await form.locator('[name="message"]').inputValue(), message, '验证中关闭和重开保留当前草稿');
         if (scenario === 'cancel') await form.locator('[data-cancel-proof]').click();
         else await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
       }
@@ -245,8 +386,10 @@ try {
   await noJS.goto(new URL('p/ai-random-thoughts/', baseURL).href);
   assert.equal(await noJS.locator('[data-comments]').isVisible(), true, '无脚本仍能阅读静态评论');
   assert.equal(await noJS.locator('[data-comment-form] [type="submit"]').isDisabled(), true);
+  assert.equal(await noJS.locator('[data-comment-form]').isHidden(), true);
+  assert.equal(await noJS.locator('[data-new-comment]').isHidden(), true);
   for (const button of await noJS.locator('[data-reply-id]').all()) assert.equal(await button.isHidden(), true);
   if (process.env.SHIUE_TEST_REQUIRE_REPLIES === '1') assert.ok(await noJS.locator('.comment-replies .comment-message').count() >= 6, '无 JS 时多层回复仍可阅读');
   await noJS.close();
-  console.log(`评论浏览器检查通过：选填邮箱校验、多层回复、真实 PoW、取消/超时/失败关闭、草稿保留、幂等重试、浅色/深色、桌面/手机、邮件审批与通知重试、无 JS 展示。截图：${artifacts}`);
+  console.log(`评论浏览器检查通过：锚定 popover、关闭/刷新恢复草稿、文章与回复草稿隔离、存储/Popover 降级、时区与相对时间切换、选填邮箱、多层回复、真实 PoW、取消/超时/故障、幂等重试、浅色/深色、桌面/手机、邮件审批与通知重试、无 JS 展示。截图：${artifacts}`);
 } finally { await browser.close(); }

@@ -195,6 +195,8 @@ assert.ok(!commentPages.some(page => page.path.includes('comment-review')), '审
 const $commentsArticle = load(read('p/ai-random-thoughts/index.html'));
 assert.equal($commentsArticle('[name="email"][type="email"]').length, 1);
 assert.equal($commentsArticle('[name="email"][required]').length, 0, '邮箱必须可不填');
+assert.equal($commentsArticle('.comment-heading-actions > [data-new-comment]').length, 1);
+assert.equal($commentsArticle('#comment-editor[hidden][popover="auto"]').length, 1, '编辑面板默认隐藏');
 const renderedComment = $commentsArticle(`#comment-${fixtureComment.id}`);
 assert.equal(renderedComment.children('.comment-message').text(), fixtureComment.message);
 assert.equal(renderedComment.children('.comment-byline').find('strong').text(), fixtureComment.name);
@@ -203,7 +205,8 @@ for (const comment of fixtureComments.slice(1, -1)) {
   const node = $commentsArticle(`#comment-${comment.id}`);
   assert.equal(node.parent().parent().attr('id'), `comment-${comment.parentId}`, '回复必须挂在直接父留言下');
   assert.equal(node.children('.comment-message').text(), comment.message);
-  assert.equal(node.children('[data-reply-id]').attr('data-reply-id'), comment.id, '每一层留言都可被回复');
+  assert.equal(node.children('.comment-byline').find('[data-reply-id]').attr('data-reply-id'), comment.id, '每一层留言的昵称、时间行中都可回复');
+  assert.equal(node.children('.comment-byline').find('[data-comment-time]').attr('datetime'), comment.createdAt, '保留带时区的原始时间供浏览器转换');
   assert.equal(node.children('.comment-parent').find('a').attr('href'), `#comment-${comment.parentId}`);
 }
 assert.equal($commentsArticle(`#comment-${orphan.id}`).parent().hasClass('comment-replies'), false, '删除父留言后回复仍应显示');

@@ -19,25 +19,35 @@
   {{ end }}
 {{ end }}
 <section class="comments surface" aria-labelledby="comments-title" data-comments>
-  <div class="comment-heading"><h2 id="comments-title">评论</h2><span>{{ len $comments }} 条留言</span></div>
+  <div class="comment-heading">
+    <h2 id="comments-title">评论</h2>
+    <div class="comment-heading-actions"><span>{{ len $comments }} 条留言</span><button class="text-button comment-compose" type="button" data-new-comment aria-haspopup="dialog" aria-controls="comment-editor" aria-expanded="false" hidden>评论</button></div>
+  </div>
   {{ if $comments }}
   <ol class="comment-list">
     {{ range index $children "" }}{{ partial "comment-thread.html" (dict "comment" . "byId" $byId "children" $children "depth" 0) }}{{ end }}
   </ol>
   {{ else }}<p class="comment-empty">还没有留言，欢迎分享你的想法。</p>{{ end }}
   {{ $powWorker := resources.Get "js/comment-pow-worker.js" | minify | fingerprint }}
+  <div class="comment-popover" id="comment-editor" popover="auto" role="dialog" aria-labelledby="comment-editor-title" hidden>
+  <div class="comment-editor-heading">
+    <h3 id="comment-editor-title">写下你的留言</h3>
+    <button class="comment-editor-close" type="button" data-close-comment aria-label="关闭留言编辑器"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+  </div>
   <form class="comment-form" data-comment-form data-path="{{ .RelPermalink }}" data-endpoint="/api/comments-submit" data-challenge-endpoint="/api/comments-challenge" data-pow-worker="{{ $powWorker.RelPermalink }}">
     <fieldset disabled>
-      <legend>写下你的留言</legend>
+      <legend class="sr-only">留言内容</legend>
       <input type="hidden" name="parentId" value="">
       <div class="comment-reply-context" data-reply-context hidden>
         <p>正在回复 <a data-reply-target></a></p>
-        <button class="text-button" type="button" data-cancel-reply>取消回复</button>
       </div>
+      <div class="comment-identity-row"><div>
       <label for="comment-name">昵称</label>
       <input id="comment-name" name="name" autocomplete="nickname" maxlength="40" required placeholder="怎么称呼你">
+      </div><div>
       <label for="comment-email">邮箱（选填）</label>
       <input id="comment-email" name="email" type="email" autocomplete="email" maxlength="254" aria-describedby="comment-email-note" placeholder="用于接收留言通知">
+      </div></div>
       <p class="comment-note" id="comment-email-note">填写即同意接收本条留言的审核通过和回复通知。邮箱仅用于通知，以加密形式保存，不会公开展示。</p>
       <label for="comment-message">评论</label>
       <textarea id="comment-message" name="message" rows="5" maxlength="2000" required aria-describedby="comment-note" placeholder="关于这篇文章，你想说些什么？"></textarea>
@@ -49,6 +59,8 @@
     <p class="comment-status" role="status" aria-live="polite"></p>
     <button class="text-button" type="button" data-cancel-proof hidden>取消验证</button>
   </form>
+  <p class="comment-note comment-draft-note" data-draft-note>草稿（含昵称和邮箱）仅保存在此浏览器，提交成功后清除。</p>
+  </div>
   <noscript><p>查看留言不需要 JavaScript；启用 JavaScript 后可以提交留言。</p></noscript>
 </section>
 {{ end }}

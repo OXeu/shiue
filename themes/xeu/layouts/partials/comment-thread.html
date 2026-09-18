@@ -1,10 +1,12 @@
 {{- $comment := .comment -}}
 {{- $parent := index .byId ($comment.parentId | default "") -}}
 <li id="comment-{{ $comment.id }}" class="comment-item">
-  <div class="comment-byline"><strong>{{ $comment.name }}</strong><time datetime="{{ $comment.createdAt }}">{{ (time.AsTime $comment.createdAt).Format "2006-01-02 15:04" }}</time></div>
+  <div class="comment-byline">
+    <div class="comment-author"><strong>{{ $comment.name }}</strong><time data-comment-time datetime="{{ $comment.createdAt }}">{{ (time.AsTime $comment.createdAt).Format "2006-01-02 15:04 MST" }}</time></div>
+    <button class="comment-reply" type="button" data-reply-id="{{ $comment.id }}" data-reply-name="{{ $comment.name }}" aria-label="回复 {{ $comment.name }} 的留言" aria-haspopup="dialog" aria-controls="comment-editor" aria-expanded="false" hidden>回复</button>
+  </div>
   {{ if $parent }}<p class="comment-parent">回复 <a href="#comment-{{ $parent.id }}">{{ $parent.name }}</a></p>{{ else if $comment.parentId }}<p class="comment-parent">原留言已删除</p>{{ end }}
   <p class="comment-message">{{ $comment.message }}</p>
-  <button class="text-button comment-reply" type="button" data-reply-id="{{ $comment.id }}" data-reply-name="{{ $comment.name }}" aria-label="回复 {{ $comment.name }} 的留言" hidden>回复</button>
   {{ with index .children $comment.id }}
   <ol class="comment-list comment-replies{{ if ge $.depth 3 }} comment-replies-flat{{ end }}">
     {{ range . }}{{ partial "comment-thread.html" (dict "comment" . "byId" $.byId "children" $.children "depth" (add $.depth 1)) }}{{ end }}

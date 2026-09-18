@@ -1,40 +1,15 @@
 import { solveProof } from './comments-pow.js';
 import { post } from './form-request.js';
+import { setupCommentEditor } from './comment-editor.js';
+import { setupCommentTimes } from './comment-time.js';
+setupCommentTimes();
 for (const form of document.querySelectorAll('[data-comment-form]')) {
   const fields = form.querySelector('fieldset');
   const status = form.querySelector('[role="status"]');
   const cancel = form.querySelector('[data-cancel-proof]');
-  const replyContext = form.querySelector('[data-reply-context]');
-  const replyTarget = form.querySelector('[data-reply-target]');
-  const parentField = form.elements.namedItem('parentId');
-  const replyButtons = form.closest('[data-comments]').querySelectorAll('[data-reply-id]');
-  let pending;
+  const editor = setupCommentEditor(form);
   let busy = false;
   let controller;
-  const clearReply = () => {
-    parentField.value = '';
-    replyContext.hidden = true;
-    replyTarget.textContent = '';
-    replyTarget.removeAttribute('href');
-  };
-  for (const button of replyButtons) {
-    button.hidden = false;
-    button.addEventListener('click', () => {
-      if (busy) return;
-      parentField.value = button.dataset.replyId;
-      replyTarget.textContent = button.dataset.replyName;
-      replyTarget.href = `#comment-${button.dataset.replyId}`;
-      replyContext.hidden = false;
-      status.textContent = '';
-      form.elements.namedItem('message').focus();
-    });
-  }
-  form.querySelector('[data-cancel-reply]').addEventListener('click', () => {
-    if (busy) return;
-    clearReply();
-    status.textContent = '';
-    form.elements.namedItem('message').focus();
-  });
   cancel.addEventListener('click', () => controller?.abort());
   window.addEventListener('pagehide', () => controller?.abort());
   fields.disabled = false;
@@ -47,17 +22,18 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
     if (data.get('email')?.trim()) values.email = data.get('email').trim();
     const fingerprint = JSON.stringify(values);
     busy = true;
+    editor.saveDraft();
     controller = new AbortController();
     fields.disabled = true;
-    for (const button of replyButtons) button.disabled = true;
+    editor.setBusy(true);
     cancel.hidden = false;
     status.textContent = '正在获取浏览器验证任务…';
     let sending = false;
     try {
       if (!window.Worker || !crypto?.subtle || !crypto.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
       // 重试沿用编号和时间以便邮件去重，但每次获取新的短期验证任务。
-      if (!pending || pending.fingerprint !== fingerprint) pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
-      const input = { ...values, id: pending.id, createdAt: pending.createdAt };
+      if (!editor.pending || editor.pending.fingerprint !== fingerprint) editor.pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+      const input = { ...values, id: editor.pending.id, createdAt: editor.pending.createdAt };
       const task = await post(form.dataset.challengeEndpoint, input, controller.signal);
       status.textContent = '正在进行浏览器验证，通常需要几秒…';
       const proof = await solveProof(form.dataset.powWorker, task, {
@@ -70,15 +46,13 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
       status.textContent = '验证完成，正在送交审核…';
       const result = await post(form.dataset.endpoint, { ...input, proof }, controller.signal);
       status.textContent = result.message || '评论已送交审核，通过后会显示在这里。';
-      form.reset();
-      clearReply();
-      pending = null;
+      editor.clearDraft();
     } catch (error) {
       status.textContent = controller.signal.aborted ? (sending ? '发送结果尚未确认，内容已保留；重试会使用相同评论编号。' : '已取消验证，内容已保留。') : error.name === 'AbortError' ? '请求超时，内容已保留，请重试。' : error.message;
     } finally {
       const focusSubmit = document.activeElement === cancel;
       busy = false; fields.disabled = false; cancel.hidden = true;
-      for (const button of replyButtons) button.disabled = false;
+      editor.setBusy(false);
       if (focusSubmit) form.querySelector('[type="submit"]').focus();
     }
   });
