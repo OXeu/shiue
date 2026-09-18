@@ -9,7 +9,7 @@ image: /images/2068feaaa441cb1fabc09145.jpg
 lastmod: 2026-01-15T13:00:35.000Z
 slug: rin
 tags:
-- 博客
+- blog
 title: Rin - 全栈 Cloudflare 的个人博客项目
 ---
 ![958bc2c1-1703-4127-920c-853291495bdc.jpg](/images/2068feaaa441cb1fabc09145.jpg)

@@ -6,10 +6,10 @@ description: "评论也能用 SSG 吗？用 Vercel Functions、Resend 和 GitHub
 slug: "ssg-blog-comment"
 categories:
 
-- 技术文章
-- 随笔
+- tech
+- essays
 tags:
-- 博客
+- blog
 - SSG
 - Serverless
 - Vercel
@@ -167,4 +167,3 @@ flowchart LR
 *谁也说不准明天和意外哪个先到*，但不难想象我在家里的小鸡大概率会随我飞升，云上的小鸡没人续费也活不了几年，但云服务厂商的免费托管，想必应该是其中能活得最久的那个。
 
 ![企鹅灵魂出窍，带着光环飞升](meme-ascension.gif)
-

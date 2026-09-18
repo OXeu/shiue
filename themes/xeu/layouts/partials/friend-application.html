@@ -3,7 +3,7 @@
   <div class="comment-heading"><h2 id="friend-application-title">成为朋友</h2><span>友情链接申请</span></div>
   <p class="comment-note">如果你也有一处记录生活与想法的小天地，欢迎在这里留下它。</p>
   {{ $powWorker := resources.Get "js/comment-pow-worker.js" | minify | fingerprint }}
-  <form class="comment-form" data-friend-form data-endpoint="/api/friends-submit" data-challenge-endpoint="/api/friends-challenge" data-pow-worker="{{ $powWorker.RelPermalink }}">
+  <form class="comment-form" data-friend-form data-endpoint="/api/submissions" data-pow-worker="{{ $powWorker.RelPermalink }}">
     <fieldset disabled aria-describedby="friend-note">
       <legend>介绍一下你的网站</legend>
       <div class="friend-form-row">

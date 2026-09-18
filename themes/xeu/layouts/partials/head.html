@@ -1,3 +1,8 @@
+{{- range .Aliases | append .RelPermalink -}}
+  {{- if findRE `\p{Han}` (urls.Parse .).Path -}}
+    {{- errorf "页面及别名路径不能包含中文：%s。请使用英文路径；分类和标签使用英文目录名，在 _index.md 中设置中文 title。" . -}}
+  {{- end -}}
+{{- end -}}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preload" href="{{ "fonts/cantarell-latin-400.woff2" | relURL }}" as="font" type="font/woff2" crossorigin="anonymous">

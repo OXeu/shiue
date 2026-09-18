@@ -8,7 +8,7 @@ image: /images/a8b2c9bc18ad6236cf9e2fa4.jpg
 lastmod: 2026-01-15T15:28:14.000Z
 slug: blog-renewal
 tags:
-- 博客
+- blog
 title: 博客焕新
 ---
 ![118936196_p0.jpg](/images/a8b2c9bc18ad6236cf9e2fa4.jpg)

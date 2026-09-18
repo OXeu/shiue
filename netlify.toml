@@ -1,0 +1,12 @@
+[build]
+command = "npm run deploy"
+publish = "public"
+# Empty daily refresh commits must still rebuild the site.
+ignore = "exit 1"
+
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+
+[functions.submissions]
+included_files = ["public/comment-pages.json"]

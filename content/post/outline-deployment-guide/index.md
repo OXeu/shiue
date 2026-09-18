@@ -3,7 +3,7 @@ aliases:
 - /feed/10/
 - /outline/
 categories:
-- 技术文章
+- tech
 date: 2024-03-22T00:38:00.000Z
 description: 由于经常折腾，扬系统跟吃饭喝水一样频繁，而我之前的 Obsidian 配合 Git 同步使用，虽然不用担心数据丢失，但是每次扬完系统后都需要拉取仓库 & 下载 Obsidian 客户端...
 draft: false

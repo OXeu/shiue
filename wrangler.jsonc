@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xeu-blog",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": { "COMMENTS_ENV": "development" },
+  "env": {
+    "production": { "vars": { "COMMENTS_ENV": "production" } },
+    "preview": { "vars": { "COMMENTS_ENV": "preview" } }
+  }
+}

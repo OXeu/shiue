@@ -1,21 +1,25 @@
 # 邮件审批 + Git 静态评论
 
-不需要数据库，也不再使用 Twikoo。Vercel Functions 负责提交和审批；Resend 送审核邮件；GitHub Actions 将批准后的评论写入本仓库；Hugo 在构建时生成评论 HTML。
+不需要数据库，也不再使用 Twikoo。Serverless Functions 负责提交和审批；Resend 送审核邮件；GitHub Actions 将批准后的评论写入本仓库；Hugo 在构建时生成评论 HTML。
+
+评论和友链共用 `POST /api/submissions`，JSON 请求必须包含 `type: "comment" | "friend"` 和 `action`。`challenge`、`submit` 携带原有表单字段，`submit` 另带 `proof`；`preview`、`approve` 携带审批 `token`。评论额外支持 `notify`，同时携带审批 `token` 和 `notificationToken`，只重试通知。未知类型或操作返回 400；两类内容的 PoW、审批及发布签名仍相互隔离。
+
+旧的六个 API 路径已移除，表单及审核页统一调用新入口。已有审核邮件仍可打开原 `/comment-review/` 或 `/friend-review/` 页面，令牌格式和有效期不变。
 
 ```text
-读者提交 → /api/comments-challenge → 浏览器 Worker 计算 PoW
+读者提交 → action: challenge → 浏览器 Worker 计算 PoW
                          ↓ 带证明提交
-             /api/comments-submit → Resend → 博主收到审核邮件
+             action: submit → Resend → 博主收到审核邮件
                                                 ↓
                                  邮件链接打开评论预览（不发布）
                                                 ↓ 手动确认
-                                   /api/comments-approve
+                                   action: approve
                                                 ↓ 签名 workflow_dispatch
                                    publish-comment.yml
                                                 ↓
                             验签 → 独立 JSON → commit + push
                                                 ↓
-                               Vercel Git 集成自动构建部署
+                               托管平台的 Git 集成自动构建部署
                                                 ↓
                                   Hugo 静态 HTML 展示评论
 ```
@@ -41,7 +45,7 @@
 
 在 Resend 验证发件域名并创建仅允许发送邮件的 API Key。建议为审核邮件关闭点击和打开跟踪，保留原始 URL fragment。发件地址必须属于已验证域名；审核邮件收件人由服务端固定，读者通知收件人只能取自已签名的留言邮箱或已发布父留言的邮箱密文。
 
-在 **Vercel 项目 → Settings → Environment Variables → Production** 设置：
+在所选平台的生产函数环境设置以下变量（Vercel、Netlify、Cloudflare Pages 的具体入口见[多平台部署](serverless.md)）：
 
 | 变量 | 含义 |
 | --- | --- |
@@ -49,16 +53,16 @@
 | `RESEND_API_KEY` | Resend 发送权限密钥 |
 | `COMMENTS_EMAIL_FROM` | 已验证发件地址，例如 `Xeu Blog <comments@xeu.life>` |
 | `COMMENTS_EMAIL_TO` | 接收审核邮件的本人邮箱，不会打包进前端或评论文件 |
-| `COMMENTS_SECRET` | 唯一需要生成的随机主密钥，至少 32 字符；Vercel 与 GitHub 同名 Secret 设置相同值，程序自动派生各用途密钥 |
+| `COMMENTS_SECRET` | 唯一需要生成的随机主密钥，至少 32 字符；函数平台与 GitHub 同名 Secret 设置相同值，程序自动派生各用途密钥 |
 | `COMMENTS_POW_DIFFICULTY` | 可选，默认 `4`；仅接受整数 `4`–`6`，表示 SHA-256 十六进制结果的前导零数量。已有生产配置若为 `5` / `6`，需改成 `4` 或移除覆盖并重新部署 |
 
-只需运行一次 `openssl rand -hex 32`，将输出分别填入 Vercel 和 GitHub 的 `COMMENTS_SECRET`。代码使用 HKDF-SHA256 按 PoW、审批、发布、邮箱四种用途派生不同密钥，留言和友链共用这一配置。无需手动生成或填写派生密钥。Vercel 与 GitHub 都保存主密钥；不要把它提交到仓库或输出到日志。`.env.example` 只有空值模板；`.env`、`.env.*` 与 `.vercel/` 已被忽略。
+只需运行一次 `openssl rand -hex 32`，将输出分别填入 函数平台和 GitHub 的 `COMMENTS_SECRET`。代码使用 HKDF-SHA256 按 PoW、审批、发布、邮箱四种用途派生不同密钥，留言和友链共用这一配置。无需手动生成或填写派生密钥。函数平台与 GitHub 都保存主密钥；不要把它提交到仓库或输出到日志。`.env.example` 只有空值模板；`.env`、`.env.*` 与 `.vercel/` 已被忽略。
 
-旧配置继续兼容：非空的 `COMMENTS_APPROVAL_SECRET`、`COMMENTS_POW_SECRET`、`COMMENTS_WORKFLOW_SECRET`、`COMMENTS_EMAIL_SECRET` 优先覆盖相应用途，直接升级代码不需要改动已有变量。新安装只填 `COMMENTS_SECRET`。删除旧覆盖项才会切换到该用途的派生密钥，也会使依赖原密钥的未过期凭据失效；发布密钥的覆盖项须在 Vercel 与 GitHub 保持一致。已有邮箱密文则应保留原 `COMMENTS_EMAIL_SECRET`，直到完成重加密迁移。主密钥需备份，不能通过直接删除旧邮箱密钥或更换主密钥来迁移既有密文。
+旧配置继续兼容：非空的 `COMMENTS_APPROVAL_SECRET`、`COMMENTS_POW_SECRET`、`COMMENTS_WORKFLOW_SECRET`、`COMMENTS_EMAIL_SECRET` 优先覆盖相应用途，直接升级代码不需要改动已有变量。新安装只填 `COMMENTS_SECRET`。删除旧覆盖项才会切换到该用途的派生密钥，也会使依赖原密钥的未过期凭据失效；发布密钥的覆盖项须在 函数平台与 GitHub 保持一致。已有邮箱密文则应保留原 `COMMENTS_EMAIL_SECRET`，直到完成重加密迁移。主密钥需备份，不能通过直接删除旧邮箱密钥或更换主密钥来迁移既有密文。
 
 ### 读者通知
 
-- 审批 Vercel Function 先成功发起 GitHub `workflow_dispatch`，随后等待 Resend 接受通知邮件再返回，不使用返回响应后可能被中断的后台发送。GitHub 拒绝任务或仅预览时不发送读者通知。通知不等待 Action、Git 推送或部署完成，文案明确为“已通过审核，正在发布”。
+- 审批 Serverless Function 先成功发起 GitHub `workflow_dispatch`，随后等待 Resend 接受通知邮件再返回，不使用返回响应后可能被中断的后台发送。GitHub 拒绝任务或仅预览时不发送读者通知。通知不等待 Action、Git 推送或部署完成，文案明确为“已通过审核，正在发布”。
 - 新留言作者填写了邮箱，就发送审核通过通知；该留言是回复且直接父留言保存了邮箱，就向父留言作者发送回复通知。不会通知所有祖先，也不会在未审批时通知。两种通知收件人分别发送，不互相暴露邮箱；自回复且邮箱相同时仅发送审核通过通知。
 - 发送失败不撤销已接受的发布任务。审核页显示失败提示及“重试发送通知”，使用单独签名的重试凭据，仅重试失败的通知，不再次启动 GitHub Action。重试凭据只留在当前审核页内存中，最多 24 小时且不超过原审批有效期；刷新后需重新打开审核邮件。
 - 每种通知使用固定幂等键，避免超时后立即重试造成重复发送。[Resend 的去重窗口为 24 小时](https://resend.com/docs/dashboard/emails/idempotency-keys)；无数据库模式不承诺跨窗口永久去重，超过窗口重新审批可能再次发信。Resend 接受不等于收件箱投递成功。
@@ -72,17 +76,17 @@
 
 **当前没有应用层请求频率或总量限制。** PoW 提高每条不同评论的计算成本，但不能阻止请求触发 Function，也不是 DDoS/费用硬上限。邮件幂等只减少相同请求的重复邮件，不能阻止有能力持续求解的机器人发送不同评论，也不能避免重放请求消耗接口资源。持有审批链接的人重复确认仍可能重复启动工作流，文件幂等不等于阻止任务排队。
 
-上线后留意 Vercel、Resend 与 GitHub Actions 的用量；限流不再是启用评论的配置前提。此次代码修改不创建、修改或删除控制台已有规则。
+上线后留意托管平台、Resend 与 GitHub Actions 的用量；限流不再是启用评论的配置前提。此次代码修改不创建、修改或删除控制台已有规则。
 
-预览部署明确拒绝真实发信/发布；本地 Hugo 服务器不运行 Vercel Functions。浏览器测试模拟 API，后端测试模拟邮件/GitHub，不使用真实凭据或发送真实邮件。
+预览部署明确拒绝真实发信/发布；本地 Hugo 服务器不运行 Serverless Functions。浏览器测试模拟 API，后端测试模拟邮件/GitHub，不使用真实凭据或发送真实邮件。
 
 ### 工作量证明协议
 
 参考 [Anubis 的 SHA-256 验证器（固定版本）](https://github.com/TecharoHQ/anubis/blob/4f3cf13ad158b3ecb5ddf79909dc5c48b3cfa264/lib/challenge/proofofwork/proofofwork.go) 的算法语义，使用 Node Crypto / 浏览器 Web Crypto 独立实现；不引入 Anubis 反向代理、Cookie 通行证或它的源代码依赖。
 
-1. 读者填写昵称、评论并同意公开说明后，前端 POST 同一份评论参数到 `/api/comments-challenge`。服务端校验内容和文章白名单，再签发 32 字节随机挑战与 HMAC-SHA256 令牌，有效期 5 分钟；签发不调用外部服务。
+1. 读者填写昵称、评论并同意公开说明后，前端向 `/api/submissions` POST 评论参数及 `type: "comment", action: "challenge"`。服务端校验内容和文章白名单，再签发 32 字节随机挑战与 HMAC-SHA256 令牌，有效期 5 分钟；签发不调用外部服务。
 2. 单个 Web Worker 寻找非负十进制整数 `nonce`，使 `hex(SHA256(UTF8(challenge + nonce)))` 以 `difficulty` 个 `0` 开头（拼接没有分隔符）。默认 `4` 是 16 位，期望约 `16^4 = 65,536` 次哈希；此前 `5` 是 20 位，期望约 `1,048,576` 次哈希。默认工作量降至此前的 1/16。每增加一级，期望工作量乘 16，不能保证固定耗时，GPU/专用程序仍可更快求解。
-3. 前端向 `/api/comments-submit` 发送原评论和 `proof: { token, nonce }`。服务端校验签名、版本、站点、期限、当前难度及规范化评论摘要，自己计算一次哈希验收；不信任客户端传回的难度/哈希/耗时。失败时不调用 Resend；成功后使用幂等键请求发送审核邮件。
+3. 前端向 `/api/submissions` 发送原评论、`type: "comment", action: "submit"` 和 `proof: { token, nonce }`。服务端校验签名、版本、站点、期限、当前难度及规范化评论摘要，自己计算一次哈希验收；不信任客户端传回的难度/哈希/耗时。失败时不调用 Resend；成功后使用幂等键请求发送审核邮件。
 4. 令牌绑定评论编号、文章路径、昵称、正文、提交时间、回复父编号及选填邮箱（如有）。改变任意这些字段不能复用原证明。挑战和审批使用不同的派生密钥及签名用途，挑战不提供审批能力，也不包含明文评论或邮箱。
 5. 每次失败重试获取新挑战，但未改动的评论沿用编号和时间，因此邮件幂等键不变。无数据库版本**不保证证明单次消费**：相同请求在有效期内可重放，Resend 24 小时幂等窗口用于避免重复邮件，但每次请求仍会进入 Function 并调用邮件 API；不使用不可靠的 Function 进程内集合假装全局防重放。
 
@@ -92,9 +96,9 @@
 
 ## 3. 配置 GitHub 发布权限
 
-创建只针对 `OXeu/shiue` 的 fine-grained PAT，权限只需 **Actions: write**（以及默认 Metadata: read）。将它设置为 Vercel 生产变量 `COMMENTS_GITHUB_TOKEN`。它只用于请求 `publish-comment.yml`，不提供给浏览器、邮件或工作流输入。也可替换为生命周期受控的 GitHub App installation token，但当前实现不会自动续签。
+创建只针对 `OXeu/shiue` 的 fine-grained PAT，权限只需 **Actions: write**（以及默认 Metadata: read）。将它设置为 函数平台的生产环境变量 `COMMENTS_GITHUB_TOKEN`。它只用于请求 `publish-comment.yml`，不提供给浏览器、邮件或工作流输入。也可替换为生命周期受控的 GitHub App installation token，但当前实现不会自动续签。
 
-继续设置 Vercel 生产变量：
+继续设置 函数平台的生产环境变量：
 
 ```text
 COMMENTS_GITHUB_REPOSITORY=OXeu/shiue
@@ -105,15 +109,15 @@ COMMENTS_GITHUB_BRANCH=master
 
 | Secret | 含义 |
 | --- | --- |
-| `COMMENTS_SECRET` | 与 Vercel 同名变量完全一致，只需复制同一主密钥 |
+| `COMMENTS_SECRET` | 与 函数平台同名变量完全一致，只需复制同一主密钥 |
 
 发布工作流通过 GitHub 自动提供的 `GITHUB_TOKEN`（`contents: write`）提交评论，无需另配推送 Token。`COMMENT_FILE` 来自验签步骤输出，`COMMENTS_BRANCH` 来自仓库默认分支，其他 `GITHUB_*` 上下文由 Actions 提供；这些都不需要手动配置。仓库规则/分支保护仍然生效，需要允许此机器人提交；若仓库要求所有修改必须走 PR，本版本会安全失败，不会绕过保护。
 
-必须先把工作流文件部署到默认分支，GitHub 才能接受 dispatch。Vercel 的环境变量不会自动同步成 GitHub Secrets，`COMMENTS_SECRET` 两边要分别设置成相同值。工作流保留对旧 `COMMENTS_WORKFLOW_SECRET` 的兼容，新安装无需配置它。评论工作流只做 checkout、准备 Node、验签写文件、提交推送；两个发布脚本只用 Node 内置模块，不安装 npm 依赖，不运行测试或 Hugo 构建，也不调用 Deploy Hook。代码回归测试仍留在普通构建 CI 中。
+必须先把工作流文件部署到默认分支，GitHub 才能接受 dispatch。函数平台的环境变量不会自动同步成 GitHub Secrets，`COMMENTS_SECRET` 两边要分别设置成相同值。工作流保留对旧 `COMMENTS_WORKFLOW_SECRET` 的兼容，新安装无需配置它。评论工作流只做 checkout、准备 Node、验签写文件、提交推送；两个发布脚本只用 Node 内置模块，不安装 npm 依赖，不运行测试或 Hugo 构建，也不调用 Deploy Hook。代码回归测试仍留在普通构建 CI 中。
 
-推送后由已连接本仓库的 Vercel Git 集成自动构建部署。请保持 Vercel Production Branch 与仓库默认分支一致，并启用 Git 自动部署；若有 Ignored Build Step，不要忽略 `content/post/**/comments/` 的修改。CI 成功仅表示评论已推送，最终发布结果以 Vercel 为准。[Vercel Git 部署说明](https://vercel.com/docs/git/vercel-for-github)
+推送后由已连接本仓库的 托管平台的 Git 集成自动构建部署。请保持 托管平台的生产分支 与仓库默认分支一致，并启用 Git 自动部署；若有 Ignored Build Step，不要忽略 `content/post/**/comments/` 的修改。CI 成功仅表示评论已推送，最终发布结果以托管平台 为准。[Vercel Git 部署说明](https://vercel.com/docs/git/vercel-for-github)
 
-GitHub Secrets 中原来专供评论发布的 `VERCEL_DEPLOY_HOOK_URL` 已不再需要；确认没有其他工作流使用后可删除。Vercel 侧的 `CRON_SECRET` 与 `VERCEL_DEPLOY_HOOK_URL` 仍用于每日自动部署，不受此次精简影响。
+每日自动部署已改为 GitHub Actions 推送空提交，评论发布和每日刷新均不再使用 Deploy Hook。若没有其他用途，可删除 Vercel 与 GitHub 中旧的 `CRON_SECRET`、`VERCEL_DEPLOY_HOOK_URL`，以及 Vercel 控制台中的旧 Deploy Hook。
 
 ## 审批安全与并发
 
@@ -136,14 +140,14 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
 
 静态构建检查在临时文章副本中生成六层回复，验证父子关系、纯文本转义、文章隔离及父留言删除后的展示。将 `check-build.mjs` 输出的产物目录作为本地静态服务器根目录，再运行浏览器检查并设置 `SHIUE_TEST_REQUIRE_REPLIES=1`，可强制验证多层回复、popover 定位与关闭、按文章和回复对象隔离草稿、刷新后恢复及幂等重试、回复成功后保留独立留言草稿、存储与 Popover API 降级、浏览器时区与相对时间切换、无 JavaScript 展示。时间单元测试另覆盖夏令时、跨日及精确的 72 小时边界。
 
-浏览器检查使用真实构建后的 Worker 计算并以 Node Crypto 验证证明，同时覆盖取消、超时、Worker 故障、不支持的浏览器、挑战服务不可用及过期后保留草稿。后端测试覆盖不配置任何限流变量时的完整流程，并确认挑战及预览没有额外外部请求；发布 CLI 在无 npm 依赖、无部署凭据的临时 checkout 中验证签名、推送及重复执行幂等。所有自动测试都不发送真实邮件、不调用 GitHub dispatch、不触发生产部署；Git 测试只操作临时仓库。配置好外部服务并部署后，再手动提交一条留言完成真实验收：浏览器验证 → 收邮件 → 核对内容 → 确认批准 → GitHub Action 成功 → 仓库新增评论文件 → Vercel 自动部署成功 → 页面出现留言。
+浏览器检查使用真实构建后的 Worker 计算并以 Node Crypto 验证证明，同时覆盖取消、超时、Worker 故障、不支持的浏览器、挑战服务不可用及过期后保留草稿。后端测试覆盖不配置任何限流变量时的完整流程，并确认挑战及预览没有额外外部请求；发布 CLI 在无 npm 依赖、无部署凭据的临时 checkout 中验证签名、推送及重复执行幂等。所有自动测试都不发送真实邮件、不调用 GitHub dispatch、不触发生产部署；Git 测试只操作临时仓库。配置好外部服务并部署后，再手动提交一条留言完成真实验收：浏览器验证 → 收邮件 → 核对内容 → 确认批准 → GitHub Action 成功 → 仓库新增评论文件 → 托管平台自动部署成功 → 页面出现留言。
 
-- **503**：检查 PoW/邮件/审批配置、`comment-pages.json` 是否随函数打包，以及是否误用 Preview 环境。无需检查或创建限流规则。
+- **503**：检查 PoW/邮件/审批配置、当前平台是否能读取构建生成的 `comment-pages.json`，以及是否误用 Preview 环境。无需检查或创建限流规则。
 - **502 / 未送达**：检查 Resend 发件域名、额度和 GitHub Token 权限。浏览器保留草稿/审批按钮，可重试。
 - **PoW 403 / 410**：证明无效或过期，重新点击提交会重新获取挑战。若持续失败，检查是否刚轮换了密钥/难度、混用了不同环境或浏览器拦截了 Worker。不要移除服务端验证来解决。
 - **验证超时**：草稿仍保留，可稍后重试或换浏览器；持续发生需用实际设备评估难度，不能无限占用 CPU。
 - **审批过期**：让读者重新提交。密钥轮换也会使旧链接失效。
 - **Action 失败**：在 Actions 查看失败步骤。验签失败时不写入；分支冲突/权限失败时不强推。可以重新运行 Action，文件幂等校验不会重复添加。
-- **已推送但未展示**：检查 Vercel Git 连接、自动部署设置、生产分支、忽略构建规则及构建日志。Vercel 构建失败不会回滚 Git 中已添加的评论，修复后可在 Vercel 重新部署；重复审批已存在的评论不会制造新的提交来触发部署。
+- **已推送但未展示**：检查 托管平台的 Git 连接、自动部署设置、生产分支、忽略构建规则及构建日志。托管平台构建失败不会回滚 Git 中已添加的评论，修复后可在托管平台重新部署；重复审批已存在的评论不会制造新的提交来触发部署。
 
 参考：[Vercel Functions](https://vercel.com/docs/functions/runtimes/node-js)、[Resend Send Email](https://resend.com/docs/api-reference/emails/send-email)、[GitHub workflow dispatch](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)。

@@ -26,7 +26,7 @@ async function main() {
 
 交互式创建 content/post/<slug>/index.md，无需安装依赖或 Hugo。
 标题必填，其余提示可按回车使用默认值或留空。
-分类与标签用中文或英文逗号分隔；默认保存为草稿。
+分类与标签填写英文标识，用中文或英文逗号分隔；默认保存为草稿。
 封面可填写文章目录内的文件名、/ 开头的静态资源路径或图片网址。
 Ctrl+C 或输入结束时取消；已有文章目录不会被覆盖。`);
     return;
@@ -71,8 +71,10 @@ Ctrl+C 或输入结束时取消；已有文章目录不会被覆盖。`);
       return '';
     });
     const description = await ask('文章摘要（可选）');
-    const categories = list(await ask('分类（可选，逗号分隔）'));
-    const tags = list(await ask('标签（可选，逗号分隔）'));
+    const validateTerms = value => list(value).every(term => /^[a-z0-9]+(?:[ -][a-z0-9]+)*$/i.test(term))
+      ? '' : '分类与标签请填写英文标识，例如 tech、essays、blog；中文显示名称在对应 _index.md 的 title 中设置。';
+    const categories = list(await ask('分类（英文标识，可选，逗号分隔）', '', validateTerms));
+    const tags = list(await ask('标签（英文标识，可选，逗号分隔）', '', validateTerms));
     const image = await ask('封面（可选，如 cover.jpg）');
     const answer = await ask('保存为草稿？Y/n', 'Y', value =>
       /^(y|yes|n|no|是|否)$/i.test(value) ? '' : '请输入 y（草稿）或 n（发布）。');

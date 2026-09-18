@@ -79,6 +79,7 @@ function read(relative) {
 
 function outputPath(url) {
   const pathname = decodeURIComponent(new URL(url, baseURL).pathname);
+  assert.doesNotMatch(pathname, /\p{Script=Han}/u, `站内路径不能包含中文：${url}`);
   const basePath = decodeURIComponent(new URL(baseURL).pathname);
   assert.ok(pathname.startsWith(basePath), `链接丢失部署子路径：${url}`);
   return path.join(destination, pathname.slice(basePath.length));
@@ -177,18 +178,28 @@ read('search/index.html');
 read('tags/index.html');
 read('categories/index.html');
 read('links/index.html');
+assert.equal($home('.site-nav a').filter((_, link) => $home(link).text() === '友链').attr('href'), new URL('links/', baseURL).pathname);
+for (const [route, title, count] of [
+  ['categories/tech', '技术文章', 2], ['categories/essays', '随笔', 2],
+  ['tags/blog', '博客', 3], ['tags/router', '路由器', 1],
+  ['tags/networking', '组网', 1], ['tags/plugins', '插件化', 1],
+  ['tags/async-programming', '异步编程', 1],
+]) {
+  const $term = load(read(`${route}/index.html`));
+  assert.equal($term('h1').text().replace(/^#\s*/, ''), title, '英文路径应保留分类、标签的中文显示名称');
+  assert.ok($term('.post-card').length >= count, `${route} 的文章关联丢失`);
+}
 const friends = JSON.parse(readFileSync(path.join(root, 'data/friends.json'), 'utf8'));
-const friendHTML = read('友链/index.html');
+const friendHTML = read('links/index.html');
 const $friendPage = load(friendHTML);
 const $friendForm = $friendPage('[data-friend-form]');
-assert.equal($friendForm.attr('data-endpoint'), '/api/friends-submit');
-assert.equal($friendForm.attr('data-challenge-endpoint'), '/api/friends-challenge');
+assert.equal($friendForm.attr('data-endpoint'), '/api/submissions');
 assert.equal($friendForm.find('fieldset[disabled]').length, 1, '无脚本时申请按钮应禁用');
 assert.equal($friendForm.find('[name="consent"][required]').length, 1);
 for (const field of ['title', 'website', 'description']) assert.equal($friendForm.find(`[name="${field}"][required]`).length, 1);
 localAsset($friendForm.attr('data-pow-worker'));
 const $friendReview = load(read('friend-review/index.html'));
-assert.equal($friendReview('[data-friend-review]').attr('data-endpoint'), '/api/friends-approve');
+assert.equal($friendReview('[data-friend-review]').attr('data-endpoint'), '/api/submissions');
 assert.match($friendReview('meta[name="robots"]').attr('content'), /noindex/);
 assert.equal($friendReview('[data-review-content][hidden]').length, 1);
 assert.doesNotMatch(read('sitemap.xml'), /friend-review/);
@@ -219,6 +230,7 @@ assert.match(rss, /<rss\b/);
 assert.match(rss, /<language>zh-CN<\/language>/i);
 assert.match(rss, /<item>/);
 const search = JSON.parse(read('search/index.json'));
+assert.ok(search.find(article => article.permalink.endsWith('/p/rin/')).tags.includes('博客'), '搜索索引保留标签的中文名称');
 const commentPages = JSON.parse(read('comment-pages.json'));
 assert.ok(commentPages.some(page => page.path === fixtureComment.path));
 const fixturePage = commentPages.find(page => page.path === fixtureComment.path);
@@ -251,7 +263,7 @@ assert.equal(load(read('p/rin/index.html'))(`#comment-${fixtureComment.id}`).len
 const $review = load(read('comment-review/index.html'));
 assert.match($review('meta[name="robots"]').attr('content'), /noindex/);
 assert.equal($review('[data-comment-form]').length, 0);
-assert.equal($review('[data-comment-review]').attr('data-endpoint'), '/api/comments-approve');
+assert.equal($review('[data-comment-review]').attr('data-endpoint'), '/api/submissions');
 assert.ok(Array.isArray(search) && search.length > 0, '搜索索引为空');
 for (const article of search) {
   const url = new URL(article.permalink, baseURL);
@@ -284,13 +296,25 @@ for (const style of styles) {
 }
 // 遍历所有页面，覆盖分页、分类、别名跳转和模板引用的本地资源。
 const htmlFiles = readdirSync(destination, { recursive: true }).filter(file => file.endsWith('.html'));
+for (const relative of readdirSync(destination, { recursive: true }).filter(file => /\.(?:html|xml|json)$/i.test(file))) {
+  assert.doesNotMatch(decodeURIComponent(relative), /\p{Script=Han}/u, `禁止生成中文路径，包含别名页：${relative}`);
+  if (relative.endsWith('.xml')) {
+    const $xml = load(read(relative), { xmlMode: true });
+    for (const node of $xml('loc, link, guid').toArray()) {
+      const url = $xml(node).attr('href') || $xml(node).text();
+      if (url && new URL(url, baseURL).origin === new URL(baseURL).origin) outputPath(url);
+    }
+  }
+}
 for (const relative of htmlFiles) {
   const html = read(relative);
   assert.ok(!html.includes(fixtureEmail), '明文邮箱不能进入公开页面');
   const $ = load(html);
+  for (const link of $('link[rel="canonical"], meta[property="og:url"]').toArray()) {
+    outputPath($(link).attr('href') || $(link).attr('content'));
+  }
   for (const comments of $('[data-comments]').toArray()) {
-    assert.equal($(comments).find('[data-comment-form]').attr('data-endpoint'), '/api/comments-submit', `${relative} 应使用本站评论接口`);
-    assert.equal($(comments).find('[data-comment-form]').attr('data-challenge-endpoint'), '/api/comments-challenge');
+    assert.equal($(comments).find('[data-comment-form]').attr('data-endpoint'), '/api/submissions', `${relative} 应使用本站评论接口`);
     localAsset($(comments).find('[data-comment-form]').attr('data-pow-worker'));
     assert.equal($(comments).find('[data-cancel-proof][hidden][type="button"]').length, 1);
     assert.equal($(comments).find('[name="consent"][required]').length, 1, '提交前必须说明公开 Git 历史');

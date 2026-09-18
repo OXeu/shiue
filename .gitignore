@@ -7,6 +7,10 @@ node_modules/
 .env.*
 !.env.example
 .vercel/
+.netlify/
+.wrangler/
+.dev.vars
+.dev.vars.*
 data/friends.json.lock
 data/friends.json.*.tmp
 .cache/deploy/

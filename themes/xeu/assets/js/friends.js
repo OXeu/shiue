@@ -27,8 +27,8 @@ for (const form of document.querySelectorAll('[data-friend-form]')) {
     try {
       if (!window.Worker || !globalThis.crypto?.subtle || !crypto.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
       if (!pending || pending.fingerprint !== fingerprint) pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
-      const input = { ...values, id: pending.id, createdAt: pending.createdAt };
-      const task = await post(form.dataset.challengeEndpoint, input, controller.signal);
+      const input = { ...values, id: pending.id, createdAt: pending.createdAt, type: 'friend' };
+      const task = await post(form.dataset.endpoint, { ...input, action: 'challenge' }, controller.signal);
       status.textContent = '正在进行浏览器验证，通常需要几秒…';
       const proof = await solveProof(form.dataset.powWorker, task, {
         signal: controller.signal,
@@ -37,7 +37,7 @@ for (const form of document.querySelectorAll('[data-friend-form]')) {
       cancel.hidden = true;
       sending = true;
       status.textContent = '验证完成，正在送交审核…';
-      const result = await post(form.dataset.endpoint, { ...input, proof }, controller.signal);
+      const result = await post(form.dataset.endpoint, { ...input, action: 'submit', proof }, controller.signal);
       status.textContent = result.message;
       form.reset();
       pending = null;
@@ -62,7 +62,7 @@ if (review) {
   const preview = async () => {
     if (!token) { status.textContent = '请使用审核邮件中的完整链接打开此页。'; return; }
     try {
-      const { friend } = await post(review.dataset.endpoint, { action: 'preview', token });
+      const { friend } = await post(review.dataset.endpoint, { type: 'friend', action: 'preview', token });
       for (const key of ['title', 'description']) review.querySelector(`[data-review-${key}]`).textContent = friend[key];
       for (const key of ['website', 'icon']) {
         const link = review.querySelector(`[data-review-${key}]`);
@@ -86,7 +86,7 @@ if (review) {
     button.disabled = true;
     status.textContent = '正在提交发布任务…';
     try {
-      const result = await post(review.dataset.endpoint, { action: 'approve', token });
+      const result = await post(review.dataset.endpoint, { type: 'friend', action: 'approve', token });
       status.textContent = result.message;
       button.hidden = true;
       token = null;

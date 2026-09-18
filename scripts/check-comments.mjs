@@ -27,13 +27,14 @@ try {
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.origin !== new URL(baseURL).origin) return route.abort();
-      if (url.pathname === '/api/comments-challenge') {
+      if (url.pathname === '/api/submissions') {
         const body = route.request().postDataJSON();
-        challenges.push(body);
-        return route.fulfill({ json: issueProof(validateComment(body), new URL(baseURL), powEnv, Date.now()) });
-      }
-      if (url.pathname === '/api/comments-submit') {
-        const body = route.request().postDataJSON();
+        assert.equal(body.type, 'comment');
+        if (body.action === 'challenge') {
+          challenges.push(body);
+          return route.fulfill({ json: issueProof(validateComment(body), new URL(baseURL), powEnv, Date.now()) });
+        }
+        assert.equal(body.action, 'submit');
         verifyProof(body.proof, validateComment(body), new URL(baseURL), powEnv, Date.now());
         submissions.push(body);
         if (submissions.length === 1) return route.fulfill({ status: 503, json: { error: '服务暂时不可用，请重试。' } });
@@ -321,14 +322,17 @@ try {
     if (scenario === 'cancel') await page.setViewportSize({ width: 320, height: 360 });
     let submits = 0;
     let challenges = 0;
-    await context.route('**/api/comments-challenge', route => {
+    await context.route('**/api/submissions', route => {
+      const body = route.request().postDataJSON();
+      assert.equal(body.type, 'comment');
+      if (body.action === 'submit') {
+        submits++;
+        return route.fulfill({ status: 410, json: { error: '工作量证明已过期，请重新提交。' } });
+      }
+      assert.equal(body.action, 'challenge');
       challenges++;
       if (scenario === 'challenge-unavailable') return route.fulfill({ status: 503, json: { error: '评论服务暂时不可用，请稍后重试。' } });
-      return route.fulfill({ json: issueProof(validateComment(route.request().postDataJSON()), new URL(baseURL), powEnv, Date.now()) });
-    });
-    await context.route('**/api/comments-submit', route => {
-      submits++;
-      return route.fulfill({ status: 410, json: { error: '工作量证明已过期，请重新提交。' } });
+      return route.fulfill({ json: issueProof(validateComment(body), new URL(baseURL), powEnv, Date.now()) });
     });
     if (['cancel', 'pagehide', 'timeout', 'worker-error'].includes(scenario)) {
       await context.route('**/js/comment-pow-worker.*.js', route => route.fulfill({ contentType: 'text/javascript', body: scenario === 'worker-error' ? 'self.onmessage=()=>self.postMessage({error:true})' : 'self.onmessage=()=>self.postMessage({elapsed:1})' }));
@@ -373,8 +377,9 @@ try {
 
   const page = await browser.newPage();
   const actions = [];
-  await page.route('**/api/comments-approve', route => {
+  await page.route('**/api/submissions', route => {
     const body = route.request().postDataJSON();
+    assert.equal(body.type, 'comment');
     actions.push(body.action);
     assert.equal(body.token, 'test-approval-token');
     if (body.action === 'preview') return route.fulfill({ json: { comment: { name: '<script>name</script>', message, parentId: 'e2ae8335-89b2-4f10-97db-cdb4603d23f4', createdAt: '2026-09-17T20:00:00.000Z' }, title: '审核测试', url: new URL('p/ai-random-thoughts/', baseURL).href } });

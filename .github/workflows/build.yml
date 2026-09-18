@@ -24,6 +24,8 @@ jobs:
         run: npm run check:comments
       - name: 验证友链申请、审批与并发发布
         run: npm run check:friend-applications
+      - name: 验证各平台函数入口与预览环境隔离
+        run: npm run check:functions
       - name: 验证缩略图与 BlurHash 生成
         run: node scripts/check-images.mjs
       - name: 验证最新稳定版 Hugo Extended

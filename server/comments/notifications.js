@@ -25,7 +25,7 @@ export async function sendCommentNotifications(claim, parent, env, fetchImpl, ty
       if (!env.RESEND_API_KEY || !env.COMMENTS_EMAIL_FROM) throw new Error('Missing email configuration');
       const email = notificationEmail(claim, type, to, env.COMMENTS_EMAIL_FROM);
       const response = await fetchImpl('https://api.resend.com/emails', {
-        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(6000),
+        method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(6000),
         headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'idempotency-key': `comment-notify-${type}-${digest({ id: claim.comment.id, path: claim.comment.path, to })}` },
         body: JSON.stringify(email),
       });

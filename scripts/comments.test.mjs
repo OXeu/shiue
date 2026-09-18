@@ -5,9 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { challengeComment } from '../api/comments-challenge.js';
-import { submitComment } from '../api/comments-submit.js';
-import { approveComment } from '../api/comments-approve.js';
+import { handleSubmission } from '../api/submissions.js';
 import { APPROVAL_TTL, approvalClaim, commentSecret, readApproval, sign, validateComment, validateStoredComment, verify } from '../server/comments/core.js';
 import { openCommentEmail, sealComment } from '../server/comments/email.js';
 import { issueProof, POW_TTL, powDifficulty, verifyProof } from '../server/comments/pow.js';
@@ -33,7 +31,8 @@ async function seedArticle(root, articleDirectory = directory) {
   await writeFile(path.join(root, 'content', articleDirectory, 'index.md'), '---\ntitle: Example\nslug: example\n---\nArticle\n');
 }
 const deps = extra => ({ env, now, pages, ...extra });
-const request = (data, headers = {}, method = 'POST') => new Request('https://blog.example.org/api/comments-submit', { method, headers: { origin: 'https://blog.example.org', 'content-type': 'application/json', ...headers }, ...(method !== 'GET' ? { body: JSON.stringify(data) } : {}) });
+const request = (data, headers = {}, method = 'POST') => new Request('https://blog.example.org/api/submissions', { method, headers: { origin: 'https://blog.example.org', 'content-type': 'application/json', ...headers }, ...(method !== 'GET' ? { body: JSON.stringify({ type: 'comment', action: 'submit', ...data }) } : {}) });
+const challengeRequest = (body, ...args) => request({ ...body, action: 'challenge' }, ...args);
 const claim = () => approvalClaim(input, { title: '文章标题' }, new URL(env.COMMENTS_SITE_URL), now);
 const approval = () => sign(claim(), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
 const envelope = (comment = claim().comment, options = {}) => sign({ v: 1, repository: 'owner/blog', directory, comment, approvedAt: new Date(now).toISOString(), expiresAt: now + APPROVAL_TTL, ...options }, env.COMMENTS_WORKFLOW_SECRET, 'comment-publish-v1');
@@ -43,6 +42,26 @@ function solve(task) {
   }
 }
 input.proof = solve(issueProof(validateComment(input), new URL(env.COMMENTS_SITE_URL), env, now));
+
+test('unified endpoint requires an explicit type and action before reading pages or calling services', async () => {
+  let calls = 0;
+  const unexpected = async () => { calls++; throw new Error('unexpected side effect'); };
+  const options = deps({ fetchImpl: unexpected, pages: unexpected });
+  for (const type of [undefined, null, '', 'comments', 'constructor', '__proto__', ['comment'], {}]) {
+    const response = await handleSubmission(request({ ...input, type }), options);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, '未知提交类型。');
+  }
+  for (const type of ['comment', 'friend']) {
+    for (const action of [undefined, null, '', 'delete', 'constructor', '__proto__', ['submit'], {}]) {
+      const response = await handleSubmission(request({ ...input, type, action }), options);
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error, '未知提交操作。');
+    }
+  }
+  assert.equal((await handleSubmission(request({ type: 'friend', action: 'notify', token: approval() }), options)).status, 400);
+  assert.equal(calls, 0);
+});
 
 test('one master secret derives isolated keys while existing configurations retain their keys', () => {
   const purposes = ['approval', 'pow', 'workflow', 'email'];
@@ -73,19 +92,19 @@ test('a single master secret covers submission, approval, encrypted publishing, 
   for (let depth = 0; depth < 2; depth++) {
     const body = { ...input, id: `fe251682-6cc0-40df-bf31-${String(depth).padStart(12, '0')}`, email: `author${depth}@example.org`, ...(depth ? { parentId: stored[0].id } : {}) };
     const options = deps({ env: masterEnv, pages: pageList });
-    const challenged = await challengeComment(request(body), options);
+    const challenged = await handleSubmission(challengeRequest(body), options);
     assert.equal(challenged.status, 200);
     const proof = solve(await challenged.json());
     let token;
-    const submitted = await submitComment(request({ ...body, proof }), { ...options, fetchImpl: async (url, init) => {
+    const submitted = await handleSubmission(request({ ...body, proof }), { ...options, fetchImpl: async (url, init) => {
       assert.equal(url, 'https://api.resend.com/emails');
       token = JSON.parse(init.body).text.match(/#token=([\w.-]+)/)[1];
       return Response.json({ id: 'moderation-mail' });
     } });
     assert.equal(submitted.status, 202);
-    const preview = await approveComment(request({ action: 'preview', token }), options);
+    const preview = await handleSubmission(request({ action: 'preview', token }), options);
     assert.equal(preview.status, 200);
-    const approved = await approveComment(request({ action: 'approve', token }), { ...options, fetchImpl: async (url, init) => {
+    const approved = await handleSubmission(request({ action: 'approve', token }), { ...options, fetchImpl: async (url, init) => {
       if (url.startsWith('https://api.github.com/')) {
         const result = await appendApprovedComment({ root, envelope: JSON.parse(init.body).inputs.envelope, secret: commentSecret({ COMMENTS_SECRET: masterEnv.COMMENTS_SECRET }, 'workflow'), repository: 'owner/blog', now });
         const comment = JSON.parse(await readFile(path.join(root, result.relative), 'utf8'));
@@ -103,7 +122,7 @@ test('a single master secret covers submission, approval, encrypted publishing, 
     const result = await approved.json();
     if (depth) {
       assert.equal(result.notifications.failed, 1);
-      const retried = await approveComment(request({ action: 'notify', token, notificationToken: result.notificationToken }), { ...options, fetchImpl: async (url, init) => {
+      const retried = await handleSubmission(request({ action: 'notify', token, notificationToken: result.notificationToken }), { ...options, fetchImpl: async (url, init) => {
         assert.equal(url, 'https://api.resend.com/emails', '重试不能再发起 GitHub Action');
         recipients.push(JSON.parse(init.body).to[0]);
         return Response.json({ id: 'retry-mail' });
@@ -117,7 +136,7 @@ test('a single master secret covers submission, approval, encrypted publishing, 
 test('challenge endpoint validates input and signs a bounded random puzzle without firewall configuration', async () => {
   const challenges = [];
   for (let i = 0; i < 2; i++) {
-    const response = await challengeComment(request(input), deps());
+    const response = await handleSubmission(challengeRequest(input), deps());
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const task = await response.json();
@@ -130,13 +149,13 @@ test('challenge endpoint validates input and signs a bounded random puzzle witho
   }
   assert.notEqual(challenges[0], challenges[1]);
   for (const [body, status] of [[{ ...input, consent: false }, 400], [{ ...input, website: 'spam' }, 400], [{ ...input, path: '/not-enabled/' }, 400], [{ ...input, message: 'x'.repeat(27000) }, 413]]) {
-    assert.equal((await challengeComment(request(body), deps())).status, status);
+    assert.equal((await handleSubmission(challengeRequest(body), deps())).status, status);
   }
   for (const [extra, status] of [
     [{ COMMENTS_POW_SECRET: '' }, 503], [{ COMMENTS_POW_DIFFICULTY: '0' }, 503], [{ VERCEL_ENV: 'preview' }, 503],
-  ]) assert.equal((await challengeComment(request(input), deps({ env: { ...env, ...extra } }))).status, status);
-  assert.equal((await challengeComment(request(input, {}, 'GET'), deps())).status, 405);
-  assert.equal((await challengeComment(request(input, { origin: 'https://evil.example' }), deps())).status, 403);
+  ]) assert.equal((await handleSubmission(challengeRequest(input), deps({ env: { ...env, ...extra } }))).status, status);
+  assert.equal((await handleSubmission(challengeRequest(input, {}, 'GET'), deps())).status, 405);
+  assert.equal((await handleSubmission(challengeRequest(input, { origin: 'https://evil.example' }), deps())).status, 403);
 });
 
 test('proofs bind canonical comment and site; tampering, changed difficulty, missing proof and invalid nonce fail before network', async () => {
@@ -146,7 +165,7 @@ test('proofs bind canonical comment and site; tampering, changed difficulty, mis
   assert.equal(powDifficulty({}), 4);
   const defaultEnv = { ...env };
   delete defaultEnv.COMMENTS_POW_DIFFICULTY;
-  const defaultResponse = await challengeComment(request(input), deps({ env: defaultEnv }));
+  const defaultResponse = await handleSubmission(challengeRequest(input), deps({ env: defaultEnv }));
   assert.equal(defaultResponse.status, 200);
   const defaultTask = await defaultResponse.json();
   assert.equal(defaultTask.difficulty, 4);
@@ -161,7 +180,7 @@ test('proofs bind canonical comment and site; tampering, changed difficulty, mis
   const bad = [undefined, {}, { ...input.proof, nonce: wrongNonce }, { ...input.proof, token: tampered }, { ...input.proof, token: approval() },
     ...[-1, 0, 1.5, '01', '-1', '1e2', '1.0', '9007199254740992', 'x'.repeat(2000)].map(nonce => ({ ...input.proof, nonce }))];
   const noNetwork = async () => assert.fail('invalid proofs must not make outbound calls');
-  for (const proof of bad) assert.equal((await submitComment(request({ ...input, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
+  for (const proof of bad) assert.equal((await handleSubmission(request({ ...input, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
   for (const change of [{ id: 'ae251682-6cc0-40df-bf31-6d48c12a985c' }, { name: 'someone else' }, { message: 'different' }, { createdAt: new Date(now + 1).toISOString() }, { path: '/p/another/' }]) {
     assert.throws(() => verifyProof(input.proof, { ...valid, ...change }, site, env, now), { status: 403 });
   }
@@ -170,14 +189,14 @@ test('proofs bind canonical comment and site; tampering, changed difficulty, mis
   assert.throws(() => verifyProof(input.proof, valid, site, { ...env, COMMENTS_POW_SECRET: 'd'.repeat(64) }, now), { status: 403 });
   assert.throws(() => verifyProof(input.proof, valid, site, { ...env, COMMENTS_POW_SECRET: '' }, now), { status: 503 });
   assert.throws(() => verifyProof(input.proof, valid, site, env, now - 60000), { status: 403 });
-  assert.equal((await submitComment(request(input), deps({ now: now + POW_TTL, fetchImpl: noNetwork }))).status, 410);
+  assert.equal((await handleSubmission(request(input), deps({ now: now + POW_TTL, fetchImpl: noNetwork }))).status, 410);
 });
 
 test('submission sends escaped details to a fixed recipient; approval capability never reaches the visitor', async () => {
   let sent;
-  const response = await submitComment(request({ ...input, title: '伪造标题', to: 'attacker@example.org' }), deps({ fetchImpl: async (url, init) => {
+  const response = await handleSubmission(request({ ...input, title: '伪造标题', to: 'attacker@example.org' }), deps({ fetchImpl: async (url, init) => {
     assert.equal(url, 'https://api.resend.com/emails');
-    assert.equal(init.redirect, 'error');
+    assert.equal(init.redirect, 'manual');
     sent = { ...init, email: JSON.parse(init.body) };
     return Response.json({ id: 'email-receipt' });
   } }));
@@ -198,10 +217,10 @@ test('submission sends escaped details to a fixed recipient; approval capability
 test('retry of the same logical submission produces exactly the same email and idempotency key', async () => {
   const requests = [];
   const fetchImpl = async (_, init) => { requests.push(init); return Response.json({ id: 'receipt' }); };
-  await submitComment(request(input), deps({ fetchImpl }));
-  await submitComment(request(input), deps({ fetchImpl, now: now + 60000 }));
+  await handleSubmission(request(input), deps({ fetchImpl }));
+  await handleSubmission(request(input), deps({ fetchImpl, now: now + 60000 }));
   const proof = solve(issueProof(validateComment(input), new URL(env.COMMENTS_SITE_URL), env, now + POW_TTL));
-  await submitComment(request({ ...input, proof }), deps({ fetchImpl, now: now + POW_TTL }));
+  await handleSubmission(request({ ...input, proof }), deps({ fetchImpl, now: now + POW_TTL }));
   assert.equal(requests[0].body, requests[1].body);
   assert.equal(requests[0].headers['idempotency-key'], requests[1].headers['idempotency-key']);
   assert.equal(requests[0].headers['idempotency-key'], requests[2].headers['idempotency-key'], 'renewing a challenge must not change email idempotency');
@@ -212,21 +231,21 @@ test('full production-config flow without rate-limit settings: challenge → ema
   const realFetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('unexpected outbound call'); });
   const calls = [];
   let token;
-  const challenge = await challengeComment(request(input), deps({ env: production }));
+  const challenge = await handleSubmission(challengeRequest(input), deps({ env: production }));
   assert.equal(challenge.status, 200);
   const proof = solve(await challenge.json());
-  const submitted = await submitComment(request({ ...input, proof }), deps({ env: production, fetchImpl: async (url, options) => {
+  const submitted = await handleSubmission(request({ ...input, proof }), deps({ env: production, fetchImpl: async (url, options) => {
     calls.push(url);
     token = JSON.parse(options.body).text.match(/#token=([\w.-]+)/)[1];
     return Response.json({ id: 'email-id' });
   } }));
   assert.equal(submitted.status, 202);
-  const preview = await approveComment(request({ action: 'preview', token }), deps({ env: production }));
+  const preview = await handleSubmission(request({ action: 'preview', token }), deps({ env: production }));
   assert.equal(preview.status, 200);
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-flow-'));
   await seedArticle(root);
   let file;
-  const approved = await approveComment(request({ action: 'approve', token }), deps({ env: production, fetchImpl: async (url, options) => {
+  const approved = await handleSubmission(request({ action: 'approve', token }), deps({ env: production, fetchImpl: async (url, options) => {
     calls.push(url);
     file = await appendApprovedComment({ root, envelope: JSON.parse(options.body).inputs.envelope, secret: env.COMMENTS_WORKFLOW_SECRET, repository: env.COMMENTS_GITHUB_REPOSITORY, now });
     return new Response(null, { status: 204 });
@@ -244,21 +263,21 @@ test('bad input, honeypot, missing consent, oversized bodies, foreign origins an
     { ...input, path: '/p/not-enabled/' }, { ...input, path: '//evil.example/' }, { ...input, id: '../../file' },
     { ...input, createdAt: new Date(now - 2 * 86400000).toISOString() }, { ...input, createdAt: new Date(now + 86400000).toISOString() },
   ];
-  for (const body of invalid) assert.equal((await submitComment(request(body), deps({ fetchImpl: noEmail }))).status, 400);
-  assert.equal((await submitComment(request(input, { origin: 'https://evil.example' }), deps({ fetchImpl: noEmail }))).status, 403);
-  assert.equal((await submitComment(request(input, { 'sec-fetch-site': 'cross-site' }), deps({ fetchImpl: noEmail }))).status, 403);
-  assert.equal((await submitComment(request(input, { 'content-type': 'text/plain' }), deps({ fetchImpl: noEmail }))).status, 415);
-  assert.equal((await submitComment(request({}, {}, 'GET'), deps({ fetchImpl: noEmail }))).status, 405);
-  assert.equal((await submitComment(request({ ...input, padding: 'x'.repeat(27000) }), deps({ fetchImpl: noEmail }))).status, 413);
-  assert.equal((await submitComment(request(input), deps({ fetchImpl: noEmail, env: { ...env, RESEND_API_KEY: '' } }))).status, 503);
-  assert.equal((await submitComment(request(input), deps({ fetchImpl: noEmail, env: { ...env, VERCEL_ENV: 'preview' } }))).status, 503);
-  const malformed = new Request('https://blog.example.org/api/comments-submit', { method: 'POST', headers: { origin: 'https://blog.example.org', 'content-type': 'application/json' }, body: '{' });
-  assert.equal((await submitComment(malformed, deps({ fetchImpl: noEmail }))).status, 400);
+  for (const body of invalid) assert.equal((await handleSubmission(request(body), deps({ fetchImpl: noEmail }))).status, 400);
+  assert.equal((await handleSubmission(request(input, { origin: 'https://evil.example' }), deps({ fetchImpl: noEmail }))).status, 403);
+  assert.equal((await handleSubmission(request(input, { 'sec-fetch-site': 'cross-site' }), deps({ fetchImpl: noEmail }))).status, 403);
+  assert.equal((await handleSubmission(request(input, { 'content-type': 'text/plain' }), deps({ fetchImpl: noEmail }))).status, 415);
+  assert.equal((await handleSubmission(request({}, {}, 'GET'), deps({ fetchImpl: noEmail }))).status, 405);
+  assert.equal((await handleSubmission(request({ ...input, padding: 'x'.repeat(27000) }), deps({ fetchImpl: noEmail }))).status, 413);
+  assert.equal((await handleSubmission(request(input), deps({ fetchImpl: noEmail, env: { ...env, RESEND_API_KEY: '' } }))).status, 503);
+  assert.equal((await handleSubmission(request(input), deps({ fetchImpl: noEmail, env: { ...env, VERCEL_ENV: 'preview' } }))).status, 503);
+  const malformed = new Request('https://blog.example.org/api/submissions', { method: 'POST', headers: { origin: 'https://blog.example.org', 'content-type': 'application/json' }, body: '{' });
+  assert.equal((await handleSubmission(malformed, deps({ fetchImpl: noEmail }))).status, 400);
 });
 
 test('upstream failures remain recoverable without disclosing credentials', async () => {
-  for (const fetchImpl of [async () => new Response('secret', { status: 429 }), async () => { throw new Error(env.RESEND_API_KEY); }, async () => Response.json({})]) {
-    const response = await submitComment(request(input), deps({ fetchImpl }));
+  for (const fetchImpl of [async () => new Response('secret', { status: 429 }), async () => new Response(null, { status: 302, headers: { location: 'https://other.example/' } }), async () => { throw new Error(env.RESEND_API_KEY); }, async () => Response.json({})]) {
+    const response = await handleSubmission(request(input), deps({ fetchImpl }));
     assert.ok(response.status >= 500);
     assert.doesNotMatch(await response.text(), /resend-test-secret|github-test-secret/);
   }
@@ -266,12 +285,12 @@ test('upstream failures remain recoverable without disclosing credentials', asyn
 
 test('GET / preview cannot publish; confirmation dispatches a separately signed workflow payload', async () => {
   const noDispatch = async () => assert.fail('must not dispatch');
-  assert.equal((await approveComment(request({}, {}, 'GET'), deps({ fetchImpl: noDispatch }))).status, 405);
-  const preview = await approveComment(request({ action: 'preview', token: approval() }), deps({ fetchImpl: noDispatch }));
+  assert.equal((await handleSubmission(request({}, {}, 'GET'), deps({ fetchImpl: noDispatch }))).status, 405);
+  const preview = await handleSubmission(request({ action: 'preview', token: approval() }), deps({ fetchImpl: noDispatch }));
   assert.equal(preview.status, 200);
   assert.equal((await preview.json()).comment.name, input.name);
   let dispatched;
-  const response = await approveComment(request({ action: 'approve', token: approval(), repository: 'attacker/repo' }), deps({ fetchImpl: async (url, init) => {
+  const response = await handleSubmission(request({ action: 'approve', token: approval(), repository: 'attacker/repo' }), deps({ fetchImpl: async (url, init) => {
     assert.equal(url, 'https://api.github.com/repos/owner/blog/actions/workflows/publish-comment.yml/dispatches');
     dispatched = JSON.parse(init.body);
     return new Response(null, { status: 204 });
@@ -288,11 +307,11 @@ test('GET / preview cannot publish; confirmation dispatches a separately signed 
 test('tampered, expired and cross-site approvals cannot dispatch; GitHub errors stay recoverable', async () => {
   const noDispatch = async () => assert.fail();
   for (const token of ['not-a-token', `${approval().slice(0, 8)}X${approval().slice(9)}`, envelope()]) {
-    assert.equal((await approveComment(request({ action: 'approve', token }), deps({ fetchImpl: noDispatch }))).status, 400);
+    assert.equal((await handleSubmission(request({ action: 'approve', token }), deps({ fetchImpl: noDispatch }))).status, 400);
   }
-  assert.equal((await approveComment(request({ action: 'approve', token: approval() }), deps({ now: now + APPROVAL_TTL, fetchImpl: noDispatch }))).status, 410);
-  assert.equal((await approveComment(request({ action: 'approve', token: approval() }, { origin: 'https://evil.example' }), deps({ fetchImpl: noDispatch }))).status, 403);
-  assert.equal((await approveComment(request({ action: 'approve', token: approval() }), deps({ fetchImpl: async () => new Response('', { status: 401 }) }))).status, 502);
+  assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ now: now + APPROVAL_TTL, fetchImpl: noDispatch }))).status, 410);
+  assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }, { origin: 'https://evil.example' }), deps({ fetchImpl: noDispatch }))).status, 403);
+  assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ fetchImpl: async () => new Response('', { status: 401 }) }))).status, 502);
 });
 
 test('approved comments use exclusive UUID files, reject overwrites, preserve text, and require workflow signature', async () => {
@@ -347,18 +366,18 @@ test('optional email is validated, canonicalized and bound to proof without expo
   assert.equal(validateComment({ ...input, email: ' Reader+comments@EXAMPLE.ORG ' }).email, 'Reader+comments@example.org');
   const noNetwork = async () => assert.fail('invalid email or proof must not send email');
   for (const email of [null, 42, 'not-an-email', 'a@b@c.org', 'a@example.org\r\nBcc: x@example.org', 'a@-example.org', 'x'.repeat(65) + '@example.org']) {
-    assert.equal((await challengeComment(request({ ...input, email }), deps())).status, 400);
-    assert.equal((await submitComment(request({ ...input, email }), deps({ fetchImpl: noNetwork }))).status, 400);
+    assert.equal((await handleSubmission(challengeRequest({ ...input, email }), deps())).status, 400);
+    assert.equal((await handleSubmission(request({ ...input, email }), deps({ fetchImpl: noNetwork }))).status, 400);
   }
   const body = { ...input, email: 'reader@example.org' };
-  const response = await challengeComment(request(body), deps());
+  const response = await handleSubmission(challengeRequest(body), deps());
   const task = await response.json();
   assert.equal(response.status, 200);
   assert.ok(!JSON.stringify(task).includes(body.email));
   const proof = solve(task);
   const emails = [];
   for (let attempt = 0; attempt < 2; attempt++) {
-    const submitted = await submitComment(request({ ...body, proof }), deps({ fetchImpl: async (_, options) => {
+    const submitted = await handleSubmission(request({ ...body, proof }), deps({ fetchImpl: async (_, options) => {
       emails.push(options);
       return Response.json({ id: 'moderation-receipt' });
     } }));
@@ -368,8 +387,8 @@ test('optional email is validated, canonicalized and bound to proof without expo
   assert.equal(emails[0].body, emails[1].body, '含邮箱的重复提交也应保持审核邮件幂等');
   const token = JSON.parse(emails[0].body).text.match(/#token=([\w.-]+)/)[1];
   assert.equal(readApproval(token, env.COMMENTS_APPROVAL_SECRET, new URL(env.COMMENTS_SITE_URL), now).comment.email, body.email);
-  for (const email of [undefined, '', 'other@example.org']) assert.equal((await submitComment(request({ ...body, email, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
-  assert.equal((await challengeComment(request(body), deps({ env: { ...env, COMMENTS_EMAIL_SECRET: '' } }))).status, 503);
+  for (const email of [undefined, '', 'other@example.org']) assert.equal((await handleSubmission(request({ ...body, email, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
+  assert.equal((await handleSubmission(challengeRequest(body), deps({ env: { ...env, COMMENTS_EMAIL_SECRET: '' } }))).status, 503);
 });
 
 test('email encryption authenticates its comment and publishing cannot write plaintext or overwrite a different email', async () => {
@@ -408,7 +427,7 @@ test('approval sends two private notifications only after successful dispatch an
   const fixture = notificationFixture();
   const calls = [];
   let stored;
-  const response = await approveComment(request({ action: 'approve', token: fixture.token, to: 'attacker@example.org' }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
+  const response = await handleSubmission(request({ action: 'approve', token: fixture.token, to: 'attacker@example.org' }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
     calls.push({ url, options });
     if (url.startsWith('https://api.github.com/')) {
       stored = verify(JSON.parse(options.body).inputs.envelope, env.COMMENTS_WORKFLOW_SECRET, 'comment-publish-v1').comment;
@@ -440,14 +459,14 @@ test('approval sends two private notifications only after successful dispatch an
     assert.ok(url.startsWith('https://api.github.com/'));
     return new Response(null, { status: 502 });
   };
-  assert.equal((await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: noMail }))).status, 502);
-  assert.equal((await approveComment(request({ action: 'preview', token: fixture.token }), deps({ fetchImpl: async () => assert.fail() }))).status, 200);
+  assert.equal((await handleSubmission(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: noMail }))).status, 502);
+  assert.equal((await handleSubmission(request({ action: 'preview', token: fixture.token }), deps({ fetchImpl: async () => assert.fail() }))).status, 200);
 });
 
 test('notification failures can be retried without dispatching or resending successful messages', async () => {
   const fixture = notificationFixture();
   const calls = [];
-  const response = await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
+  const response = await handleSubmission(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
     calls.push({ url, options });
     if (url.startsWith('https://api.github.com/')) return new Response(null, { status: 204 });
     return JSON.parse(options.body).to[0] === fixture.comment.email ? Response.json({ id: 'accepted' }) : new Response('private upstream error', { status: 503 });
@@ -458,7 +477,7 @@ test('notification failures can be retried without dispatching or resending succ
   assert.ok(result.notificationToken);
   assert.doesNotMatch(JSON.stringify(result), /private upstream|parent-author@example|reply-author@example/);
   const retries = [];
-  const retried = await approveComment(request({ action: 'notify', token: fixture.token, notificationToken: result.notificationToken }), deps({ pages: async () => assert.fail('retry uses signed original recipients'), fetchImpl: async (url, options) => {
+  const retried = await handleSubmission(request({ action: 'notify', token: fixture.token, notificationToken: result.notificationToken }), deps({ pages: async () => assert.fail('retry uses signed original recipients'), fetchImpl: async (url, options) => {
     assert.equal(url, 'https://api.resend.com/emails');
     retries.push(options);
     return Response.json({ id: 'accepted' });
@@ -471,17 +490,17 @@ test('notification failures can be retried without dispatching or resending succ
   assert.equal(retries[0].body, failed.options.body);
   assert.equal(retries[0].headers['idempotency-key'], failed.options.headers['idempotency-key']);
   for (const notificationToken of [undefined, fixture.token, result.notificationToken.slice(0, -4) + 'xxxx']) {
-    assert.equal((await approveComment(request({ action: 'notify', token: fixture.token, notificationToken }), deps({ fetchImpl: async () => assert.fail() }))).status, 400);
+    assert.equal((await handleSubmission(request({ action: 'notify', token: fixture.token, notificationToken }), deps({ fetchImpl: async () => assert.fail() }))).status, 400);
   }
-  assert.equal((await approveComment(request({ action: 'notify', token: approval(), notificationToken: result.notificationToken }), deps({ fetchImpl: async () => assert.fail() }))).status, 400);
-  assert.equal((await approveComment(request({ action: 'notify', token: fixture.token, notificationToken: result.notificationToken }), deps({ now: now + 86400000, fetchImpl: async () => assert.fail() }))).status, 400);
+  assert.equal((await handleSubmission(request({ action: 'notify', token: approval(), notificationToken: result.notificationToken }), deps({ fetchImpl: async () => assert.fail() }))).status, 400);
+  assert.equal((await handleSubmission(request({ action: 'notify', token: fixture.token, notificationToken: result.notificationToken }), deps({ now: now + 86400000, fetchImpl: async () => assert.fail() }))).status, 400);
 });
 
 test('notification opt-outs and self-replies skip unwanted mail; unreadable parent emails remain retryable', async () => {
   for (const [email, parentEmail, expected] of [[undefined, undefined, []], [undefined, 'parent@example.org', ['parent@example.org']], ['author@example.org', undefined, ['author@example.org']], ['same@example.org', 'same@example.org', ['same@example.org']]]) {
     const fixture = notificationFixture(email || '', parentEmail || '');
     const recipients = [];
-    const response = await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
+    const response = await handleSubmission(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
       if (url.startsWith('https://api.github.com/')) return new Response(null, { status: 204 });
       recipients.push(...JSON.parse(options.body).to);
       return Response.json({ id: 'accepted' });
@@ -490,7 +509,7 @@ test('notification opt-outs and self-replies skip unwanted mail; unreadable pare
     assert.deepEqual(recipients, expected);
   }
   const fixture = notificationFixture('', 'parent@example.org');
-  const response = await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, env: { ...env, COMMENTS_EMAIL_SECRET: '' }, fetchImpl: async url => {
+  const response = await handleSubmission(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, env: { ...env, COMMENTS_EMAIL_SECRET: '' }, fetchImpl: async url => {
     assert.ok(url.startsWith('https://api.github.com/'));
     return new Response(null, { status: 204 });
   } }));
@@ -561,12 +580,12 @@ test('nested replies retain their parent through proof, email, approval and arti
   for (let depth = 0; depth < 5; depth++) {
     const parentId = ids.at(-1);
     const body = { ...input, id: `fe251682-6cc0-40df-bf31-${String(depth).padStart(12, '0')}`, ...(parentId ? { parentId } : {}) };
-    const task = await challengeComment(request(body), deps({ pages: replyPages }));
+    const task = await handleSubmission(challengeRequest(body), deps({ pages: replyPages }));
     assert.equal(task.status, 200);
     body.proof = solve(await task.json());
     if (parentId) assert.throws(() => verifyProof(body.proof, validateComment({ ...body, parentId: input.id }), new URL(env.COMMENTS_SITE_URL), env, now), { status: 403 });
     let token;
-    const submitted = await submitComment(request(body), deps({ pages: replyPages, fetchImpl: async (_, options) => {
+    const submitted = await handleSubmission(request(body), deps({ pages: replyPages, fetchImpl: async (_, options) => {
       const email = JSON.parse(options.body);
       if (parentId) {
         assert.ok(email.text.includes(`#comment-${parentId}`));
@@ -576,9 +595,9 @@ test('nested replies retain their parent through proof, email, approval and arti
       return Response.json({ id: 'receipt' });
     } }));
     assert.equal(submitted.status, 202);
-    const preview = await approveComment(request({ action: 'preview', token }), deps());
+    const preview = await handleSubmission(request({ action: 'preview', token }), deps());
     assert.equal((await preview.json()).comment.parentId, parentId);
-    const approved = await approveComment(request({ action: 'approve', token, directory: 'post/attacker' }), deps({ pages: replyPages, fetchImpl: async (_, options) => {
+    const approved = await handleSubmission(request({ action: 'approve', token, directory: 'post/attacker' }), deps({ pages: replyPages, fetchImpl: async (_, options) => {
       const signed = JSON.parse(options.body).inputs.envelope;
       const result = await appendApprovedComment({ root, envelope: signed, secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now });
       assert.equal(result.relative, commentFile(directory, body.id));
@@ -594,16 +613,16 @@ test('invalid, missing, self and foreign parents fail before email or workflow d
   const noNetwork = async () => assert.fail('invalid parent must not send email or dispatch');
   for (const parentId of [null, '', '../outside', 42, input.id, 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321']) {
     const body = { ...input, parentId };
-    assert.equal((await challengeComment(request(body), deps())).status, 400);
-    assert.equal((await submitComment(request(body), deps({ fetchImpl: noNetwork }))).status, 400);
+    assert.equal((await handleSubmission(challengeRequest(body), deps())).status, 400);
+    assert.equal((await handleSubmission(request(body), deps({ fetchImpl: noNetwork }))).status, 400);
   }
   const parentId = 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321';
   const body = { ...input, parentId };
   const foreignPages = async () => [...await pages(), { path: '/p/other/', title: '另一篇文章', directory: 'post/other', commentIds: [parentId] }];
-  assert.equal((await challengeComment(request(body), deps({ pages: foreignPages }))).status, 400);
+  assert.equal((await handleSubmission(challengeRequest(body), deps({ pages: foreignPages }))).status, 400);
   const token = sign(approvalClaim(body, (await pages())[0], new URL(env.COMMENTS_SITE_URL), now), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
-  assert.equal((await approveComment(request({ action: 'approve', token }), deps({ fetchImpl: noNetwork }))).status, 400, '审批时父留言已删除应拒绝发布');
-  assert.equal((await approveComment(request({ action: 'approve', token: approval() }), deps({ pages: async () => [], fetchImpl: noNetwork }))).status, 400);
+  assert.equal((await handleSubmission(request({ action: 'approve', token }), deps({ fetchImpl: noNetwork }))).status, 400, '审批时父留言已删除应拒绝发布');
+  assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ pages: async () => [], fetchImpl: noNetwork }))).status, 400);
 });
 
 test('publishing validates article directories, same-article parents, missing parents and cycles', async () => {

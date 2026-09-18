@@ -10,8 +10,8 @@ lastmod: 2026-01-15T13:02:06.000Z
 slug: ubuntu-router
 tags:
 - Ubuntu
-- 路由器
-- 组网
+- router
+- networking
 title: Ubuntu Router 配置
 ---
 ![P20241130-183531(1).jpg](/images/0b50fcedcf59be551a7697b0.jpg)

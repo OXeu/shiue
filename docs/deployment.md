@@ -1,9 +1,9 @@
 # 部署流程
 
-`npm run deploy`、`npm run build` 和 Vercel 的 Build Command 统一进入 `scripts/deploy.mjs`。旧入口 `bash scripts/hugo.sh --minify` 也会转入此流程。这里的“部署”负责生成、检查发布产物；上传、域名切换和生产发布仍由 Vercel 执行，本地运行不会触发线上发布。
+`npm run deploy`、`npm run build` 和各平台的 Build Command 统一进入 `scripts/deploy.mjs`。旧入口 `bash scripts/hugo.sh --minify` 也会转入此流程。这里的“部署”负责生成、检查发布产物；上传、域名切换和生产发布仍由所选托管平台执行，本地运行不会触发线上发布。 平台配置见 [Serverless 部署](serverless.md)。
 
 ```text
-手动构建 / Git 部署 / 每日 Deploy Hook
+手动构建 / Git 部署（含每日空提交）
                   ↓
        环境检查 → Hugo 工具准备
                   ↓
@@ -30,7 +30,7 @@
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
 | `scripts/hugo.sh` | Hugo 版本解析、官方校验和、工具缓存、底层执行和旧入口兼容 |
 | `scripts/vercel-install.mjs` | Vercel 安装依赖时保留图片构建缓存，再执行 `npm ci` |
-| `api/daily-deploy.js` | 经过鉴权的每日构建触发器，不在函数内执行耗时预处理 |
+| `.github/workflows/daily-deploy.yml` | 每天向默认分支推送空提交，由 托管平台的 Git 集成触发构建 |
 
 步骤默认顺序执行，依赖关系直接体现在注册顺序中；友链检测内部最多 3 个请求并发，图片处理内部最多 2 张图片并发，避免所有预处理同时争用资源。
 
@@ -82,7 +82,7 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 图片预处理逐张计算原图内容与处理配置的指纹。命中完整清单与缩略图时直接恢复到 `data/xeu/images.json` 和 `static/xeu-images/`，不重新压缩或计算 BlurHash；原图重命名也可按内容复用。新增图片、内容变更、处理配置变化或缓存不完整时补算，损坏的 JSON 清单按未命中处理。保存缓存时移除不再被当前图片引用的旧缩略图，避免长期累积。
 
-构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。第一次部署用于填充缓存，后续缓存可用且图片未变时应显示 `0 张新生成`。缓存被清除、过期或手动选择不使用缓存时会重新生成；[Deploy Hook 默认也使用构建缓存](https://vercel.com/docs/deploy-hooks#build-cache)，Hook 地址不要设置 `buildCache=false`。本地普通 `npm ci` 可能清除缓存副本，但已有发布产物仍可复用并重新填充缓存。
+构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。第一次部署用于填充缓存，后续缓存可用且图片未变时应显示 `0 张新生成`。缓存被清除、过期或手动选择不使用缓存时会重新生成。本地普通 `npm ci` 可能清除缓存副本，但已有发布产物仍可复用并重新填充缓存。
 
 `node scripts/check-images.mjs` 验证冷/热缓存、只携带构建缓存的新工作区、实际 `npm ci` 后恢复、安装失败、图片改名/更新、缺失文件、无效清单和旧缓存清理。
 
@@ -114,23 +114,18 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 仅显式 `--offline` 允许复用本机已生成的完整产物；首次离线运行或产物缺失时给出错误，请先联网执行 `npm run identity`。构建验证可复用已验证的图标；全新检出仓库运行构建验证时会先下载一次。`check:deploy` 的图标测试使用内存生成的测试图片和本地占位图样本，不请求真实 GitHub 头像。
 
-## 每日刷新（Vercel）
+## 每日刷新（GitHub Actions）
 
-静态站点只有重新部署后才会展示新状态，因此每日任务触发的是同一套构建流程，而不是尝试在函数运行时修改静态文件。
+`.github/workflows/daily-deploy.yml` 使用 `17 3 * * *`，每天 UTC 03:17（北京时间 11:17）向仓库默认分支推送一条 `chore: daily deployment refresh` 空提交。托管平台的 Git 集成收到推送后执行同一套 `npm run deploy`，更新头像和友链状态；工作流不修改文件，也不在 Actions 中构建站点。参见 [Vercel Git 自动部署](https://vercel.com/docs/git/vercel-for-github#a-deployment-for-each-push)。
 
-`vercel.json` 已配置 `17 3 * * *`：每天 UTC 03:17（北京时间 11:17）调用 `/api/daily-deploy`。调度只针对生产部署；实际触发时间受平台计划和调度精度影响，例如 Hobby 不保证准确到分钟。参见 [Vercel Cron 文档](https://vercel.com/docs/cron-jobs) 和 [使用限制](https://vercel.com/docs/cron-jobs/usage-and-pricing)。
+定时任务需工作流位于默认分支且 GitHub Actions 已启用；也可在 Actions 中选择「每日刷新部署」手动运行。手动执行同样只允许默认分支。调度可能延迟，公开仓库长期无活动时可能被停用，规则见 [GitHub schedule 文档](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
 
-启用前需要在 Vercel 控制台完成一次配置：
+推送使用 GitHub 自动提供的 `GITHUB_TOKEN`，工作流声明 `contents: write`，无需新增 Secret。默认分支的规则需允许机器人提交；托管平台的生产分支 应与默认分支一致，并启用 Git 自动部署。如果配置了按文件差异跳过构建的 Ignored Build Step，需要允许这类空提交触发构建。
 
-1. 在项目 **Settings → Git → Deploy Hooks** 创建指向生产分支的 Hook。
-2. 在生产环境变量中设置 `VERCEL_DEPLOY_HOOK_URL` 为该完整地址。它包含部署权限密钥，不要提交、分享或打印。
-3. 添加生产环境变量 `CRON_SECRET`，使用至少 32 字符的随机密钥。Vercel 调用定时任务时会自动添加对应的 Authorization 请求头。
-4. 部署这些代码和环境变量，在 **Cron Jobs** 中确认任务存在。可手动触发一次，查看函数返回 `202`，再查看新构建的七步日志、最新头像及友链状态。
+工作流串行执行每日刷新；与普通提交发生推送竞争时，拉取最新分支、保留空提交进行 rebase，最多推送 5 次，不强制推送。`GITHUB_TOKEN` 的推送不会递归触发仓库的 `push` 工作流，部署由 托管平台的 Git 集成负责，参见 [GitHub 工作流触发规则](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)。Actions 成功表示空提交已推送，最终发布结果以托管平台 为准。
 
-接口检查请求方法、密钥、生产环境和 Hook 主机；缺少配置会返回 503，错误密钥返回 401，Hook 调用失败返回 502。Hook 被接受只代表任务已排队，最终是否发布成功仍需查看 Vercel 构建记录。接口不会把 Hook 地址或上游错误中的密钥写入日志。参见 [Cron 鉴权](https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs) 和 [Deploy Hooks](https://vercel.com/docs/deploy-hooks)。
-
-仓库中的配置不会自动创建远端 Hook 或环境变量；完成上述设置并发布之前，每日自动更新尚未启用。若更换托管平台，可由其定时任务每日调用相同部署入口，不需要另写一套预处理流程。
+旧 `/api/daily-deploy`、Vercel Cron 配置及 `.env.example` 中的 `CRON_SECRET`、`VERCEL_DEPLOY_HOOK_URL` 已移除。部署新配置后，若这些环境变量和 Deploy Hook 没有其他用途，可从控制台删除；仓库修改不会代为删除远端配置。
 
 ## 评论审批发布
 
-同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 只验证签名、写入独立评论文件并提交推送，由 Vercel Git 集成自动构建部署；不安装 npm 依赖、不在评论 CI 中构建，也不调用 Deploy Hook。Vercel 与 GitHub 只需配置同一个 `COMMENTS_SECRET`，程序自动派生 PoW、审批、发布和邮箱加密密钥，GitHub 无需部署凭据；上面的每日刷新 Hook 保持独立。它不依赖数据库、Twikoo 或 Vercel 限流规则；当前不限制请求频率，PoW 不能保证调用量/费用上限。主密钥、外部服务及手动验收步骤见 [评论系统配置](comments.md)。
+同项目的评论和友链共用 `/api/submissions` Serverless Function，通过 JSON 的 `type` 与 `action` 区分内容和操作，静态博客仍输出至 `public/`。各平台通过随函数打包的文件或静态资源绑定读取 `comment-pages.json` 以验证评论文章，友链请求不读取文章白名单；提交前需要完成绑定内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/`、`/friend-review/` 不被索引。`publish-comment.yml` 只验证签名、写入独立评论文件并提交推送，由 托管平台的 Git 集成自动构建部署；不安装 npm 依赖、不在评论 CI 中构建，也不调用 Deploy Hook。函数平台与 GitHub 只需配置同一个 `COMMENTS_SECRET`，程序自动派生 PoW、审批、发布和邮箱加密密钥，GitHub 无需部署凭据；每日空提交工作流也无需部署凭据。它不依赖数据库、Twikoo 或 Vercel 限流规则；当前不限制请求频率，PoW 不能保证调用量/费用上限。主密钥、外部服务及手动验收步骤见 [评论系统配置](comments.md)。

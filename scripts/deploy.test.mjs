@@ -11,7 +11,6 @@ import { command } from './deploy/process.mjs';
 import { probeFriend, updateFriendHealth } from './deploy/friends.mjs';
 import { deploymentSteps } from './deploy/steps.mjs';
 import { parseOptions } from './deploy.mjs';
-import { triggerDailyDeploy } from '../api/daily-deploy.js';
 
 function output() {
   let text = '';
@@ -182,36 +181,46 @@ test('deploy CLI and registered steps have a single entry and an explicit offlin
   assert.equal(config.buildCommand, 'npm run deploy');
   assert.equal(config.installCommand, 'node scripts/vercel-install.mjs');
   assert.equal(pkg.scripts.build, pkg.scripts.deploy);
-  assert.deepEqual(config.crons, [{ path: '/api/daily-deploy', schedule: '17 3 * * *' }]);
+  assert.equal(config.crons, undefined);
+  assert.equal(config.functions['api/daily-deploy.js'], undefined);
   const ci = await readFile(new URL('../.github/workflows/build.yml', import.meta.url), 'utf8');
   assert.doesNotMatch(ci, /npm run (deploy|check:friends|check:deploy)|schedule:/, 'CI 不执行友链检测或每日更新');
 });
 
-test('daily deployment requires authorization and production, and never exposes hook secrets', async () => {
-  const env = { CRON_SECRET: 'test-secret-only-for-fixtures', VERCEL_ENV: 'production', VERCEL_DEPLOY_HOOK_URL: 'https://api.vercel.com/v1/integrations/deploy/prj_test/hook_secret' };
-  const req = (method = 'GET', token = env.CRON_SECRET) => new Request('https://example.org/api/daily-deploy', { method, headers: { authorization: `Bearer ${token}` } });
-  let calls = 0;
-  const fetchImpl = async (url, options) => {
-    calls++;
-    assert.equal(url, env.VERCEL_DEPLOY_HOOK_URL);
-    assert.equal(options.method, 'POST');
-    assert.equal(options.redirect, 'error');
-    return Response.json({ job: { state: 'PENDING' } });
+test('daily workflow pushes an empty commit and preserves a concurrent update when retrying', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/daily-deploy.yml', import.meta.url), 'utf8');
+  const script = workflow.match(/        run: \|\n([\s\S]+)$/)[1].replace(/^ {10}/gm, '');
+  const temp = await mkdtemp(path.join(tmpdir(), 'xeu-daily-deploy-'));
+  const remote = path.join(temp, 'origin.git');
+  const root = path.join(temp, 'daily');
+  const other = path.join(temp, 'concurrent');
+  const git = (args, cwd = temp) => command('git', args, { cwd, capture: true });
+  await git(['init', '--bare', '--initial-branch=production', remote]);
+  await git(['clone', remote, root]);
+  const configure = async cwd => {
+    await git(['config', 'user.name', 'Test'], cwd);
+    await git(['config', 'user.email', 'test@example.org'], cwd);
   };
-  assert.equal((await triggerDailyDeploy(req('POST'), { env, fetchImpl })).status, 405);
-  assert.equal((await triggerDailyDeploy(req('GET', 'invalid'), { env, fetchImpl })).status, 401);
-  assert.equal((await triggerDailyDeploy(req(), { env: {}, fetchImpl })).status, 503);
-  assert.equal((await triggerDailyDeploy(req(), { env: { ...env, VERCEL_ENV: 'preview' }, fetchImpl })).status, 409);
-  assert.equal((await triggerDailyDeploy(req(), { env: { ...env, VERCEL_DEPLOY_HOOK_URL: 'https://attacker.example/hook' }, fetchImpl })).status, 503);
-  assert.equal(calls, 0);
-  const accepted = await triggerDailyDeploy(req(), { env, fetchImpl });
-  assert.equal(accepted.status, 202);
-  assert.deepEqual(await accepted.json(), { queued: true });
-  assert.equal(calls, 1);
-  const failed = await triggerDailyDeploy(req(), { env, fetchImpl: async () => { throw new Error(env.VERCEL_DEPLOY_HOOK_URL); } });
-  assert.equal(failed.status, 502);
-  assert.doesNotMatch(await failed.text(), /hook_secret/);
-  assert.equal((await triggerDailyDeploy(req(), { env, fetchImpl: async () => new Response('', { status: 500 }) })).status, 502);
+  await configure(root);
+  await writeFile(path.join(root, 'README.md'), 'original\n');
+  await git(['add', 'README.md'], root);
+  await git(['commit', '-m', 'seed'], root);
+  await git(['push', 'origin', 'production'], root);
+  await git(['clone', remote, other]);
+  await configure(other);
+  await writeFile(path.join(other, 'README.md'), 'concurrent update\n');
+  await git(['commit', '-am', 'concurrent update'], other);
+  await git(['push', 'origin', 'production'], other);
+  const parent = await git(['rev-parse', 'HEAD'], other);
+  const tree = await git(['rev-parse', 'HEAD^{tree}'], other);
+
+  // Execute the actual workflow script from a stale checkout so its first push fails.
+  await command('bash', ['-c', script], { cwd: root, env: { ...process.env, DEPLOY_BRANCH: 'production' } });
+  assert.equal(await git(['--git-dir', remote, 'rev-parse', 'production^']), parent);
+  assert.equal(await git(['--git-dir', remote, 'rev-parse', 'production^{tree}']), tree, '刷新提交不能修改任何文件');
+  assert.equal(await git(['--git-dir', remote, 'rev-list', '--count', 'production']), '3');
+  assert.equal(await git(['--git-dir', remote, 'log', '-1', '--format=%s', 'production']), 'chore: daily deployment refresh');
+  assert.equal(await git(['status', '--porcelain'], root), '');
 });
 
 test('real Hugo rendering clears recovered status, preserves new failures and supports subpaths', { skip: !process.env.HUGO_BIN }, async () => {

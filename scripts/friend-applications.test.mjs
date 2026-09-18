@@ -5,10 +5,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { challengeFriend } from '../api/friends-challenge.js';
-import { submitFriend } from '../api/friends-submit.js';
-import { approveFriend } from '../api/friends-approve.js';
-import { APPROVAL_TTL, commentSecret, sign, verify } from '../server/comments/core.js';
+import { handleSubmission } from '../api/submissions.js';
+import { APPROVAL_TTL, approvalClaim, commentSecret, sign, validateComment, verify } from '../server/comments/core.js';
 import { issueProof, POW_TTL, verifyProof } from '../server/comments/pow.js';
 import { APPROVAL_PURPOSE, friendClaim, POW_PURPOSE, PUBLISH_PURPOSE, validateFriend } from '../server/friends/core.js';
 import { publishFriend, readFriendEnvelope } from './publish-friend.mjs';
@@ -22,7 +20,8 @@ const env = {
 };
 const site = new URL(env.COMMENTS_SITE_URL);
 const input = { id: randomUUID(), title: '<script>站点</script>', website: 'https://friend.example.org/', description: '<img src=x onerror=alert(1)> $(echo unsafe)', icon: '', createdAt: new Date(now).toISOString(), contact: '', consent: true };
-const request = (body, headers = {}, method = 'POST') => new Request(new URL('api/friends-submit', site), { method, headers: { origin: site.origin, 'content-type': 'application/json', ...headers }, ...(method === 'POST' ? { body: JSON.stringify(body) } : {}) });
+const request = (body, headers = {}, method = 'POST') => new Request(new URL('api/submissions', site), { method, headers: { origin: site.origin, 'content-type': 'application/json', ...headers }, ...(method === 'POST' ? { body: JSON.stringify({ type: 'friend', action: 'submit', ...body }) } : {}) });
+const challengeRequest = (body, ...args) => request({ ...body, action: 'challenge' }, ...args);
 const noFetch = async () => assert.fail('unexpected external request');
 const deps = extra => ({ env, now, fetchImpl: noFetch, ...extra });
 const approval = (changes = {}) => sign({ ...friendClaim(input, site, now), ...changes }, env.COMMENTS_APPROVAL_SECRET, APPROVAL_PURPOSE);
@@ -32,23 +31,46 @@ function solve(task) {
 }
 const proof = solve(issueProof(validateFriend(input), site, env, now, POW_PURPOSE));
 
+test('switching submission type cannot reuse proofs, approvals or comment-only notifications', async () => {
+  const comment = { id: input.id, path: '/p/example/', name: '读者', message: '留言', createdAt: input.createdAt, website: '', consent: true };
+  const page = { path: comment.path, title: '文章', directory: 'post/example', commentIds: [] };
+  const commentToken = sign(approvalClaim(comment, page, site, now), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
+  let calls = 0;
+  const options = deps({ pages: async () => [page], fetchImpl: async () => { calls++; throw new Error('unexpected external request'); } });
+  for (const action of ['preview', 'approve']) {
+    assert.equal((await handleSubmission(request({ type: 'comment', action, token: approval() }), options)).status, 400);
+    assert.equal((await handleSubmission(request({ action, token: commentToken }), options)).status, 400);
+  }
+  assert.equal((await handleSubmission(request({ action: 'notify', token: approval() }), options)).status, 400);
+  const wrongPurpose = solve(issueProof(validateComment(comment), site, env, now, POW_PURPOSE));
+  assert.equal((await handleSubmission(request({ ...comment, type: 'comment', proof: wrongPurpose }), options)).status, 403);
+  assert.equal((await handleSubmission(request({ ...comment, type: 'comment', proof }), options)).status, 403);
+  const commentProof = solve(issueProof(validateComment(comment), site, env, now));
+  assert.equal((await handleSubmission(request({ ...input, proof: commentProof }), options)).status, 403);
+  for (const [type, token] of [['comment', commentToken], ['friend', approval()]]) {
+    const response = await handleSubmission(request({ type, action: 'approve', token }), { ...options, env: { ...env, COMMENTS_GITHUB_BRANCH: '-invalid' } });
+    assert.equal(response.status, 503);
+  }
+  assert.equal(calls, 0);
+});
+
 test('friend applications work from challenge through publish signature with only the master secret', async () => {
   const masterEnv = { ...env, COMMENTS_SECRET: 'friend-master-secret-test'.repeat(3) };
   for (const name of ['COMMENTS_APPROVAL_SECRET', 'COMMENTS_POW_SECRET', 'COMMENTS_WORKFLOW_SECRET']) delete masterEnv[name];
   const options = deps({ env: masterEnv });
-  const challenge = await challengeFriend(request(input), options);
+  const challenge = await handleSubmission(challengeRequest(input), options);
   assert.equal(challenge.status, 200);
   const masterProof = solve(await challenge.json());
   let token;
-  const submitted = await submitFriend(request({ ...input, proof: masterProof }), { ...options, fetchImpl: async (url, init) => {
+  const submitted = await handleSubmission(request({ ...input, proof: masterProof }), { ...options, fetchImpl: async (url, init) => {
     assert.equal(url, 'https://api.resend.com/emails');
     const email = JSON.parse(init.body);
     token = new URLSearchParams(email.text.match(/https:\/\/[^\s]+friend-review\/[^\s]+/)[0].split('#')[1]).get('token');
     return Response.json({ id: 'mail-id' });
   } });
   assert.equal(submitted.status, 202);
-  assert.equal((await approveFriend(request({ action: 'preview', token }), options)).status, 200);
-  const approved = await approveFriend(request({ action: 'approve', token }), { ...options, fetchImpl: async (url, init) => {
+  assert.equal((await handleSubmission(request({ action: 'preview', token }), options)).status, 200);
+  const approved = await handleSubmission(request({ action: 'approve', token }), { ...options, fetchImpl: async (url, init) => {
     assert.match(url, /publish-friend.yml\/dispatches$/);
     const published = readFriendEnvelope({ envelope: JSON.parse(init.body).inputs.envelope, secret: commentSecret({ COMMENTS_SECRET: masterEnv.COMMENTS_SECRET }, 'workflow'), repository: 'owner/blog', now });
     assert.deepEqual(published, validateFriend(input));
@@ -64,26 +86,26 @@ test('validation rejects invalid URLs, times, lengths, consent and honeypot', as
     { createdAt: new Date(now - 86400001).toISOString() }, { createdAt: new Date(now + 300001).toISOString() },
     { consent: false }, { contact: 'bot' },
     ...['javascript:alert(1)', 'data:text/plain,test', 'file:///tmp/a', 'https://user:pass@example.org/', 'https://example.org:8443/', 'https://127.0.0.1/', 'http://2130706433', 'http://[::1]/', 'http://service.local/', 'http://localhost/'].flatMap(url => [{ website: url }, { icon: url }]),
-  ]) assert.equal((await challengeFriend(request({ ...input, ...changes }), deps())).status, 400, JSON.stringify(changes));
+  ]) assert.equal((await handleSubmission(challengeRequest({ ...input, ...changes }), deps())).status, 400, JSON.stringify(changes));
   assert.equal(validateFriend({ ...input, website: 'https://朋友.com/#fragment' }).website, 'https://xn--iorv16b.com/');
-  assert.equal((await challengeFriend(request({ ...input, description: 'x'.repeat(27000) }), deps())).status, 413);
+  assert.equal((await handleSubmission(challengeRequest({ ...input, description: 'x'.repeat(27000) }), deps())).status, 413);
 });
 
-test('all endpoints enforce origin, POST, JSON, environment and configuration', async () => {
-  for (const endpoint of [challengeFriend, submitFriend, approveFriend]) {
-    assert.equal((await endpoint(request({}, {}, 'GET'), deps())).status, 405);
-    assert.equal((await endpoint(request({}, { origin: 'https://evil.example' }), deps())).status, 403);
-    assert.equal((await endpoint(request({}, { 'sec-fetch-site': 'cross-site' }), deps())).status, 403);
-    assert.equal((await endpoint(request({}, { 'content-type': 'text/plain' }), deps())).status, 415);
-    assert.equal((await endpoint(request({}, {}, 'POST'), deps({ env: { ...env, VERCEL_ENV: 'preview' } }))).status, 503);
+test('all actions enforce origin, POST, JSON, environment and configuration', async () => {
+  for (const action of ['challenge', 'submit', 'preview', 'approve']) {
+    assert.equal((await handleSubmission(request({ action }, {}, 'GET'), deps())).status, 405);
+    assert.equal((await handleSubmission(request({ action }, { origin: 'https://evil.example' }), deps())).status, 403);
+    assert.equal((await handleSubmission(request({ action }, { 'sec-fetch-site': 'cross-site' }), deps())).status, 403);
+    assert.equal((await handleSubmission(request({ action }, { 'content-type': 'text/plain' }), deps())).status, 415);
+    assert.equal((await handleSubmission(request({ action }), deps({ env: { ...env, VERCEL_ENV: 'preview' } }))).status, 503);
   }
   for (const changes of [{ COMMENTS_POW_SECRET: '' }, { COMMENTS_POW_DIFFICULTY: '7' }, { COMMENTS_SITE_URL: '' }]) {
-    assert.equal((await challengeFriend(request(input), deps({ env: { ...env, ...changes } }))).status, 503);
+    assert.equal((await handleSubmission(challengeRequest(input), deps({ env: { ...env, ...changes } }))).status, 503);
   }
 });
 
 test('proof is bound to every application field and isolated from comment proofs', async () => {
-  const response = await challengeFriend(request(input), deps());
+  const response = await handleSubmission(challengeRequest(input), deps());
   assert.equal(response.status, 200);
   const task = await response.json();
   assert.equal(task.expiresAt, now + POW_TTL);
@@ -92,12 +114,12 @@ test('proof is bound to every application field and isolated from comment proofs
   verifyProof(proof, validateFriend(input), site, env, now, POW_PURPOSE);
   assert.throws(() => verifyProof(proof, validateFriend(input), site, env, now), /无效/);
   const commentPurposeProof = solve(issueProof(validateFriend(input), site, env, now));
-  assert.equal((await submitFriend(request({ ...input, proof: commentPurposeProof }), deps())).status, 403);
+  assert.equal((await handleSubmission(request({ ...input, proof: commentPurposeProof }), deps())).status, 403);
   for (const changes of [{ title: 'changed' }, { website: 'https://other.example.org' }, { description: 'changed' }, { icon: 'https://example.org/image.png' }, { id: randomUUID() }, { createdAt: new Date(now + 1000).toISOString() }]) {
-    assert.equal((await submitFriend(request({ ...input, ...changes, proof }), deps())).status, 403);
+    assert.equal((await handleSubmission(request({ ...input, ...changes, proof }), deps())).status, 403);
   }
-  assert.equal((await submitFriend(request(input), deps())).status, 403);
-  assert.equal((await submitFriend(request({ ...input, proof }), deps({ now: now + POW_TTL }))).status, 410);
+  assert.equal((await handleSubmission(request(input), deps())).status, 403);
+  assert.equal((await handleSubmission(request({ ...input, proof }), deps({ now: now + POW_TTL }))).status, 410);
 });
 
 test('mail is escaped, idempotent, fixed-recipient and never discloses approval to applicant', async () => {
@@ -109,7 +131,7 @@ test('mail is escaped, idempotent, fixed-recipient and never discloses approval 
     return Response.json({ id: 'mail-id' });
   };
   for (let i = 0; i < 2; i++) {
-    const response = await submitFriend(request({ ...input, proof, to: 'attacker@example.org' }), deps({ fetchImpl }));
+    const response = await handleSubmission(request({ ...input, proof, to: 'attacker@example.org' }), deps({ fetchImpl }));
     assert.equal(response.status, 202);
     assert.doesNotMatch(await response.text(), /token|secret|friend-review|owner@example/);
   }
@@ -120,18 +142,18 @@ test('mail is escaped, idempotent, fixed-recipient and never discloses approval 
   assert.equal(url.search, '');
   assert.equal(verify(new URLSearchParams(url.hash.slice(1)).get('token'), env.COMMENTS_APPROVAL_SECRET, APPROVAL_PURPOSE).friend.title, input.title);
   for (const fetchImpl of [async () => new Response('secret', { status: 500 }), async () => { throw new Error(env.RESEND_API_KEY); }, async () => Response.json({})]) {
-    const response = await submitFriend(request({ ...input, proof }), deps({ fetchImpl }));
+    const response = await handleSubmission(request({ ...input, proof }), deps({ fetchImpl }));
     assert.ok(response.status >= 500);
     assert.doesNotMatch(await response.text(), /resend-test-secret/);
   }
 });
 
 test('preview never publishes, approval uses separate signed workflow; invalid tokens fail closed', async () => {
-  const preview = await approveFriend(request({ action: 'preview', token: approval() }), deps());
+  const preview = await handleSubmission(request({ action: 'preview', token: approval() }), deps());
   assert.equal(preview.status, 200);
   assert.deepEqual((await preview.json()).friend, validateFriend(input));
   let dispatched;
-  const response = await approveFriend(request({ action: 'approve', token: approval(), repository: 'attacker/repo' }), deps({ fetchImpl: async (url, init) => {
+  const response = await handleSubmission(request({ action: 'approve', token: approval(), repository: 'attacker/repo' }), deps({ fetchImpl: async (url, init) => {
     assert.equal(url, 'https://api.github.com/repos/owner/blog/actions/workflows/publish-friend.yml/dispatches');
     dispatched = JSON.parse(init.body);
     return new Response(null, { status: 204 });
@@ -141,10 +163,10 @@ test('preview never publishes, approval uses separate signed workflow; invalid t
   assert.deepEqual(readFriendEnvelope({ envelope: dispatched.inputs.envelope, secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now }), validateFriend(input));
   assert.doesNotMatch(await response.text(), /envelope|secret|token/);
   for (const token of ['broken', approval().replace(/^./, 'X'), envelope(), sign(friendClaim(input, site, now), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1'), approval({ site: 'https://elsewhere.org/' })]) {
-    assert.equal((await approveFriend(request({ action: 'approve', token }), deps())).status, 400);
+    assert.equal((await handleSubmission(request({ action: 'approve', token }), deps())).status, 400);
   }
-  assert.equal((await approveFriend(request({ action: 'approve', token: approval() }), deps({ now: now + APPROVAL_TTL }))).status, 410);
-  assert.equal((await approveFriend(request({ action: 'approve', token: approval() }), deps({ fetchImpl: async () => new Response(null, { status: 500 }) }))).status, 502);
+  assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ now: now + APPROVAL_TTL }))).status, 410);
+  assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ fetchImpl: async () => new Response(null, { status: 500 }) }))).status, 502);
   for (const changes of [{ repository: 'other/repo' }, { expiresAt: now }, { approvedAt: new Date(now + 600000).toISOString() }]) {
     assert.throws(() => readFriendEnvelope({ envelope: envelope(undefined, changes), secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now }));
   }

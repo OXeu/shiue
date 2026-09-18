@@ -1,9 +1,7 @@
 ---
-aliases:
-- /p/碎碎念/
 categories:
 - AI
-- 随笔
+- essays
 date: 2026-09-17T13:23:22.564Z
 description: 代码不用自己写了，怎么人反而更累了？从给 Agent 当老板、改 UI 和语音输入，聊到重新捡起 RSS，以及被“果蝇大脑”项目整无语的经历。
 draft: false

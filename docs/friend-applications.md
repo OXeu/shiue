@@ -1,12 +1,14 @@
 # 友情链接申请
 
-友链页提供站点名称、HTTP(S) 网址、一句话简介和可选图标地址。申请采用与[留言](comments.md)相同的机制：浏览器完成 PoW → Resend 审核邮件 → 博主预览并确认 → GitHub Action 导入友链及本地图标 → Vercel Git 自动部署。不需要数据库；待审内容仅在审核邮件中，提交成功不代表已批准或邮件已投递到收件箱。
+友链页提供站点名称、HTTP(S) 网址、一句话简介和可选图标地址。申请采用与[留言](comments.md)相同的机制：浏览器完成 PoW → Resend 审核邮件 → 博主预览并确认 → GitHub Action 导入友链及本地图标 → 托管平台 Git 自动部署。不需要数据库；待审内容仅在审核邮件中，提交成功不代表已批准或邮件已投递到收件箱。
+
+接口统一为 `POST /api/submissions`，请求 JSON 使用 `type: "friend"`；`action: "challenge"` 获取 PoW，`submit` 携带表单字段及 `proof` 送审，`preview`、`approve` 携带审批 `token` 预览或发布。友链不支持评论专用的 `notify` 操作。已有邮件仍通过 `/friend-review/` 页面使用原令牌审核。
 
 ## 配置与上线
 
-共用 `.env.example` 中现有的 `COMMENTS_*`、`RESEND_API_KEY` 配置。随机密钥只需一个 `COMMENTS_SECRET`，在 Vercel 与 GitHub 设置相同值；程序自动派生各用途密钥，友链无需新增密钥。旧的分用途密钥仍兼容。友链的 PoW、邮件审批和工作流签名使用独立用途标识，与评论令牌不能互换。收件人、仓库和分支只由服务端指定。
+共用 `.env.example` 中现有的 `COMMENTS_*`、`RESEND_API_KEY` 配置。随机密钥只需一个 `COMMENTS_SECRET`，在 函数平台与 GitHub 设置相同值；程序自动派生各用途密钥，友链无需新增密钥。旧的分用途密钥仍兼容。友链的 PoW、邮件审批和工作流签名使用独立用途标识，与评论令牌不能互换。收件人、仓库和分支只由服务端指定。
 
-先将 `.github/workflows/publish-friend.yml` 发布到默认分支，再部署 Vercel Functions 和页面。现有 GitHub Token 需要能 dispatch 该工作流（Actions: write）；工作流自身通过 `GITHUB_TOKEN` 的 contents: write 提交。Vercel 生产分支须与默认分支一致，自动构建不能忽略 `data/friends.json` 或 `static/friends/`。工作流安装项目依赖以复用现有的图标下载、校验和转换工具，不调用部署 Hook。
+先将 `.github/workflows/publish-friend.yml` 发布到默认分支，再部署 Serverless Functions 和页面。现有 GitHub Token 需要能 dispatch 该工作流（Actions: write）；工作流自身通过 `GITHUB_TOKEN` 的 contents: write 提交。托管平台的生产分支须与默认分支一致，自动构建不能忽略 `data/friends.json` 或 `static/friends/`。工作流安装项目依赖以复用现有的图标下载、校验和转换工具，不调用部署 Hook。
 
 `config/_default/params.toml` 的 `[friends] applications = true` 控制表单显示；关闭它只隐藏入口，不关闭接口。Preview 环境拒绝发信和审批；本地 Hugo 不运行 API。
 
@@ -26,4 +28,4 @@
 
 `npm run check:friend-applications` 覆盖校验、PoW 隔离、签名篡改和过期、邮件幂等、确认后发布、重复与并发审批。使用临时 Git 仓库与模拟外部 API，不发送真实邮件、不触发线上发布。`node scripts/check-friend-applications.mjs` 使用与留言浏览器测试相同的 `PLAYWRIGHT_MODULE`、`SHIUE_TEST_URL` 环境变量。
 
-上线后提交一次真实申请，核对审核邮件、预览确认、Action 成功、本地图标与名单提交以及 Vercel 部署后的页面。502 可保留内容重试；503 检查现有留言配置和是否处于 Preview 环境；410 需重新申请。若任务已成功推送但页面未更新，检查 Vercel Git 部署记录。
+上线后提交一次真实申请，核对审核邮件、预览确认、Action 成功、本地图标与名单提交以及 托管平台部署后的页面。502 可保留内容重试；503 检查现有留言配置和是否处于 Preview 环境；410 需重新申请。若任务已成功推送但页面未更新，检查 托管平台的 Git 部署记录。

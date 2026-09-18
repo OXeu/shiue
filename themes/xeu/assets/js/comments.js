@@ -33,8 +33,8 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
       if (!window.Worker || !crypto?.subtle || !crypto.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
       // 重试沿用编号和时间以便邮件去重，但每次获取新的短期验证任务。
       if (!editor.pending || editor.pending.fingerprint !== fingerprint) editor.pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
-      const input = { ...values, id: editor.pending.id, createdAt: editor.pending.createdAt };
-      const task = await post(form.dataset.challengeEndpoint, input, controller.signal);
+      const input = { ...values, id: editor.pending.id, createdAt: editor.pending.createdAt, type: 'comment' };
+      const task = await post(form.dataset.endpoint, { ...input, action: 'challenge' }, controller.signal);
       status.textContent = '验证完成后会自动提交，请稍候。';
       const proof = await solveProof(form.dataset.powWorker, task, {
         signal: controller.signal,
@@ -44,7 +44,7 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
       cancel.hidden = true;
       sending = true;
       editor.showState('sending', '验证已完成，正在提交你的留言…');
-      const result = await post(form.dataset.endpoint, { ...input, proof }, controller.signal);
+      const result = await post(form.dataset.endpoint, { ...input, action: 'submit', proof }, controller.signal);
       editor.clearDraft();
       editor.showState('success', result.message || '评论已送交审核，通过后会显示在这里。');
     } catch (error) {
@@ -69,7 +69,7 @@ if (review) {
   const preview = async () => {
     if (!token) { status.textContent = '请使用审核邮件中的完整链接打开此页。'; return; }
     try {
-      const result = await post(review.dataset.endpoint, { action: 'preview', token });
+      const result = await post(review.dataset.endpoint, { type: 'comment', action: 'preview', token });
       review.querySelector('[data-review-name]').textContent = result.comment.name;
       review.querySelector('[data-review-message]').textContent = result.comment.message;
       const time = review.querySelector('[data-review-time]');
@@ -95,7 +95,7 @@ if (review) {
     button.disabled = true;
     status.textContent = notificationToken ? '正在重试发送通知…' : '正在提交发布任务…';
     try {
-      const result = await post(review.dataset.endpoint, { action: notificationToken ? 'notify' : 'approve', token, ...(notificationToken ? { notificationToken } : {}) });
+      const result = await post(review.dataset.endpoint, { type: 'comment', action: notificationToken ? 'notify' : 'approve', token, ...(notificationToken ? { notificationToken } : {}) });
       status.textContent = result.message;
       notificationToken = result.notificationToken;
       button.hidden = !notificationToken;

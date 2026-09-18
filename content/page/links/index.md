@@ -1,7 +1,6 @@
 ---
 title: 友链
-aliases:
-  - /links/
+slug: links
 layout: friends
 menu:
     main:

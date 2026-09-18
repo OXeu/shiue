@@ -5,13 +5,7 @@
   "buildCommand": "npm run deploy",
   "outputDirectory": "public",
   "functions": {
-    "api/daily-deploy.js": { "maxDuration": 30 },
-    "api/comments-challenge.js": { "maxDuration": 15, "includeFiles": "public/comment-pages.json" },
-    "api/comments-submit.js": { "maxDuration": 30, "includeFiles": "public/comment-pages.json" },
-    "api/comments-approve.js": { "maxDuration": 30, "includeFiles": "public/comment-pages.json" },
-    "api/friends-challenge.js": { "maxDuration": 15 },
-    "api/friends-submit.js": { "maxDuration": 30 },
-    "api/friends-approve.js": { "maxDuration": 30 }
+    "api/submissions.js": { "maxDuration": 30, "includeFiles": "public/comment-pages.json" }
   },
   "headers": [
     {
@@ -23,8 +17,5 @@
         { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" }
       ]
     }
-  ],
-  "crons": [
-    { "path": "/api/daily-deploy", "schedule": "17 3 * * *" }
   ]
 }

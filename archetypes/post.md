@@ -5,7 +5,7 @@ description: "{{ replace .Name "-" " " | title }}"
 slug: {{ .Name }}
 image: cover.png
 categories:
-- 开发
+- tech
 tags:
 - {{ replace .Name "-" "\n- " | title }}
 draft: false

@@ -1,4 +1,4 @@
-import { access, readFile, stat } from 'node:fs/promises';
+import { access, readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { command } from './process.mjs';
 import { updateFriendHealth } from './friends.mjs';
@@ -64,7 +64,12 @@ export function deploymentSteps() {
     {
       id: 'artifacts', title: '检查部署产物',
       async run(context, { log }) {
-        for (const file of ['index.html', '404.html', 'index.xml', '友链/index.html', 'comment-pages.json', 'comment-review/index.html']) {
+        for (const file of await readdir(context.destination, { recursive: true })) {
+          if (/\.(?:html|xml|json)$/i.test(file) && /\p{Script=Han}/u.test(decodeURIComponent(file))) {
+            throw new Error(`部署产物禁止中文路径（含别名页）：${file}`);
+          }
+        }
+        for (const file of ['index.html', '404.html', 'index.xml', 'links/index.html', 'comment-pages.json', 'comment-review/index.html']) {
           const info = await stat(path.join(context.destination, file));
           if (!info.isFile() || !info.size) throw new Error(`部署产物为空：${file}`);
         }

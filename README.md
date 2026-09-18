@@ -1,6 +1,6 @@
 # 🍧Shiue - Xeu's mini world
 
-基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel 静态部署。
+基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel、Netlify 和 Cloudflare Pages 的静态站点与 Serverless Functions 部署，配置见[多平台部署](docs/serverless.md)。
 
 ## 新建文章
 
@@ -10,7 +10,7 @@
 npm run post:new
 ```
 
-依次填写标题、网址名（slug）、摘要、分类、标签、封面和草稿状态。标题必填；其他项可按回车使用默认值或留空。分类与标签支持中文、英文逗号分隔。网址名用于文章目录及 `/p/<slug>/` 地址，默认从标题中的英文和数字生成，纯中文标题回退为带时间戳的名称，也可自行填写，例如 `my-new-post`。已有目录会提示重新输入。
+依次填写标题、网址名（slug）、摘要、分类、标签、封面和草稿状态。标题必填；其他项可按回车使用默认值或留空。分类与标签填写英文标识（例如 `tech`、`essays`、`blog`），支持中文、英文逗号分隔。网址名用于文章目录及 `/p/<slug>/` 地址，默认从标题中的英文和数字生成，纯中文标题回退为带时间戳的名称，也可自行填写，例如 `my-new-post`。已有目录会提示重新输入。
 
 脚本生成 `content/post/<slug>/index.md`，自动填入当前日期，默认 `draft: true`。封面可留空，或填写 `cover.jpg` 这样的文件名、`/images/example.jpg` 这样的静态资源路径或图片网址；本地封面需自行放到对应目录。正文图片也可直接放在文章目录中，通过 `![说明](image.jpg)` 引用。
 
@@ -55,7 +55,7 @@ flowchart LR
 
 ## 主题
 
-首页、标签及分类列表、搜索结果共用卡片样式。文章页包含目录、代码高亮与复制、图片放大和邮件审批后的静态评论；归档、友链、关于及 404 页面使用同一套样式。原有 `/p/:slug/`、文章别名、分页和 RSS 路径继续有效。关闭 JavaScript 后，文章、评论、导航及分页仍可阅读，列表回退为普通网格。
+首页、标签及分类列表、搜索结果共用卡片样式。文章页包含目录、代码高亮与复制、图片放大和邮件审批后的静态评论；归档、友链、关于及 404 页面使用同一套样式。文章使用 `/p/:slug/`，所有页面、分类、标签、分页和别名均禁止中文路径，旧中文地址不生成页面或跳转。分类与标签在文章中填写英文标识；中文显示名称在 `content/categories/<标识>/_index.md` 或 `content/tags/<标识>/_index.md` 的 `title` 中设置。构建时校验页面及别名路径，发现中文会报错。关闭 JavaScript 后，文章、评论、导航及分页仍可阅读，列表回退为普通网格。
 
 页面支持渐进增强的跨文档 View Transition，卡片进入视口时错峰淡入，重排采用 FLIP 位移动画。图片预览以正文图片的位置为起点展开，先显示已加载的缩略图，原图解码后淡入；关闭时缩回原位并恢复焦点。动效集中在 `assets/js/motion.js`、`image-preview.js` 和 `assets/css/motion.css`，遵循系统“减少动态效果”设置，缺少动画 API 时直接展示内容。
 
@@ -67,9 +67,9 @@ flowchart LR
 
 ## 评论
 
-留言邮箱可选填，用于接收审核通过和直接回复通知。审批 Vercel Function 成功发起 GitHub Action 后发送通知，邮件失败可单独重试；通知时发布任务尚未完成。邮箱加密保存在对应文章的留言文件中。留言与友链只需生成一个 `COMMENTS_SECRET`：运行一次 `openssl rand -hex 32`，将同一值填入 Vercel 和 GitHub，程序自动派生各用途密钥；已有的分用途密钥继续兼容。
+留言邮箱可选填，用于接收审核通过和直接回复通知。审批 Serverless Function 成功发起 GitHub Action 后发送通知，邮件失败可单独重试；通知时发布任务尚未完成。邮箱加密保存在对应文章的留言文件中。留言与友链只需生成一个 `COMMENTS_SECRET`：运行一次 `openssl rand -hex 32`，将同一值填入 函数平台和 GitHub，程序自动派生各用途密钥；已有的分用途密钥继续兼容。
 
-读者提交 → 浏览器完成 SHA-256 工作量证明 → Vercel Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `content/post/<文章目录>/comments/<UUID>.json` 并提交推送 → Vercel Git 集成自动构建部署。支持多层嵌套回复，留言按文章存储并生成静态 HTML。评论 CI 不安装依赖、不构建、不调用 Deploy Hook，GitHub 只需配置同一个 `COMMENTS_SECRET`。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论及回复对象的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验和并发安全 Git 推送。需要配置 Resend、Vercel 和上述 GitHub Secret 后才能启用真实收发；无需配置限流规则，当前 PoW 不提供请求总量或费用上限，详见 [评论系统配置](docs/comments.md)。已从旧站 Rin 公开接口恢复 105 条历史评论，去重与过滤记录见 [旧站评论恢复](docs/legacy-comments-migration.md)；更早的 Twikoo 数据不在本次迁移范围内。
+读者提交 → 浏览器完成 SHA-256 工作量证明 → Serverless Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `content/post/<文章目录>/comments/<UUID>.json` 并提交推送 → 托管平台的 Git 集成自动构建部署。支持多层嵌套回复，留言按文章存储并生成静态 HTML。评论 CI 不安装依赖、不构建、不调用 Deploy Hook，GitHub 只需配置同一个 `COMMENTS_SECRET`。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论及回复对象的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验和并发安全 Git 推送。需要配置 Resend、函数平台和上述 GitHub Secret 后才能启用真实收发；无需配置限流规则，当前 PoW 不提供请求总量或费用上限，详见 [评论系统配置](docs/comments.md)。已从旧站 Rin 公开接口恢复 105 条历史评论，去重与过滤记录见 [旧站评论恢复](docs/legacy-comments-migration.md)；更早的 Twikoo 数据不在本次迁移范围内。
 
 卡片使用 22px 圆角、内嵌封面和轻柔阴影；图片、提示块与目录使用 16px 圆角，导航、标签及按钮采用胶囊形状。鼠标悬停时卡片轻微上浮，按钮按压时回弹，折叠内容短暂淡入；独立的 `translate` 属性避免干扰瀑布流重排，系统开启“减少动态效果”时取消这些位移动画。
 
@@ -93,7 +93,7 @@ flowchart LR
 
 友链页支持直接发送申请，沿用留言的浏览器 PoW、邮件预览和手动审批机制。批准后自动导入站点信息与本地图标，经 Git 推送和部署显示；失败保留表单内容，重复批准不会重复添加网址。共用现有留言服务配置，详见[友链申请配置](docs/friend-applications.md)。
 
-友链数据统一保存在 `data/friends.json`，图标保存在 `static/friends/`，两者均提交到 Git。友链页不再依赖外站图标或远程 API，原有 `/友链/` 和 `/links/` 路径继续有效。
+友链数据统一保存在 `data/friends.json`，图标保存在 `static/friends/`，两者均提交到 Git。友链页不再依赖外站图标或远程 API，地址为 `/links/`。
 
 已于 2026-09-17 从 [xeu.life 的公开友链接口](https://xeu.life/api/friend) 迁移全部 12 条已通过的友链，保留名称、简介、网址、原图标及排列顺序，并保留本项目原有的 YiNN，共 13 条。每次部署检测站点状态，异常站点单独显示在「暂时离开」中，卡片直接显示检测状态。结果写入被 Git 忽略的 `data/xeu/friend-health.json`，覆盖初始 `health`，不改写友链名单；站点恢复后自动移回正常分组。没有检测快照时使用名单中的初始状态。`iconSource` 仅记录图标来源，不会在页面加载或构建时请求。
 
@@ -142,7 +142,7 @@ npm ci
 npm run check
 ```
 
-可通过 `HUGO_BIN` 指定 Hugo 可执行文件。验证覆盖部署流程的计时、失败、取消和日志，友链检测与每日触发器（本地测试与模拟响应，不访问真实友链、不触发真实部署），友链添加脚本、本地图标、图片生成与缓存、BlurHash 有效性、缩略图尺寸、首页、分页、归档、标签、友链、搜索索引、RSS、纯文本页头、代码块，以及所有页面的本地链接、脚本、字体和图片。测试构建产物写入系统临时目录，图片缓存写入上述 Git 忽略目录。设置 `SHIUE_TEST_BASE_URL=https://example.org/blog/` 可验证子目录部署。友链检测暂不接入 CI。
+可通过 `HUGO_BIN` 指定 Hugo 可执行文件。验证覆盖部署流程的计时、失败、取消和日志，友链检测与每日空提交工作流（本地模拟服务和临时 Git 仓库，验证并发推送重试，不触发真实部署），友链添加脚本、本地图标、图片生成与缓存、BlurHash 有效性、缩略图尺寸、首页、分页、归档、标签、友链、搜索索引、RSS、纯文本页头、代码块，以及所有页面的本地链接、脚本、字体和图片。测试构建产物写入系统临时目录，图片缓存写入上述 Git 忽略目录。设置 `SHIUE_TEST_BASE_URL=https://example.org/blog/` 可验证子目录部署。友链检测暂不接入 CI。
 
 [GitHub Actions](.github/workflows/build.yml) 在推送和拉取请求时使用最新稳定版 Hugo Extended 验证。Linux x86_64 可用同一入口检查新版本：
 
@@ -164,6 +164,10 @@ SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mj
 
 `npm run check:comments` 检查无限流配置下的流程、PoW、签名、邮件幂等、审批和临时 Git 仓库中的并发写入。`node scripts/check-comments.mjs` 使用上述 Playwright 环境变量，检查真实 Worker 计算、取消/超时/故障、浅深色、桌面手机、失败保留草稿、重复点击、审批确认和无脚本静态展示。测试模拟外部服务，不发送真实邮件或触发线上发布。
 
-## Vercel
+## Serverless 部署
 
-导入仓库后，[vercel.json](vercel.json) 先执行 `npm ci`，再执行统一的 `npm run deploy`，输出目录为 `public`。每天更新由 Vercel Cron 触发同一部署流程；需要在生产环境设置 `CRON_SECRET` 和 `VERCEL_DEPLOY_HOOK_URL` 才能启用，配置步骤见 [每日刷新](docs/deployment.md#每日刷新vercel)。未配置时不会自动触发部署。升级部署版本时更新 `.hugo-version` 并执行构建验证。部署状态以 Vercel 的构建结果为准。
+Vercel、Netlify 和 Cloudflare Pages 共用 `/api/submissions`，平台入口只负责运行环境与评论白名单读取。配置文件分别为 `vercel.json`、`netlify.toml`、`wrangler.jsonc`；三者均通过 Git 集成响应评论、友链及每日空提交。环境变量、预览隔离、构建和迁移步骤见 [Serverless 部署](docs/serverless.md)。`npm run check:functions` 验证三个平台入口。
+
+### Vercel
+
+导入仓库后，[vercel.json](vercel.json) 先执行 `npm ci`，再执行统一的 `npm run deploy`，输出目录为 `public`。[每日刷新工作流](.github/workflows/daily-deploy.yml) 在 UTC 03:17（北京时间 11:17）向默认分支推送空提交，由 Vercel Git 集成触发构建；支持手动运行，无需配置 Cron Secret 或 Deploy Hook。工作流合入默认分支后启用，配置步骤见 [每日刷新](docs/deployment.md#每日刷新github-actions)。升级部署版本时更新 `.hugo-version` 并执行构建验证。部署状态以 Vercel 的构建结果为准。

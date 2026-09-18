@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { normalizeEmail, requireSecret, UUID, validateComment, validateEmailContact } from './core.js';
 
 const key = secret => createHmac('sha256', requireSecret(secret)).update('comment-email-encryption-v1').digest();

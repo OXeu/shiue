@@ -1,4 +1,5 @@
 import { createHash, createHmac, hkdfSync, timingSafeEqual } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 
 export const APPROVAL_TTL = 7 * 24 * 60 * 60 * 1000;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

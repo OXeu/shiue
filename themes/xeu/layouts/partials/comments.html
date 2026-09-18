@@ -37,7 +37,7 @@
     </div>
     <button class="comment-editor-close" type="button" data-close-comment aria-label="关闭留言编辑器"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
   </div>
-  <form class="comment-form" data-comment-form data-path="{{ .RelPermalink }}" data-endpoint="/api/comments-submit" data-challenge-endpoint="/api/comments-challenge" data-pow-worker="{{ $powWorker.RelPermalink }}">
+  <form class="comment-form" data-comment-form data-path="{{ .RelPermalink }}" data-endpoint="/api/submissions" data-pow-worker="{{ $powWorker.RelPermalink }}">
     <fieldset disabled>
       <legend class="sr-only">留言内容</legend>
       <input type="hidden" name="parentId" value="">

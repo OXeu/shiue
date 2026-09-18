@@ -3,7 +3,9 @@
   {{- $page := . -}}
   {{- $image := "" -}}
   {{- $imageData := dict -}}
+  {{- $tags := slice -}}
+  {{- range .GetTerms "tags" }}{{ $tags = $tags | append .Title }}{{ end -}}
   {{- with .Params.image }}{{ $imageData = partial "image.html" (dict "page" $page "src" . "kind" "card") }}{{ $image = $imageData.src }}{{ end -}}
-  {{- $items = $items | append (dict "title" .Title "permalink" .RelPermalink "content" (.Plain | htmlUnescape) "description" (.Description | default (.Summary | plainify)) "tags" (.Params.tags | default slice) "date" (.Date.Format "2006-01-02") "readingTime" .ReadingTime "image" $image "imageData" $imageData) -}}
+  {{- $items = $items | append (dict "title" .Title "permalink" .RelPermalink "content" (.Plain | htmlUnescape) "description" (.Description | default (.Summary | plainify)) "tags" $tags "date" (.Date.Format "2006-01-02") "readingTime" .ReadingTime "image" $image "imageData" $imageData) -}}
 {{- end -}}
 {{- $items | jsonify -}}

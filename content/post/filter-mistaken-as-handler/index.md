@@ -12,8 +12,8 @@ slug: filter-mistaken-as-handler
 tags:
 - RICQ
 - Atri
-- 插件化
-- 异步编程
+- plugins
+- async-programming
 title: 错把过滤器当处理函数
 ---
 下午一点，外面天气正好，刚起床没多久的谢师傅灵机一动想写一个能帮自己整理内容的聊天机器人。

@@ -32,12 +32,14 @@ try {
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.origin !== base.origin) return route.abort();
-      if (url.pathname === '/api/friends-challenge') {
-        challenges++;
-        return route.fulfill({ json: issueProof(validateFriend(route.request().postDataJSON()), base, env, Date.now(), POW_PURPOSE) });
-      }
-      if (url.pathname === '/api/friends-submit') {
+      if (url.pathname === '/api/submissions') {
         const body = route.request().postDataJSON();
+        assert.equal(body.type, 'friend');
+        if (body.action === 'challenge') {
+          challenges++;
+          return route.fulfill({ json: issueProof(validateFriend(body), base, env, Date.now(), POW_PURPOSE) });
+        }
+        assert.equal(body.action, 'submit');
         verifyProof(body.proof, validateFriend(body), base, env, Date.now(), POW_PURPOSE);
         submissions.push(body);
         return submissions.length === 1 ? route.fulfill({ status: 502, json: { error: '申请暂未送达，请重试。' } }) : route.fulfill({ status: 202, json: { message: '友链申请已送交审核，通过并完成部署后会显示在友链列表中。' } });
@@ -45,7 +47,7 @@ try {
       return route.continue();
     });
     try {
-      await page.goto(new URL('友链/', base).href);
+      await page.goto(new URL('links/', base).href);
       assert.equal(challenges, 0);
       const count = await page.locator('.friend-card').count();
       const form = await fill(page);
@@ -73,11 +75,19 @@ try {
     const page = await browser.newPage();
     let submissions = 0;
     if (scenario === 'unsupported') await page.addInitScript(() => { window.Worker = undefined; });
-    await page.route('**/api/friends-challenge', route => scenario === 'challenge-unavailable' ? route.fulfill({ status: 503, json: { error: '暂时不可用' } }) : route.fulfill({ json: issueProof(validateFriend(route.request().postDataJSON()), base, env, Date.now(), POW_PURPOSE) }));
-    await page.route('**/api/friends-submit', route => { submissions++; return route.fulfill({ status: 410, json: { error: '工作量证明已过期，请重新提交。' } }); });
+    await page.route('**/api/submissions', route => {
+      const body = route.request().postDataJSON();
+      assert.equal(body.type, 'friend');
+      if (body.action === 'submit') {
+        submissions++;
+        return route.fulfill({ status: 410, json: { error: '工作量证明已过期，请重新提交。' } });
+      }
+      assert.equal(body.action, 'challenge');
+      return scenario === 'challenge-unavailable' ? route.fulfill({ status: 503, json: { error: '暂时不可用' } }) : route.fulfill({ json: issueProof(validateFriend(body), base, env, Date.now(), POW_PURPOSE) });
+    });
     if (scenario === 'cancel') await page.route('**/js/comment-pow-worker.*.js', route => route.fulfill({ contentType: 'text/javascript', body: 'self.onmessage=()=>self.postMessage({elapsed:1})' }));
     try {
-      await page.goto(new URL('友链/', base).href);
+      await page.goto(new URL('links/', base).href);
       const form = await fill(page);
       await form.locator('[type="submit"]').click();
       if (scenario === 'cancel') {
@@ -95,8 +105,9 @@ try {
 
   const page = await browser.newPage();
   const actions = [];
-  await page.route('**/api/friends-approve', route => {
+  await page.route('**/api/submissions', route => {
     const body = route.request().postDataJSON();
+    assert.equal(body.type, 'friend');
     actions.push(body.action);
     assert.equal(body.token, 'test-token');
     if (body.action === 'preview') return route.fulfill({ json: { friend: { title, description, website: 'https://friend.example.org/', icon: 'https://friend.example.org/icon.png', createdAt: '2026-09-18T12:00:00.000Z' } } });
@@ -120,7 +131,7 @@ try {
   await page.close();
 
   const noJS = await browser.newPage({ javaScriptEnabled: false });
-  await noJS.goto(new URL('友链/', base).href);
+  await noJS.goto(new URL('links/', base).href);
   assert.ok(await noJS.locator('.friend-card').count() > 0);
   assert.equal(await noJS.locator('[data-friend-form] [type="submit"]').isDisabled(), true);
   await noJS.close();
