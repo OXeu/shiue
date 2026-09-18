@@ -4,11 +4,12 @@ import { copyFile, mkdir, mkdtemp, readFile, writeFile, readdir, symlink, unlink
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { handleSubmission } from '../api/submissions.js';
+import { handleSubmission as submit } from '../api/submissions.js';
+import { fixtureToken, mockSiteverify } from './fixtures/turnstile.mjs';
+const handleSubmission = (request, options = {}) => submit(request, { ...options, fetchImpl: mockSiteverify(options.fetchImpl) });
 import { APPROVAL_TTL, approvalClaim, commentSecret, readApproval, sign, validateComment, validateStoredComment, verify } from '../server/comments/core.js';
 import { openCommentEmail, sealComment } from '../server/comments/email.js';
-import { issueProof, POW_TTL, powDifficulty, verifyProof } from '../server/comments/pow.js';
+import { turnstileChallenge, TURNSTILE_TTL, verifyTurnstile } from '../server/turnstile.js';
 import { appendApprovedComment } from './publish-comment.mjs';
 import { pushComment } from './push-comment.mjs';
 import { commentFile, parseCommentFile } from '../server/comments/storage.js';
@@ -18,11 +19,11 @@ const env = {
   COMMENTS_SITE_URL: 'https://blog.example.org/', COMMENTS_APPROVAL_SECRET: 'a'.repeat(64), COMMENTS_WORKFLOW_SECRET: 'b'.repeat(64),
   RESEND_API_KEY: 'resend-test-secret', COMMENTS_EMAIL_FROM: 'Blog <blog@example.org>', COMMENTS_EMAIL_TO: 'owner@example.org',
   COMMENTS_GITHUB_TOKEN: 'github-test-secret', COMMENTS_GITHUB_REPOSITORY: 'owner/blog', COMMENTS_GITHUB_BRANCH: 'master',
-  COMMENTS_POW_SECRET: 'c'.repeat(64), COMMENTS_POW_DIFFICULTY: '4',
+  TURNSTILE_SITE_KEY: 'test-site-key', TURNSTILE_SECRET_KEY: 'test-secret-key',
   COMMENTS_EMAIL_SECRET: 'email-encryption-test-only'.repeat(3),
 };
 const masterEnv = { ...env, COMMENTS_SECRET: 'single-master-secret-for-tests'.repeat(3) };
-for (const name of ['COMMENTS_APPROVAL_SECRET', 'COMMENTS_POW_SECRET', 'COMMENTS_WORKFLOW_SECRET', 'COMMENTS_EMAIL_SECRET']) delete masterEnv[name];
+for (const name of ['COMMENTS_APPROVAL_SECRET', 'COMMENTS_WORKFLOW_SECRET', 'COMMENTS_EMAIL_SECRET']) delete masterEnv[name];
 const input = { id: 'fe251682-6cc0-40df-bf31-6d48c12a985c', path: '/p/example/', name: '读者', message: '第一行\n<script>alert(1)</script> ${{ secrets.TOKEN }} $(echo unsafe)', createdAt: new Date(now).toISOString(), website: '', consent: true };
 const directory = 'post/source-example';
 const pages = async () => [{ path: input.path, title: '文章标题 <test>', directory, commentIds: [] }];
@@ -36,12 +37,8 @@ const challengeRequest = (body, ...args) => request({ ...body, action: 'challeng
 const claim = () => approvalClaim(input, { title: '文章标题' }, new URL(env.COMMENTS_SITE_URL), now);
 const approval = () => sign(claim(), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
 const envelope = (comment = claim().comment, options = {}) => sign({ v: 1, repository: 'owner/blog', directory, comment, approvedAt: new Date(now).toISOString(), expiresAt: now + APPROVAL_TTL, ...options }, env.COMMENTS_WORKFLOW_SECRET, 'comment-publish-v1');
-function solve(task) {
-  for (let nonce = 0; ; nonce++) {
-    if (createHash('sha256').update(task.challenge + nonce).digest('hex').startsWith('0'.repeat(task.difficulty))) return { token: task.token, nonce: String(nonce) };
-  }
-}
-input.proof = solve(issueProof(validateComment(input), new URL(env.COMMENTS_SITE_URL), env, now));
+const solve = (task, at = now) => fixtureToken(task, at);
+input.turnstileToken = solve(turnstileChallenge(validateComment(input), 'comment', env));
 
 test('unified endpoint requires an explicit type and action before reading pages or calling services', async () => {
   let calls = 0;
@@ -64,7 +61,7 @@ test('unified endpoint requires an explicit type and action before reading pages
 });
 
 test('one master secret derives isolated keys while existing configurations retain their keys', () => {
-  const purposes = ['approval', 'pow', 'workflow', 'email'];
+  const purposes = ['approval', 'workflow', 'email'];
   const derived = purposes.map(purpose => commentSecret(masterEnv, purpose));
   assert.equal(new Set(derived).size, purposes.length);
   assert.ok(!derived.includes(masterEnv.COMMENTS_SECRET));
@@ -80,7 +77,7 @@ test('one master secret derives isolated keys while existing configurations reta
   assert.equal(readApproval(approval(), commentSecret(mixed, 'approval'), new URL(env.COMMENTS_SITE_URL), now).comment.id, input.id);
   const stored = sealComment({ ...input, email: 'legacy@example.org' }, env.COMMENTS_EMAIL_SECRET);
   assert.equal(openCommentEmail(stored, commentSecret(mixed, 'email')), 'legacy@example.org');
-  assert.equal(commentSecret({ ...masterEnv, COMMENTS_WORKFLOW_SECRET: '' }, 'workflow'), derived[2], 'GitHub 未配置的旧 Secret 为空字符串');
+  assert.equal(commentSecret({ ...masterEnv, COMMENTS_WORKFLOW_SECRET: '' }, 'workflow'), derived[1], 'GitHub 未配置的旧 Secret 为空字符串');
 });
 
 test('a single master secret covers submission, approval, encrypted publishing, reply mail and notification retries', async () => {
@@ -94,9 +91,9 @@ test('a single master secret covers submission, approval, encrypted publishing, 
     const options = deps({ env: masterEnv, pages: pageList });
     const challenged = await handleSubmission(challengeRequest(body), options);
     assert.equal(challenged.status, 200);
-    const proof = solve(await challenged.json());
+    const turnstileToken = solve(await challenged.json());
     let token;
-    const submitted = await handleSubmission(request({ ...body, proof }), { ...options, fetchImpl: async (url, init) => {
+    const submitted = await handleSubmission(request({ ...body, turnstileToken }), { ...options, fetchImpl: async (url, init) => {
       assert.equal(url, 'https://api.resend.com/emails');
       token = JSON.parse(init.body).text.match(/#token=([\w.-]+)/)[1];
       return Response.json({ id: 'moderation-mail' });
@@ -133,63 +130,41 @@ test('a single master secret covers submission, approval, encrypted publishing, 
   assert.deepEqual(recipients, ['author0@example.org', 'author1@example.org', 'author0@example.org']);
 });
 
-test('challenge endpoint validates input and signs a bounded random puzzle without firewall configuration', async () => {
-  const challenges = [];
-  for (let i = 0; i < 2; i++) {
-    const response = await handleSubmission(challengeRequest(input), deps());
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get('cache-control'), 'no-store');
-    const task = await response.json();
-    assert.equal(task.expiresAt, now + POW_TTL);
-    assert.equal(task.algorithm, 'sha256');
-    assert.equal(task.difficulty, 4);
-    assert.match(task.challenge, /^[a-f0-9]{64}$/);
-    assert.doesNotMatch(JSON.stringify(task), /resend-test|github-test|owner@example|读者|<script>/);
-    challenges.push(task.challenge);
-  }
-  assert.notEqual(challenges[0], challenges[1]);
+test('challenge returns public Turnstile configuration and a canonical content digest', async () => {
+  const response = await handleSubmission(challengeRequest(input), deps());
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const task = await response.json();
+  assert.equal(task.provider, 'turnstile');
+  assert.equal(task.sitekey, env.TURNSTILE_SITE_KEY);
+  assert.equal(task.action, 'comment');
+  assert.match(task.cData, /^[a-f0-9]{64}$/);
+  assert.doesNotMatch(JSON.stringify(task), /test-secret-key|resend-test|github-test|owner@example|读者|<script>/);
   for (const [body, status] of [[{ ...input, consent: false }, 400], [{ ...input, website: 'spam' }, 400], [{ ...input, path: '/not-enabled/' }, 400], [{ ...input, message: 'x'.repeat(27000) }, 413]]) {
     assert.equal((await handleSubmission(challengeRequest(body), deps())).status, status);
   }
-  for (const [extra, status] of [
-    [{ COMMENTS_POW_SECRET: '' }, 503], [{ COMMENTS_POW_DIFFICULTY: '0' }, 503], [{ VERCEL_ENV: 'preview' }, 503],
-  ]) assert.equal((await handleSubmission(challengeRequest(input), deps({ env: { ...env, ...extra } }))).status, status);
+  for (const extra of [{ TURNSTILE_SECRET_KEY: '' }, { TURNSTILE_SITE_KEY: '' }, { VERCEL_ENV: 'preview' }]) {
+    assert.equal((await handleSubmission(challengeRequest(input), deps({ env: { ...env, ...extra } }))).status, 503);
+  }
   assert.equal((await handleSubmission(challengeRequest(input, {}, 'GET'), deps())).status, 405);
   assert.equal((await handleSubmission(challengeRequest(input, { origin: 'https://evil.example' }), deps())).status, 403);
 });
 
-test('proofs bind canonical comment and site; tampering, changed difficulty, missing proof and invalid nonce fail before network', async () => {
+test('Turnstile binds canonical content, site and action before sending mail', async () => {
   const valid = validateComment(input);
   const site = new URL(env.COMMENTS_SITE_URL);
-  verifyProof(input.proof, valid, site, env, now);
-  assert.equal(powDifficulty({}), 4);
-  const defaultEnv = { ...env };
-  delete defaultEnv.COMMENTS_POW_DIFFICULTY;
-  const defaultResponse = await handleSubmission(challengeRequest(input), deps({ env: defaultEnv }));
-  assert.equal(defaultResponse.status, 200);
-  const defaultTask = await defaultResponse.json();
-  assert.equal(defaultTask.difficulty, 4);
-  verifyProof(solve(defaultTask), valid, site, defaultEnv, now);
-  assert.equal(powDifficulty({ COMMENTS_POW_DIFFICULTY: '5' }), 5, '显式配置仍可覆盖默认难度');
-  for (const value of ['0', '3', '7', '-1', '4.5', '', '04', 'NaN']) assert.throws(() => powDifficulty({ COMMENTS_POW_DIFFICULTY: value }));
-  const claim = verify(input.proof.token, env.COMMENTS_POW_SECRET, 'comment-pow-v1');
-  const tampered = Buffer.from(JSON.stringify({ ...claim, difficulty: 0 })).toString('base64url') + '.' + input.proof.token.split('.')[1];
-  const wrongNonce = (() => {
-    for (let n = 0; ; n++) if (!createHash('sha256').update(claim.challenge + n).digest('hex').startsWith('0000')) return String(n);
-  })();
-  const bad = [undefined, {}, { ...input.proof, nonce: wrongNonce }, { ...input.proof, token: tampered }, { ...input.proof, token: approval() },
-    ...[-1, 0, 1.5, '01', '-1', '1e2', '1.0', '9007199254740992', 'x'.repeat(2000)].map(nonce => ({ ...input.proof, nonce }))];
-  const noNetwork = async () => assert.fail('invalid proofs must not make outbound calls');
-  for (const proof of bad) assert.equal((await handleSubmission(request({ ...input, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
-  for (const change of [{ id: 'ae251682-6cc0-40df-bf31-6d48c12a985c' }, { name: 'someone else' }, { message: 'different' }, { createdAt: new Date(now + 1).toISOString() }, { path: '/p/another/' }]) {
-    assert.throws(() => verifyProof(input.proof, { ...valid, ...change }, site, env, now), { status: 403 });
+  const verify = (token, content = valid, host = site, at = now) => verifyTurnstile(token, content, 'comment', host, env, mockSiteverify(), at);
+  await verify(input.turnstileToken);
+  for (const turnstileToken of [undefined, {}, '', 'invalid', 'x'.repeat(2049), approval()]) {
+    assert.equal((await handleSubmission(request({ ...input, turnstileToken }), deps())).status, 403);
   }
-  assert.throws(() => verifyProof(input.proof, valid, new URL('https://other.example/'), env, now), { status: 403 });
-  assert.throws(() => verifyProof(input.proof, valid, site, { ...env, COMMENTS_POW_DIFFICULTY: '5' }, now), { status: 403 });
-  assert.throws(() => verifyProof(input.proof, valid, site, { ...env, COMMENTS_POW_SECRET: 'd'.repeat(64) }, now), { status: 403 });
-  assert.throws(() => verifyProof(input.proof, valid, site, { ...env, COMMENTS_POW_SECRET: '' }, now), { status: 503 });
-  assert.throws(() => verifyProof(input.proof, valid, site, env, now - 60000), { status: 403 });
-  assert.equal((await handleSubmission(request(input), deps({ now: now + POW_TTL, fetchImpl: noNetwork }))).status, 410);
+  assert.equal((await handleSubmission(request({ ...input, turnstileToken: undefined, proof: { token: 'legacy', nonce: '0' } }), deps())).status, 403);
+  for (const change of [{ id: 'ae251682-6cc0-40df-bf31-6d48c12a985c' }, { name: 'someone else' }, { message: 'different' }, { createdAt: new Date(now + 1).toISOString() }, { path: '/p/another/' }, { parentId: 'ae251682-6cc0-40df-bf31-6d48c12a985c' }]) {
+    await assert.rejects(verify(input.turnstileToken, { ...valid, ...change }), { status: 403 });
+  }
+  await assert.rejects(verify(input.turnstileToken, valid, new URL('https://other.example/')), { status: 403 });
+  await assert.rejects(verify(input.turnstileToken, valid, site, now - 60000), { status: 403 });
+  assert.equal((await handleSubmission(request(input), deps({ now: now + TURNSTILE_TTL }))).status, 410);
 });
 
 test('submission sends escaped details to a fixed recipient; approval capability never reaches the visitor', async () => {
@@ -219,8 +194,8 @@ test('retry of the same logical submission produces exactly the same email and i
   const fetchImpl = async (_, init) => { requests.push(init); return Response.json({ id: 'receipt' }); };
   await handleSubmission(request(input), deps({ fetchImpl }));
   await handleSubmission(request(input), deps({ fetchImpl, now: now + 60000 }));
-  const proof = solve(issueProof(validateComment(input), new URL(env.COMMENTS_SITE_URL), env, now + POW_TTL));
-  await handleSubmission(request({ ...input, proof }), deps({ fetchImpl, now: now + POW_TTL }));
+  const turnstileToken = solve(turnstileChallenge(validateComment(input), 'comment', env), now + TURNSTILE_TTL);
+  await handleSubmission(request({ ...input, turnstileToken }), deps({ fetchImpl, now: now + TURNSTILE_TTL }));
   assert.equal(requests[0].body, requests[1].body);
   assert.equal(requests[0].headers['idempotency-key'], requests[1].headers['idempotency-key']);
   assert.equal(requests[0].headers['idempotency-key'], requests[2].headers['idempotency-key'], 'renewing a challenge must not change email idempotency');
@@ -233,8 +208,8 @@ test('full production-config flow without rate-limit settings: challenge → ema
   let token;
   const challenge = await handleSubmission(challengeRequest(input), deps({ env: production }));
   assert.equal(challenge.status, 200);
-  const proof = solve(await challenge.json());
-  const submitted = await handleSubmission(request({ ...input, proof }), deps({ env: production, fetchImpl: async (url, options) => {
+  const turnstileToken = solve(await challenge.json());
+  const submitted = await handleSubmission(request({ ...input, turnstileToken }), deps({ env: production, fetchImpl: async (url, options) => {
     calls.push(url);
     token = JSON.parse(options.body).text.match(/#token=([\w.-]+)/)[1];
     return Response.json({ id: 'email-id' });
@@ -361,10 +336,10 @@ test('concurrent branches and duplicate approvals rebase safely without dropping
   assert.equal(JSON.parse(await readFile(path.join(clones[0], commentFile(directory, first.id)), 'utf8')).emailEncrypted, first.emailEncrypted, '重复审批的随机密文冲突应保留已发布版本');
 });
 
-test('optional email is validated, canonicalized and bound to proof without exposing it in challenges', async () => {
+test('optional email is validated, canonicalized and bound to turnstileToken without exposing it in challenges', async () => {
   assert.deepEqual(validateComment({ ...input, email: '  ' }), validateComment(input));
   assert.equal(validateComment({ ...input, email: ' Reader+comments@EXAMPLE.ORG ' }).email, 'Reader+comments@example.org');
-  const noNetwork = async () => assert.fail('invalid email or proof must not send email');
+  const noNetwork = async () => assert.fail('invalid email or turnstileToken must not send email');
   for (const email of [null, 42, 'not-an-email', 'a@b@c.org', 'a@example.org\r\nBcc: x@example.org', 'a@-example.org', 'x'.repeat(65) + '@example.org']) {
     assert.equal((await handleSubmission(challengeRequest({ ...input, email }), deps())).status, 400);
     assert.equal((await handleSubmission(request({ ...input, email }), deps({ fetchImpl: noNetwork }))).status, 400);
@@ -374,10 +349,10 @@ test('optional email is validated, canonicalized and bound to proof without expo
   const task = await response.json();
   assert.equal(response.status, 200);
   assert.ok(!JSON.stringify(task).includes(body.email));
-  const proof = solve(task);
+  const turnstileToken = solve(task);
   const emails = [];
   for (let attempt = 0; attempt < 2; attempt++) {
-    const submitted = await handleSubmission(request({ ...body, proof }), deps({ fetchImpl: async (_, options) => {
+    const submitted = await handleSubmission(request({ ...body, turnstileToken }), deps({ fetchImpl: async (_, options) => {
       emails.push(options);
       return Response.json({ id: 'moderation-receipt' });
     } }));
@@ -387,7 +362,7 @@ test('optional email is validated, canonicalized and bound to proof without expo
   assert.equal(emails[0].body, emails[1].body, '含邮箱的重复提交也应保持审核邮件幂等');
   const token = JSON.parse(emails[0].body).text.match(/#token=([\w.-]+)/)[1];
   assert.equal(readApproval(token, env.COMMENTS_APPROVAL_SECRET, new URL(env.COMMENTS_SITE_URL), now).comment.email, body.email);
-  for (const email of [undefined, '', 'other@example.org']) assert.equal((await handleSubmission(request({ ...body, email, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
+  for (const email of [undefined, '', 'other@example.org']) assert.equal((await handleSubmission(request({ ...body, email, turnstileToken }), deps({ fetchImpl: noNetwork }))).status, 403);
   assert.equal((await handleSubmission(challengeRequest(body), deps({ env: { ...env, COMMENTS_EMAIL_SECRET: '' } }))).status, 503);
 });
 
@@ -572,7 +547,7 @@ test('publishing CLIs run without npm dependencies or deploy credentials and dup
   assert.equal(git(checkout, ['status', '--porcelain']).trim(), '');
 });
 
-test('nested replies retain their parent through proof, email, approval and article-local publishing', async () => {
+test('nested replies retain their parent through turnstileToken, email, approval and article-local publishing', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-replies-'));
   await seedArticle(root);
   const ids = [];
@@ -582,8 +557,8 @@ test('nested replies retain their parent through proof, email, approval and arti
     const body = { ...input, id: `fe251682-6cc0-40df-bf31-${String(depth).padStart(12, '0')}`, ...(parentId ? { parentId } : {}) };
     const task = await handleSubmission(challengeRequest(body), deps({ pages: replyPages }));
     assert.equal(task.status, 200);
-    body.proof = solve(await task.json());
-    if (parentId) assert.throws(() => verifyProof(body.proof, validateComment({ ...body, parentId: input.id }), new URL(env.COMMENTS_SITE_URL), env, now), { status: 403 });
+    body.turnstileToken = solve(await task.json());
+    if (parentId) await assert.rejects(verifyTurnstile(body.turnstileToken, validateComment({ ...body, parentId: input.id }), 'comment', new URL(env.COMMENTS_SITE_URL), env, mockSiteverify(), now), { status: 403 });
     let token;
     const submitted = await handleSubmission(request(body), deps({ pages: replyPages, fetchImpl: async (_, options) => {
       const email = JSON.parse(options.body);

@@ -197,7 +197,8 @@ assert.equal($friendForm.attr('data-endpoint'), '/api/submissions');
 assert.equal($friendForm.find('fieldset[disabled]').length, 1, '无脚本时申请按钮应禁用');
 assert.equal($friendForm.find('[name="consent"][required]').length, 1);
 for (const field of ['title', 'website', 'description']) assert.equal($friendForm.find(`[name="${field}"][required]`).length, 1);
-localAsset($friendForm.attr('data-pow-worker'));
+assert.equal($friendForm.find('[data-turnstile][hidden]').length, 1);
+assert.equal($friendForm.attr('data-pow-worker'), undefined);
 const $friendReview = load(read('friend-review/index.html'));
 assert.equal($friendReview('[data-friend-review]').attr('data-endpoint'), '/api/submissions');
 assert.match($friendReview('meta[name="robots"]').attr('content'), /noindex/);
@@ -315,8 +316,9 @@ for (const relative of htmlFiles) {
   }
   for (const comments of $('[data-comments]').toArray()) {
     assert.equal($(comments).find('[data-comment-form]').attr('data-endpoint'), '/api/submissions', `${relative} 应使用本站评论接口`);
-    localAsset($(comments).find('[data-comment-form]').attr('data-pow-worker'));
-    assert.equal($(comments).find('[data-cancel-proof][hidden][type="button"]').length, 1);
+    assert.equal($(comments).find('[data-turnstile][hidden]').length, 1);
+    assert.equal($(comments).find('[data-comment-form]').attr('data-pow-worker'), undefined);
+    assert.equal($(comments).find('[data-cancel-verification][hidden][type="button"]').length, 1);
     assert.equal($(comments).find('[name="consent"][required]').length, 1, '提交前必须说明公开 Git 历史');
     assert.equal($(comments).find('[name="message"][maxlength="2000"]').length, 1);
   }

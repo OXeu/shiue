@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { issueProof, verifyProof } from '../server/comments/pow.js';
-import { POW_PURPOSE, validateFriend } from '../server/friends/core.js';
+import { turnstileChallenge, verifyTurnstile } from '../server/turnstile.js';
+import { mockSiteverify } from './fixtures/turnstile.mjs';
+import { turnstileScript } from './fixtures/turnstile-browser.mjs';
+import { validateFriend } from '../server/friends/core.js';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = new URL(process.env.SHIUE_TEST_URL || 'http://127.0.0.1:1313/');
-const env = { COMMENTS_POW_SECRET: 'browser-test-only'.repeat(4), COMMENTS_POW_DIFFICULTY: '4' };
+const env = { TURNSTILE_SITE_KEY: 'test-site-key', TURNSTILE_SECRET_KEY: 'test-secret-key' };
 const artifacts = await mkdtemp(path.join(tmpdir(), 'xeu-friend-browser-'));
 const browser = await chromium.launch({ headless: true });
 const title = '<script>我的小站</script>';
@@ -31,16 +33,17 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
+      if (url.origin === 'https://challenges.cloudflare.com' && url.pathname === '/turnstile/v0/api.js') return route.fulfill({ contentType: 'text/javascript', body: turnstileScript() });
       if (url.origin !== base.origin) return route.abort();
       if (url.pathname === '/api/submissions') {
         const body = route.request().postDataJSON();
         assert.equal(body.type, 'friend');
         if (body.action === 'challenge') {
           challenges++;
-          return route.fulfill({ json: issueProof(validateFriend(body), base, env, Date.now(), POW_PURPOSE) });
+          return route.fulfill({ json: turnstileChallenge(validateFriend(body), 'friend', env) });
         }
         assert.equal(body.action, 'submit');
-        verifyProof(body.proof, validateFriend(body), base, env, Date.now(), POW_PURPOSE);
+        await verifyTurnstile(body.turnstileToken, validateFriend(body), 'friend', base, env, mockSiteverify(), Date.now());
         submissions.push(body);
         return submissions.length === 1 ? route.fulfill({ status: 502, json: { error: '申请暂未送达，请重试。' } }) : route.fulfill({ status: 202, json: { message: '友链申请已送交审核，通过并完成部署后会显示在友链列表中。' } });
       }
@@ -62,7 +65,7 @@ try {
       assert.equal(challenges, 2);
       assert.equal(submissions[0].id, submissions[1].id);
       assert.equal(submissions[0].createdAt, submissions[1].createdAt);
-      assert.notEqual(submissions[0].proof.token, submissions[1].proof.token);
+      assert.notEqual(submissions[0].turnstileToken, submissions[1].turnstileToken);
       assert.equal(await form.locator('[name="title"]').inputValue(), '');
       assert.equal(await page.locator('.friend-card').count(), count);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -71,35 +74,35 @@ try {
     } finally { await context.close(); }
   }
 
-  for (const scenario of ['cancel', 'unsupported', 'challenge-unavailable', 'expired-proof']) {
+  for (const scenario of ['cancel', 'unsupported', 'challenge-unavailable', 'expired-token']) {
     const page = await browser.newPage();
     let submissions = 0;
-    if (scenario === 'unsupported') await page.addInitScript(() => { window.Worker = undefined; });
+    await page.route('https://challenges.cloudflare.com/**', route => route.fulfill({ contentType: 'text/javascript', body: turnstileScript(scenario === 'expired-token' ? 'success' : scenario) }));
     await page.route('**/api/submissions', route => {
       const body = route.request().postDataJSON();
       assert.equal(body.type, 'friend');
       if (body.action === 'submit') {
         submissions++;
-        return route.fulfill({ status: 410, json: { error: '工作量证明已过期，请重新提交。' } });
+        return route.fulfill({ status: 410, json: { error: '浏览器验证已过期，请重新提交。' } });
       }
       assert.equal(body.action, 'challenge');
-      return scenario === 'challenge-unavailable' ? route.fulfill({ status: 503, json: { error: '暂时不可用' } }) : route.fulfill({ json: issueProof(validateFriend(body), base, env, Date.now(), POW_PURPOSE) });
+      return scenario === 'challenge-unavailable' ? route.fulfill({ status: 503, json: { error: '暂时不可用' } }) : route.fulfill({ json: turnstileChallenge(validateFriend(body), 'friend', env) });
     });
-    if (scenario === 'cancel') await page.route('**/js/comment-pow-worker.*.js', route => route.fulfill({ contentType: 'text/javascript', body: 'self.onmessage=()=>self.postMessage({elapsed:1})' }));
+
     try {
       await page.goto(new URL('links/', base).href);
       const form = await fill(page);
       await form.locator('[type="submit"]').click();
       if (scenario === 'cancel') {
-        await page.waitForFunction(() => document.querySelector('[data-friend-form] [role="status"]').textContent.includes('已用'));
-        await form.locator('[data-cancel-proof]').click();
+        await page.waitForFunction(() => window.turnstileRenders === 1);
+        await form.locator('[data-cancel-verification]').click();
       }
-      const expected = { cancel: '已取消', unsupported: '不支持', 'challenge-unavailable': '不可用', 'expired-proof': '已过期' }[scenario];
+      const expected = { cancel: '已取消', unsupported: '不支持', 'challenge-unavailable': '不可用', 'expired-token': '已过期' }[scenario];
       await page.waitForFunction(expected => document.querySelector('[data-friend-form] [role="status"]').textContent.includes(expected), expected);
       assert.equal(await form.locator('[name="title"]').inputValue(), title);
       assert.equal(await form.locator('[type="submit"]').isEnabled(), true);
-      assert.equal(await form.locator('[data-cancel-proof]').isHidden(), true);
-      assert.equal(submissions, scenario === 'expired-proof' ? 1 : 0);
+      assert.equal(await form.locator('[data-cancel-verification]').isHidden(), true);
+      assert.equal(submissions, scenario === 'expired-token' ? 1 : 0);
     } finally { await page.close(); }
   }
 
@@ -135,5 +138,5 @@ try {
   assert.ok(await noJS.locator('.friend-card').count() > 0);
   assert.equal(await noJS.locator('[data-friend-form] [type="submit"]').isDisabled(), true);
   await noJS.close();
-  console.log(`友链申请浏览器检查通过：真实 PoW、失败保留草稿、幂等重试、取消、浅深色、桌面手机、邮件预览和确认、无 JS。截图：${artifacts}`);
+  console.log(`友链申请浏览器检查通过：Turnstile 验证、失败保留草稿、幂等重试、取消、浅深色、桌面手机、邮件预览和确认、无 JS。截图：${artifacts}`);
 } finally { await browser.close(); }

@@ -1,9 +1,9 @@
 import { CommentError, commentSecret, digest, moderationEmail, readApproval, sign, validateCommentDirectory, validateCommentPage } from './comments/core.js';
 import { checkRequest, failure, json, readJSON, validateSubmission } from './comments/http.js';
-import { issueProof, powDifficulty, verifyProof } from './comments/pow.js';
+import { turnstileChallenge, verifyTurnstile } from './turnstile.js';
 import { sealComment } from './comments/email.js';
 import { notifyComment, retryCommentNotifications } from './comments/approval.js';
-import { APPROVAL_PURPOSE, friendEmail, POW_PURPOSE, PUBLISH_PURPOSE, readFriendApproval } from './friends/core.js';
+import { APPROVAL_PURPOSE, friendEmail, PUBLISH_PURPOSE, readFriendApproval } from './friends/core.js';
 import { friendFailure, validateFriendSubmission } from './friends/http.js';
 
 export async function handleSubmission(request, { env = {}, fetchImpl = fetch, pages, deployment = 'development', now = Date.now() } = {}) {
@@ -17,20 +17,15 @@ export async function handleSubmission(request, { env = {}, fetchImpl = fetch, p
     if (!['challenge', 'submit', 'preview', 'approve', ...(friend ? [] : ['notify'])].includes(input.action)) throw new CommentError(400, '未知提交操作。');
 
     if (input.action === 'challenge' || input.action === 'submit') {
-      if (input.action === 'challenge') {
-        commentSecret(env, 'pow');
-        powDifficulty(env);
-      }
       const claim = friend ? validateFriendSubmission(input, site, now) : await validateSubmission(input, site, now, pages);
       const content = friend ? claim.friend : claim.comment;
       if (!friend && content.email) commentSecret(env, 'email');
-      const powPurpose = friend ? POW_PURPOSE : 'comment-pow-v1';
-      if (input.action === 'challenge') return json(200, issueProof(content, site, env, now, powPurpose));
+      if (input.action === 'challenge') return json(200, turnstileChallenge(content, input.type, env));
 
       const approvalSecret = commentSecret(env, 'approval');
       if (!env.RESEND_API_KEY || !env.COMMENTS_EMAIL_FROM || !env.COMMENTS_EMAIL_TO) throw new CommentError(503, '评论服务尚未配置完成。');
-      // Invalid proofs make no outbound calls; each type has a separate signature purpose.
-      verifyProof(input.proof, content, site, env, now, powPurpose);
+      // Verification must succeed before sending moderation mail.
+      await verifyTurnstile(input.turnstileToken, content, input.type, site, env, fetchImpl, now);
       const token = sign(claim, approvalSecret, friend ? APPROVAL_PURPOSE : 'comment-approval-v1');
       const email = (friend ? friendEmail : moderationEmail)(claim, token, site, env.COMMENTS_EMAIL_FROM, env.COMMENTS_EMAIL_TO);
       const response = await fetchImpl('https://api.resend.com/emails', {

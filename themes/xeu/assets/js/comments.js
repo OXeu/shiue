@@ -1,4 +1,4 @@
-import { solveProof } from './comments-pow.js';
+import { solveTurnstile } from './turnstile.js';
 import { post } from './form-request.js';
 import { setupCommentEditor } from './comment-editor.js';
 import { setupCommentTimes } from './comment-time.js';
@@ -6,7 +6,7 @@ setupCommentTimes();
 for (const form of document.querySelectorAll('[data-comment-form]')) {
   const fields = form.querySelector('fieldset');
   const status = form.querySelector('[role="status"]');
-  const cancel = form.querySelector('[data-cancel-proof]');
+  const cancel = form.querySelector('[data-cancel-verification]');
   const editor = setupCommentEditor(form);
   let busy = false;
   let controller;
@@ -30,21 +30,18 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
     editor.showState('verifying', '正在准备验证，请稍候…');
     let sending = false;
     try {
-      if (!window.Worker || !crypto?.subtle || !crypto.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
+      if (!globalThis.crypto?.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
       // 重试沿用编号和时间以便邮件去重，但每次获取新的短期验证任务。
       if (!editor.pending || editor.pending.fingerprint !== fingerprint) editor.pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
       const input = { ...values, id: editor.pending.id, createdAt: editor.pending.createdAt, type: 'comment' };
       const task = await post(form.dataset.endpoint, { ...input, action: 'challenge' }, controller.signal);
       status.textContent = '验证完成后会自动提交，请稍候。';
-      const proof = await solveProof(form.dataset.powWorker, task, {
-        signal: controller.signal,
-        onProgress: seconds => { status.textContent = `已用 ${seconds} 秒，请稍候。`; },
-      });
+      const turnstileToken = await solveTurnstile(form.querySelector('[data-turnstile]'), task, { signal: controller.signal });
       // Once sending begins, cancellation cannot guarantee an email was not sent.
       cancel.hidden = true;
       sending = true;
       editor.showState('sending', '验证已完成，正在提交你的留言…');
-      const result = await post(form.dataset.endpoint, { ...input, action: 'submit', proof }, controller.signal);
+      const result = await post(form.dataset.endpoint, { ...input, action: 'submit', turnstileToken }, controller.signal);
       editor.clearDraft();
       editor.showState('success', result.message || '评论已送交审核，通过后会显示在这里。');
     } catch (error) {

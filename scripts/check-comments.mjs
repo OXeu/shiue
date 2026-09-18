@@ -3,14 +3,16 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { validateComment } from '../server/comments/core.js';
-import { issueProof, verifyProof } from '../server/comments/pow.js';
+import { turnstileChallenge, verifyTurnstile } from '../server/turnstile.js';
+import { mockSiteverify } from './fixtures/turnstile.mjs';
+import { turnstileScript } from './fixtures/turnstile-browser.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const baseURL = process.env.SHIUE_TEST_URL || 'http://127.0.0.1:1313/';
 const artifacts = await mkdtemp(path.join(tmpdir(), 'xeu-comments-browser-'));
 const browser = await chromium.launch({ headless: true });
 const message = '<img src=x onerror="window.commentXSS=true">\n评论保持纯文本';
-const powEnv = { COMMENTS_POW_SECRET: 'browser-test-only'.repeat(4) };
+const verificationEnv = { TURNSTILE_SITE_KEY: 'test-site-key', TURNSTILE_SECRET_KEY: 'test-secret-key' };
 try {
   for (const mode of ['light', 'dark']) for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
@@ -26,16 +28,17 @@ try {
     page.on('worker', worker => workers.push(worker.url()));
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
+      if (url.origin === 'https://challenges.cloudflare.com' && url.pathname === '/turnstile/v0/api.js') return route.fulfill({ contentType: 'text/javascript', body: turnstileScript() });
       if (url.origin !== new URL(baseURL).origin) return route.abort();
       if (url.pathname === '/api/submissions') {
         const body = route.request().postDataJSON();
         assert.equal(body.type, 'comment');
         if (body.action === 'challenge') {
           challenges.push(body);
-          return route.fulfill({ json: issueProof(validateComment(body), new URL(baseURL), powEnv, Date.now()) });
+          return route.fulfill({ json: turnstileChallenge(validateComment(body), 'comment', verificationEnv) });
         }
         assert.equal(body.action, 'submit');
-        verifyProof(body.proof, validateComment(body), new URL(baseURL), powEnv, Date.now());
+        await verifyTurnstile(body.turnstileToken, validateComment(body), 'comment', new URL(baseURL), verificationEnv, mockSiteverify(), Date.now());
         submissions.push(body);
         if (submissions.length === 1) return route.fulfill({ status: 503, json: { error: '服务暂时不可用，请重试。' } });
         await gate;
@@ -115,7 +118,7 @@ try {
       await page.waitForFunction(() => document.querySelector('[data-comment-feedback]').dataset.state === 'sending');
       assert.equal(await form.locator('fieldset').isHidden(), true, '状态面板覆盖编辑内容');
       assert.equal(await form.locator('fieldset').evaluate(node => node.inert), true);
-      assert.equal(await form.locator('[data-cancel-proof]').isHidden(), true, '发信阶段不可取消');
+      assert.equal(await form.locator('[data-cancel-verification]').isHidden(), true, '发信阶段不可取消');
       const panelBounds = await form.locator('[data-comment-feedback]').boundingBox();
       const popoverBounds = await popover.boundingBox();
       assert.ok(Math.abs(panelBounds.width - popoverBounds.width) <= 2 && Math.abs(panelBounds.height - popoverBounds.height) <= 2, '状态面板覆盖整个 popover');
@@ -128,8 +131,8 @@ try {
       await page.screenshot({ path: path.join(artifacts, `success-${mode}-${width}.png`) });
       assert.equal(submissions.length, 2, '正在发送时不能重复提交');
       assert.equal(challenges.length, 2, '重试应取得新的短期挑战');
-      assert.equal(workers.length, 2);
-      assert.notEqual(submissions[0].proof.token, submissions[1].proof.token);
+      assert.equal(workers.length, 0, 'Turnstile does not start the legacy PoW worker');
+      assert.notEqual(submissions[0].turnstileToken, submissions[1].turnstileToken);
       assert.equal(submissions[0].id, submissions[1].id, '重试必须沿用幂等编号');
       assert.equal(submissions[0].createdAt, submissions[1].createdAt);
       assert.equal(submissions[1].consent, true);
@@ -277,68 +280,33 @@ try {
     } finally { await context.close(); }
   }
 
-  // Exercise the actual emitted worker at the default and optional odd-nibble difficulty,
-  // then inject bounded failure cases only for cancellation/timeout scenarios.
-  const proofPage = await browser.newPage();
-  try {
-    await proofPage.goto(new URL('p/ai-random-thoughts/', baseURL).href);
-    const workerURL = await proofPage.locator('[data-comment-form]').getAttribute('data-pow-worker');
-    const sample = { id: 'ae251682-6cc0-40df-bf31-6d48c12a985c', path: '/p/example/', name: '验证', message: '测试', createdAt: new Date().toISOString() };
-    for (const difficulty of [undefined, undefined, undefined, undefined, undefined, '5']) {
-      const benchmarkEnv = { ...powEnv, ...(difficulty ? { COMMENTS_POW_DIFFICULTY: difficulty } : {}) };
-      const task = issueProof(sample, new URL(baseURL), benchmarkEnv, Date.now());
-      const result = await proofPage.evaluate(({ workerURL, task }) => new Promise((resolve, reject) => {
-        const worker = new Worker(workerURL);
-        const start = performance.now();
-        const timer = setTimeout(() => { worker.terminate(); reject(new Error('worker timed out')); }, 95000);
-        worker.onmessage = ({ data }) => {
-          if (data.error || data.nonce !== undefined) {
-            clearTimeout(timer); worker.terminate();
-            data.error ? reject(new Error('worker failed')) : resolve({ nonce: data.nonce, elapsed: performance.now() - start });
-          }
-        };
-        worker.onerror = () => { clearTimeout(timer); worker.terminate(); reject(new Error('worker load failed')); };
-        worker.postMessage(task);
-      }), { workerURL, task });
-      verifyProof({ token: task.token, nonce: result.nonce }, sample, new URL(baseURL), benchmarkEnv, Date.now());
-      console.log(`真实 Worker 难度 ${task.difficulty}：${result.elapsed.toFixed(0)} ms（本机样本，不代表移动设备性能）`);
-    }
-  } finally { await proofPage.close(); }
-
-  for (const scenario of ['cancel', 'pagehide', 'timeout', 'worker-error', 'challenge-unavailable', 'expired-proof', 'unsupported']) {
+  for (const scenario of ['cancel', 'pagehide', 'timeout', 'widget-error', 'load-error', 'challenge-unavailable', 'expired-token', 'expired-callback', 'unsupported']) {
     const context = await browser.newContext();
-    await context.addInitScript(scenario => {
-      window.powTerminations = 0;
-      const Original = window.Worker;
-      window.Worker = scenario === 'unsupported' ? undefined : class extends Original {
-        terminate() { window.powTerminations++; super.terminate(); }
-      };
-      if (scenario === 'timeout') {
-        const original = window.setTimeout;
-        window.setTimeout = (fn, delay, ...args) => original(fn, delay === 90000 ? 50 : delay, ...args);
-      }
-    }, scenario);
+    if (scenario === 'timeout') await context.addInitScript(() => {
+      const original = window.setTimeout;
+      window.setTimeout = (fn, delay, ...args) => original(fn, delay === 90000 ? 250 : delay, ...args);
+    });
     const page = await context.newPage();
     if (scenario === 'cancel') await page.setViewportSize({ width: 320, height: 360 });
     let submits = 0;
     let challenges = 0;
+    await context.route('https://challenges.cloudflare.com/**', route => scenario === 'load-error' ? route.abort() : route.fulfill({
+      contentType: 'text/javascript', body: turnstileScript(scenario === 'expired-token' ? 'success' : scenario),
+    }));
     await context.route('**/api/submissions', route => {
       const body = route.request().postDataJSON();
       assert.equal(body.type, 'comment');
       if (body.action === 'submit') {
         submits++;
-        return route.fulfill({ status: 410, json: { error: '工作量证明已过期，请重新提交。' } });
+        return route.fulfill({ status: 410, json: { error: '浏览器验证已过期，请重新提交。' } });
       }
       assert.equal(body.action, 'challenge');
       challenges++;
-      if (scenario === 'challenge-unavailable') return route.fulfill({ status: 503, json: { error: '评论服务暂时不可用，请稍后重试。' } });
-      return route.fulfill({ json: issueProof(validateComment(body), new URL(baseURL), powEnv, Date.now()) });
+      return scenario === 'challenge-unavailable' ? route.fulfill({ status: 503, json: { error: '浏览器验证暂时不可用' } }) : route.fulfill({ json: turnstileChallenge(validateComment(body), 'comment', verificationEnv) });
     });
-    if (['cancel', 'pagehide', 'timeout', 'worker-error'].includes(scenario)) {
-      await context.route('**/js/comment-pow-worker.*.js', route => route.fulfill({ contentType: 'text/javascript', body: scenario === 'worker-error' ? 'self.onmessage=()=>self.postMessage({error:true})' : 'self.onmessage=()=>self.postMessage({elapsed:1})' }));
-    }
     try {
       await page.goto(new URL('p/ai-random-thoughts/', baseURL).href);
+      assert.equal(await page.locator('script[src*="challenges.cloudflare.com"]').count(), 0, '仅阅读时不加载第三方验证');
       const form = page.locator('[data-comment-form]');
       const reply = page.locator('[data-reply-id]').first();
       const parentId = await reply.count() ? await reply.getAttribute('data-reply-id') : '';
@@ -349,30 +317,106 @@ try {
       await form.locator('[name="consent"]').check();
       await form.locator('[type="submit"]').click();
       if (scenario === 'cancel' || scenario === 'pagehide') {
-        await page.waitForFunction(() => document.querySelector('.comment-status').textContent.includes('已用'));
+        await page.waitForFunction(() => window.turnstileRenders === 1);
         assert.equal(await form.locator('[data-comment-feedback]').getAttribute('data-state'), 'verifying');
         assert.equal(await form.locator('fieldset').isHidden(), true);
-        assert.equal(await form.locator('[data-cancel-proof]').isVisible(), true);
+        assert.equal(await form.locator('[data-cancel-verification]').isVisible(), true);
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         await page.screenshot({ path: path.join(artifacts, `verifying-${scenario}.png`) });
         await page.locator('[data-close-comment]').click();
         await (parentId ? reply : page.locator('[data-new-comment]')).click();
-        assert.equal(await form.locator('[name="message"]').inputValue(), message, '验证中关闭和重开保留当前草稿');
-        if (scenario === 'cancel') await form.locator('[data-cancel-proof]').click();
+        assert.equal(await form.locator('[name="message"]').inputValue(), message);
+        if (scenario === 'cancel') await form.locator('[data-cancel-verification]').click();
         else await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
       }
-      const expected = { cancel: '已取消', pagehide: '已取消', timeout: '未能完成', 'worker-error': '未能完成', 'challenge-unavailable': '暂时不可用', 'expired-proof': '已过期', unsupported: '不支持' }[scenario];
+      const expected = { cancel: '已取消', pagehide: '已取消', timeout: '超时', 'widget-error': '未能完成', 'load-error': '未能加载', 'challenge-unavailable': '暂时不可用', 'expired-token': '已过期', 'expired-callback': '已过期', unsupported: '不支持' }[scenario];
       await page.waitForFunction(expected => document.querySelector('.comment-status').textContent.includes(expected), expected);
       assert.equal(await form.locator('[name="message"]').inputValue(), message);
-      assert.equal(await form.locator('fieldset').isVisible(), true, '取消或失败后恢复编辑及草稿');
+      assert.equal(await form.locator('fieldset').isVisible(), true);
       assert.equal(await form.locator('fieldset').evaluate(node => node.inert), false);
-      assert.equal(await form.locator('[name="parentId"]').inputValue(), parentId, '取消验证或故障后保留回复对象');
+      assert.equal(await form.locator('[name="parentId"]').inputValue(), parentId);
       assert.equal(await form.locator('[type="submit"]').isEnabled(), true);
-      assert.equal(await form.locator('[data-cancel-proof]').isHidden(), true);
-      assert.equal(submits, scenario === 'expired-proof' ? 1 : 0);
-      assert.equal(challenges, scenario === 'unsupported' ? 0 : 1);
-      if (['cancel', 'pagehide', 'timeout', 'worker-error', 'expired-proof'].includes(scenario)) assert.equal(await page.evaluate(() => window.powTerminations), 1);
+      assert.equal(await form.locator('[data-cancel-verification]').isHidden(), true);
+      assert.equal(await form.locator('[data-turnstile]').isHidden(), true);
+      assert.equal(await form.locator('[data-turnstile] iframe').count(), 0);
+      assert.equal(submits, scenario === 'expired-token' ? 1 : 0);
+      assert.equal(challenges, 1);
+      if (!['load-error', 'challenge-unavailable', 'timeout'].includes(scenario)) assert.equal(await page.evaluate(() => window.turnstileRemovals), 1);
       if (scenario === 'cancel') assert.equal(await form.locator('[type="submit"]').evaluate(el => el === document.activeElement), true);
     } finally { await context.close(); }
+  }
+
+  // Cancelling an in-flight SDK load must not render later; a failed load is retryable.
+  for (const scenario of ['cancel-loading', 'load-retry']) {
+    const page = await browser.newPage();
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    let loads = 0;
+    let submits = 0;
+    await page.route('https://challenges.cloudflare.com/**', async route => {
+      loads++;
+      if (scenario === 'cancel-loading') await gate;
+      if (scenario === 'load-retry' && loads === 1) return route.abort();
+      return route.fulfill({ contentType: 'text/javascript', body: turnstileScript() });
+    });
+    await page.route('**/api/submissions', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'challenge') return route.fulfill({ json: turnstileChallenge(validateComment(body), 'comment', verificationEnv) });
+      submits++;
+      await verifyTurnstile(body.turnstileToken, validateComment(body), 'comment', new URL(baseURL), verificationEnv, mockSiteverify(), Date.now());
+      return route.fulfill({ status: 202, json: { message: '评论已送交审核' } });
+    });
+    try {
+      await page.goto(new URL('p/ai-random-thoughts/', baseURL).href);
+      await page.locator('[data-new-comment]').click();
+      const form = page.locator('[data-comment-form]');
+      await form.locator('[name="name"]').fill('读者');
+      await form.locator('[name="message"]').fill('取消加载后重试');
+      await form.locator('[name="consent"]').check();
+      await form.locator('[type="submit"]').click();
+      if (scenario === 'cancel-loading') {
+        await page.waitForFunction(() => document.querySelector('script[src*="challenges.cloudflare.com"]'));
+        await form.locator('[data-cancel-verification]').click();
+        release();
+        await page.waitForFunction(() => window.turnstile?.render);
+        assert.equal(await page.evaluate(() => window.turnstileRenders), 0);
+      } else await page.waitForFunction(() => document.querySelector('.comment-status').textContent.includes('未能加载'));
+      assert.equal(submits, 0);
+      assert.equal(await form.locator('[name="message"]').inputValue(), '取消加载后重试');
+      await form.locator('[type="submit"]').click();
+      await page.waitForFunction(() => document.querySelector('[data-comment-feedback]').dataset.state === 'success');
+      assert.equal(submits, 1);
+      assert.equal(loads, scenario === 'cancel-loading' ? 1 : 2);
+      assert.equal(await page.evaluate(() => window.turnstileRemovals), 1);
+    } finally { release(); await page.close(); }
+  }
+
+  // Managed widgets can require interaction, including in a narrow popover.
+  for (const width of [320, 390, 1440]) {
+    const page = await browser.newPage({ viewport: { width, height: 640 } });
+    await page.route('https://challenges.cloudflare.com/**', route => route.fulfill({ contentType: 'text/javascript', body: turnstileScript('interaction') }));
+    await page.route('**/api/submissions', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'challenge') return route.fulfill({ json: turnstileChallenge(validateComment(body), 'comment', verificationEnv) });
+      await verifyTurnstile(body.turnstileToken, validateComment(body), 'comment', new URL(baseURL), verificationEnv, mockSiteverify(), Date.now());
+      return route.fulfill({ status: 202, json: { message: '评论已送交审核' } });
+    });
+    await page.goto(new URL('p/ai-random-thoughts/', baseURL).href);
+    await page.locator('[data-new-comment]').click();
+    const form = page.locator('[data-comment-form]');
+    await form.locator('[name="name"]').fill('读者');
+    await form.locator('[name="message"]').fill('交互式验证');
+    await form.locator('[name="consent"]').check();
+    await form.locator('[type="submit"]').click();
+    const verification = page.frameLocator('[data-turnstile] iframe').getByRole('button', { name: '确认验证' });
+    await verification.waitFor();
+    const bounds = await form.locator('[data-turnstile] iframe').boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, '验证组件不能溢出手机视口');
+    await page.screenshot({ path: path.join(artifacts, `turnstile-interaction-${width}.png`) });
+    await verification.click();
+    await page.waitForFunction(() => document.querySelector('[data-comment-feedback]').dataset.state === 'success');
+    assert.equal(await page.evaluate(() => window.turnstileRemovals), 1);
+    await page.close();
   }
 
   const page = await browser.newPage();
@@ -424,5 +468,5 @@ try {
   for (const button of await noJS.locator('[data-reply-id]').all()) assert.equal(await button.isHidden(), true);
   if (process.env.SHIUE_TEST_REQUIRE_REPLIES === '1') assert.ok(await noJS.locator('.comment-replies .comment-message').count() >= 6, '无 JS 时多层回复仍可阅读');
   await noJS.close();
-  console.log(`评论浏览器检查通过：锚定 popover、覆盖式验证/提交/成功状态、关闭/刷新恢复草稿、文章与回复草稿隔离、存储/Popover 降级、时区与相对时间切换、选填邮箱、多层回复、真实 PoW、取消/超时/故障、幂等重试、浅色/深色、桌面/手机、邮件审批与通知重试、无 JS 展示。截图：${artifacts}`);
+  console.log(`评论浏览器检查通过：锚定 popover、覆盖式验证/提交/成功状态、关闭/刷新恢复草稿、文章与回复草稿隔离、存储/Popover 降级、时区与相对时间切换、选填邮箱、多层回复、Turnstile 验证、取消/超时/故障、幂等重试、浅色/深色、桌面/手机、邮件审批与通知重试、无 JS 展示。截图：${artifacts}`);
 } finally { await browser.close(); }

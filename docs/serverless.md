@@ -1,6 +1,6 @@
 # Serverless 部署
 
-项目支持 Vercel Functions、Netlify Functions、Cloudflare Workers 和 Pages Functions。所有入口共用 `server/submissions.js`，提供同源 `POST /api/submissions`；评论、友链、PoW、审批签名、邮箱加密与通知重试采用同一实现。
+项目支持 Vercel Functions、Netlify Functions、Cloudflare Workers 和 Pages Functions。所有入口共用 `server/submissions.js`，提供同源 `POST /api/submissions`；评论、友链、Turnstile 验证、审批签名、邮箱加密与通知重试采用同一实现。
 
 | 平台 | 函数入口 | 部署配置 | 评论白名单 |
 | --- | --- | --- | --- |
@@ -9,13 +9,15 @@
 | Cloudflare Workers | `cloudflare/worker.js` | `wrangler.jsonc` 仅描述部署结构；业务变量在控制台管理 | 使用当前部署的 `env.ASSETS` 读取静态文件 |
 | Cloudflare Pages | `functions/api/submissions.js` | Cloudflare 控制台 | 使用当前部署的 `env.ASSETS` 读取静态文件 |
 
-共享模块接收标准 `Request` 并返回 `Response`，平台入口注入 `env`、`deployment` 和 `pages()`。核心模块不读取 `process.env` 或文件系统。Node Crypto 用于保持既有签名和邮箱密文兼容，Cloudflare 启用 `nodejs_compat`；新平台需要支持相同的 Crypto API。对邮件与 GitHub 的请求使用 `redirect: manual`，拒绝非成功响应，不携带凭据跟随重定向。
+共享模块接收标准 `Request` 并返回 `Response`，平台入口注入 `env`、`deployment` 和 `pages()`。核心模块不读取 `process.env` 或文件系统。Node Crypto 用于保持既有签名和邮箱密文兼容，Cloudflare 启用 `nodejs_compat`；新平台需要支持相同的 Crypto API。对 Turnstile、邮件与 GitHub 的请求使用 `redirect: manual`，拒绝非成功响应，不携带凭据跟随重定向。
 
 ## 通用配置
 
 静态站点和 API 应部署在同一域名下，前端无需按平台修改 URL。构建命令为 `npm run deploy`，发布目录为 `public`，Node 版本由 `.node-version` 固定为 24。Hugo 由现有构建脚本准备。
 
 在所选平台的生产函数环境配置 `.env.example` 中的变量。`COMMENTS_SITE_URL` 必须是实际正式站点的 HTTPS 地址，且与 Hugo 的 `baseURL` 一致。需要更改域名时可将构建命令设为 `npm run deploy -- --baseURL https://your-domain.example/`。`COMMENTS_SECRET` 与 GitHub Actions 同名 Secret 保持一致；切换平台时迁移原密钥及旧覆盖项，避免使审批链接或已有邮箱密文失效。密钥配置说明见[评论系统](comments.md)。
+
+Turnstile 在上述所有平台上都可使用，无需 Cloudflare DNS/CDN。在 Cloudflare 创建 Managed 组件并添加正式域名，然后在生产函数环境设置 `TURNSTILE_SITE_KEY`（公开 Site Key）和 `TURNSTILE_SECRET_KEY`（Secret）。两个值均由共享处理器运行时读取，无需构建注入；Secret 不放入 Hugo 配置或 GitHub Actions。升级后旧的 `COMMENTS_POW_DIFFICULTY`、`COMMENTS_POW_SECRET` 可删除。完整配置和迁移说明见[评论系统](comments.md#2-配置-turnstile-与防滥用)。
 
 预览和开发环境不允许提交、发信或发布，不能仅靠 Origin 判断生产环境：
 
@@ -30,7 +32,7 @@
 
 ## Vercel
 
-继续使用现有 Git 集成和 `vercel.json`，无需更改已有生产变量。`public/comment-pages.json` 保持在函数的 `includeFiles` 中。安装阶段仍通过 `scripts/vercel-install.mjs` 保留图片缓存。
+继续使用现有 Git 集成和 `vercel.json`，保留已有生产变量，并添加上述 Turnstile 两项配置。`public/comment-pages.json` 保持在函数的 `includeFiles` 中。安装阶段仍通过 `scripts/vercel-install.mjs` 保留图片缓存。
 
 ## Netlify
 
@@ -114,4 +116,4 @@ npm run check:comments
 npm run check:friend-applications
 ```
 
-适配测试覆盖所有入口的挑战、审核邮件、预览、发布、邮箱密文兼容、缺失白名单，以及伪造生产 Origin 时的预览隔离；额外覆盖 Workers 路由与控制台变量保留配置。外部邮件与 GitHub 请求全部模拟，不触发真实发布。Hugo 构建和现有浏览器验证继续适用，平台切换不会改变前端协议。
+适配测试覆盖所有入口的挑战、审核邮件、预览、发布、邮箱密文兼容、缺失白名单，以及伪造生产 Origin 时的预览隔离；额外覆盖 Workers 路由与控制台变量保留配置。Turnstile、邮件与 GitHub 请求全部模拟，不触发真实发布。Hugo 构建和现有浏览器验证继续适用，平台切换不会改变前端协议。

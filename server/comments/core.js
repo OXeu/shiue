@@ -11,7 +11,7 @@ export function requireSecret(secret) {
   return secret;
 }
 export function commentSecret(env, purpose) {
-  const legacyName = { approval: 'COMMENTS_APPROVAL_SECRET', pow: 'COMMENTS_POW_SECRET', workflow: 'COMMENTS_WORKFLOW_SECRET', email: 'COMMENTS_EMAIL_SECRET' }[purpose];
+  const legacyName = { approval: 'COMMENTS_APPROVAL_SECRET', workflow: 'COMMENTS_WORKFLOW_SECRET', email: 'COMMENTS_EMAIL_SECRET' }[purpose];
   if (typeof legacyName !== 'string') throw new Error('Unknown comment secret purpose');
   // 已配置的旧密钥优先，升级代码不会使旧审批、工作流或邮箱密文失效。
   if (env[legacyName]) return requireSecret(env[legacyName]);

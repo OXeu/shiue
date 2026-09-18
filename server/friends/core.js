@@ -1,7 +1,6 @@
 import { isIP } from 'node:net';
 import { APPROVAL_TTL, CommentError, normalizeMessage, UUID, verify } from '../comments/core.js';
 
-export const POW_PURPOSE = 'friend-pow-v1';
 export const APPROVAL_PURPOSE = 'friend-approval-v1';
 export const PUBLISH_PURPOSE = 'friend-publish-v1';
 

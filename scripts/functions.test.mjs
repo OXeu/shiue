@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -11,10 +11,11 @@ import worker from '../cloudflare/worker.js';
 import { commentSecret, verify } from '../server/comments/core.js';
 import { openCommentEmail, sealComment } from '../server/comments/email.js';
 import { readPages } from '../server/runtime/node.js';
+import { fixtureToken, mockSiteverify } from './fixtures/turnstile.mjs';
 
 const env = {
   COMMENTS_SITE_URL: 'https://blog.example.org/', COMMENTS_SECRET: 'function-adapter-test-only'.repeat(3),
-  COMMENTS_POW_DIFFICULTY: '4', RESEND_API_KEY: 'test-resend',
+  TURNSTILE_SITE_KEY: 'test-site-key', TURNSTILE_SECRET_KEY: 'test-secret-key', RESEND_API_KEY: 'test-resend',
   COMMENTS_EMAIL_FROM: 'Blog <blog@example.org>', COMMENTS_EMAIL_TO: 'owner@example.org',
   COMMENTS_GITHUB_TOKEN: 'test-github', COMMENTS_GITHUB_REPOSITORY: 'owner/blog',
 };
@@ -24,9 +25,7 @@ const request = (body, origin = env.COMMENTS_SITE_URL) => new Request(`${env.COM
   method: 'POST', headers: { origin: new URL(origin).origin, 'content-type': 'application/json' }, body: JSON.stringify(body),
 });
 const pageList = [{ path: '/p/example/', title: '文章', directory: 'post/example', commentIds: [] }];
-function solve(task) {
-  for (let nonce = 0; ; nonce++) if (createHash('sha256').update(task.challenge + nonce).digest('hex').startsWith('0'.repeat(task.difficulty))) return { token: task.token, nonce: String(nonce) };
-}
+const solve = task => fixtureToken(task);
 function setEnv(t, values) {
   for (const [key, value] of Object.entries(values)) {
     const previous = process.env[key];
@@ -64,7 +63,7 @@ test('all provider entries run challenge, moderation, preview, publishing and en
     };
     const mails = [];
     const published = [];
-    t.mock.method(globalThis, 'fetch', async (url, init) => {
+    t.mock.method(globalThis, 'fetch', mockSiteverify(async (url, init) => {
       assert.equal(init.redirect, 'manual');
       if (url === 'https://api.resend.com/emails') {
         mails.push(JSON.parse(init.body));
@@ -74,13 +73,13 @@ test('all provider entries run challenge, moderation, preview, publishing and en
       const type = url.includes('publish-comment') ? 'comment' : 'friend';
       published.push(verify(JSON.parse(init.body).inputs.envelope, commentSecret(env, 'workflow'), `${type}-publish-v1`));
       return new Response(null, { status: 204 });
-    });
+    }));
     for (const input of [comment(), friend()]) {
       const challenge = await invoke({ ...input, action: 'challenge' });
       assert.equal(challenge.status, 200);
       assert.equal(challenge.headers.get('cache-control'), 'no-store');
-      const proof = solve(await challenge.json());
-      const submission = await invoke({ ...input, action: 'submit', proof });
+      const turnstileToken = solve(await challenge.json());
+      const submission = await invoke({ ...input, action: 'submit', turnstileToken });
       assert.equal(submission.status, 202);
       assert.doesNotMatch(await submission.text(), /token|secret|reader@example/);
       const token = mails.at(-1).text.match(/#token=([\w.-]+)/)[1];

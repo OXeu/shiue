@@ -1,10 +1,10 @@
-import { solveProof } from './comments-pow.js';
+import { solveTurnstile } from './turnstile.js';
 import { post } from './form-request.js';
 
 for (const form of document.querySelectorAll('[data-friend-form]')) {
   const fields = form.querySelector('fieldset');
   const status = form.querySelector('[role="status"]');
-  const cancel = form.querySelector('[data-cancel-proof]');
+  const cancel = form.querySelector('[data-cancel-verification]');
   let pending;
   let busy = false;
   let controller;
@@ -25,19 +25,16 @@ for (const form of document.querySelectorAll('[data-friend-form]')) {
     status.textContent = '正在获取浏览器验证任务…';
     let sending = false;
     try {
-      if (!window.Worker || !globalThis.crypto?.subtle || !crypto.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
+      if (!globalThis.crypto?.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
       if (!pending || pending.fingerprint !== fingerprint) pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
       const input = { ...values, id: pending.id, createdAt: pending.createdAt, type: 'friend' };
       const task = await post(form.dataset.endpoint, { ...input, action: 'challenge' }, controller.signal);
-      status.textContent = '正在进行浏览器验证，通常需要几秒…';
-      const proof = await solveProof(form.dataset.powWorker, task, {
-        signal: controller.signal,
-        onProgress: seconds => { status.textContent = `正在进行浏览器验证 · 已用 ${seconds} 秒，可随时取消`; },
-      });
+      status.textContent = '正在进行浏览器验证，请稍候…';
+      const turnstileToken = await solveTurnstile(form.querySelector('[data-turnstile]'), task, { signal: controller.signal });
       cancel.hidden = true;
       sending = true;
       status.textContent = '验证完成，正在送交审核…';
-      const result = await post(form.dataset.endpoint, { ...input, action: 'submit', proof }, controller.signal);
+      const result = await post(form.dataset.endpoint, { ...input, action: 'submit', turnstileToken }, controller.signal);
       status.textContent = result.message;
       form.reset();
       pending = null;

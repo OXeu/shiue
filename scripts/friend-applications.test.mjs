@@ -1,20 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { handleSubmission } from '../api/submissions.js';
+import { handleSubmission as submit } from '../api/submissions.js';
+import { fixtureToken, mockSiteverify } from './fixtures/turnstile.mjs';
+const handleSubmission = (request, options = {}) => submit(request, { ...options, fetchImpl: mockSiteverify(options.fetchImpl) });
 import { APPROVAL_TTL, approvalClaim, commentSecret, sign, validateComment, verify } from '../server/comments/core.js';
-import { issueProof, POW_TTL, verifyProof } from '../server/comments/pow.js';
-import { APPROVAL_PURPOSE, friendClaim, POW_PURPOSE, PUBLISH_PURPOSE, validateFriend } from '../server/friends/core.js';
+import { turnstileChallenge, TURNSTILE_TTL, verifyTurnstile } from '../server/turnstile.js';
+import { APPROVAL_PURPOSE, friendClaim, PUBLISH_PURPOSE, validateFriend } from '../server/friends/core.js';
 import { publishFriend, readFriendEnvelope } from './publish-friend.mjs';
 
 const now = Date.parse('2026-09-18T12:00:00.000Z');
 const env = {
   COMMENTS_SITE_URL: 'https://blog.example.org/', COMMENTS_APPROVAL_SECRET: 'a'.repeat(64), COMMENTS_WORKFLOW_SECRET: 'b'.repeat(64),
-  COMMENTS_POW_SECRET: 'c'.repeat(64), COMMENTS_POW_DIFFICULTY: '4',
+  TURNSTILE_SITE_KEY: 'test-site-key', TURNSTILE_SECRET_KEY: 'test-secret-key',
   RESEND_API_KEY: 'resend-test-secret', COMMENTS_EMAIL_FROM: 'Blog <blog@example.org>', COMMENTS_EMAIL_TO: 'owner@example.org',
   COMMENTS_GITHUB_TOKEN: 'github-test-secret', COMMENTS_GITHUB_REPOSITORY: 'owner/blog', COMMENTS_GITHUB_BRANCH: 'master',
 };
@@ -26,10 +28,8 @@ const noFetch = async () => assert.fail('unexpected external request');
 const deps = extra => ({ env, now, fetchImpl: noFetch, ...extra });
 const approval = (changes = {}) => sign({ ...friendClaim(input, site, now), ...changes }, env.COMMENTS_APPROVAL_SECRET, APPROVAL_PURPOSE);
 const envelope = (friend = validateFriend(input), changes = {}) => sign({ v: 1, friend, repository: 'owner/blog', approvedAt: new Date(now).toISOString(), expiresAt: now + APPROVAL_TTL, ...changes }, env.COMMENTS_WORKFLOW_SECRET, PUBLISH_PURPOSE);
-function solve(task) {
-  for (let nonce = 0; ; nonce++) if (createHash('sha256').update(task.challenge + nonce).digest('hex').startsWith('0'.repeat(task.difficulty))) return { token: task.token, nonce: String(nonce) };
-}
-const proof = solve(issueProof(validateFriend(input), site, env, now, POW_PURPOSE));
+const solve = task => fixtureToken(task, now);
+const turnstileToken = solve(turnstileChallenge(validateFriend(input), 'friend', env));
 
 test('switching submission type cannot reuse proofs, approvals or comment-only notifications', async () => {
   const comment = { id: input.id, path: '/p/example/', name: '读者', message: '留言', createdAt: input.createdAt, website: '', consent: true };
@@ -42,11 +42,11 @@ test('switching submission type cannot reuse proofs, approvals or comment-only n
     assert.equal((await handleSubmission(request({ action, token: commentToken }), options)).status, 400);
   }
   assert.equal((await handleSubmission(request({ action: 'notify', token: approval() }), options)).status, 400);
-  const wrongPurpose = solve(issueProof(validateComment(comment), site, env, now, POW_PURPOSE));
-  assert.equal((await handleSubmission(request({ ...comment, type: 'comment', proof: wrongPurpose }), options)).status, 403);
-  assert.equal((await handleSubmission(request({ ...comment, type: 'comment', proof }), options)).status, 403);
-  const commentProof = solve(issueProof(validateComment(comment), site, env, now));
-  assert.equal((await handleSubmission(request({ ...input, proof: commentProof }), options)).status, 403);
+  const wrongPurpose = solve(turnstileChallenge(validateComment(comment), 'friend', env));
+  assert.equal((await handleSubmission(request({ ...comment, type: 'comment', turnstileToken: wrongPurpose }), options)).status, 403);
+  assert.equal((await handleSubmission(request({ ...comment, type: 'comment', turnstileToken }), options)).status, 403);
+  const commentProof = solve(turnstileChallenge(validateComment(comment), 'comment', env));
+  assert.equal((await handleSubmission(request({ ...input, turnstileToken: commentProof }), options)).status, 403);
   for (const [type, token] of [['comment', commentToken], ['friend', approval()]]) {
     const response = await handleSubmission(request({ type, action: 'approve', token }), { ...options, env: { ...env, COMMENTS_GITHUB_BRANCH: '-invalid' } });
     assert.equal(response.status, 503);
@@ -56,13 +56,13 @@ test('switching submission type cannot reuse proofs, approvals or comment-only n
 
 test('friend applications work from challenge through publish signature with only the master secret', async () => {
   const masterEnv = { ...env, COMMENTS_SECRET: 'friend-master-secret-test'.repeat(3) };
-  for (const name of ['COMMENTS_APPROVAL_SECRET', 'COMMENTS_POW_SECRET', 'COMMENTS_WORKFLOW_SECRET']) delete masterEnv[name];
+  for (const name of ['COMMENTS_APPROVAL_SECRET', 'COMMENTS_WORKFLOW_SECRET']) delete masterEnv[name];
   const options = deps({ env: masterEnv });
   const challenge = await handleSubmission(challengeRequest(input), options);
   assert.equal(challenge.status, 200);
   const masterProof = solve(await challenge.json());
   let token;
-  const submitted = await handleSubmission(request({ ...input, proof: masterProof }), { ...options, fetchImpl: async (url, init) => {
+  const submitted = await handleSubmission(request({ ...input, turnstileToken: masterProof }), { ...options, fetchImpl: async (url, init) => {
     assert.equal(url, 'https://api.resend.com/emails');
     const email = JSON.parse(init.body);
     token = new URLSearchParams(email.text.match(/https:\/\/[^\s]+friend-review\/[^\s]+/)[0].split('#')[1]).get('token');
@@ -99,27 +99,27 @@ test('all actions enforce origin, POST, JSON, environment and configuration', as
     assert.equal((await handleSubmission(request({ action }, { 'content-type': 'text/plain' }), deps())).status, 415);
     assert.equal((await handleSubmission(request({ action }), deps({ env: { ...env, VERCEL_ENV: 'preview' } }))).status, 503);
   }
-  for (const changes of [{ COMMENTS_POW_SECRET: '' }, { COMMENTS_POW_DIFFICULTY: '7' }, { COMMENTS_SITE_URL: '' }]) {
+  for (const changes of [{ TURNSTILE_SITE_KEY: '' }, { TURNSTILE_SECRET_KEY: '' }, { COMMENTS_SITE_URL: '' }]) {
     assert.equal((await handleSubmission(challengeRequest(input), deps({ env: { ...env, ...changes } }))).status, 503);
   }
 });
 
-test('proof is bound to every application field and isolated from comment proofs', async () => {
+test('Turnstile binds every application field and isolates comment tokens', async () => {
   const response = await handleSubmission(challengeRequest(input), deps());
   assert.equal(response.status, 200);
   const task = await response.json();
-  assert.equal(task.expiresAt, now + POW_TTL);
+  assert.equal(task.provider, 'turnstile');
+  assert.equal(task.action, 'friend');
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.doesNotMatch(JSON.stringify(task), /<script>|friend\.example|secret/);
-  verifyProof(proof, validateFriend(input), site, env, now, POW_PURPOSE);
-  assert.throws(() => verifyProof(proof, validateFriend(input), site, env, now), /无效/);
-  const commentPurposeProof = solve(issueProof(validateFriend(input), site, env, now));
-  assert.equal((await handleSubmission(request({ ...input, proof: commentPurposeProof }), deps())).status, 403);
+  await verifyTurnstile(turnstileToken, validateFriend(input), 'friend', site, env, mockSiteverify(), now);
+  const commentToken = solve(turnstileChallenge(validateFriend(input), 'comment', env));
+  assert.equal((await handleSubmission(request({ ...input, turnstileToken: commentToken }), deps())).status, 403);
   for (const changes of [{ title: 'changed' }, { website: 'https://other.example.org' }, { description: 'changed' }, { icon: 'https://example.org/image.png' }, { id: randomUUID() }, { createdAt: new Date(now + 1000).toISOString() }]) {
-    assert.equal((await handleSubmission(request({ ...input, ...changes, proof }), deps())).status, 403);
+    assert.equal((await handleSubmission(request({ ...input, ...changes, turnstileToken }), deps())).status, 403);
   }
   assert.equal((await handleSubmission(request(input), deps())).status, 403);
-  assert.equal((await handleSubmission(request({ ...input, proof }), deps({ now: now + POW_TTL }))).status, 410);
+  assert.equal((await handleSubmission(request({ ...input, turnstileToken }), deps({ now: now + TURNSTILE_TTL }))).status, 410);
 });
 
 test('mail is escaped, idempotent, fixed-recipient and never discloses approval to applicant', async () => {
@@ -131,7 +131,7 @@ test('mail is escaped, idempotent, fixed-recipient and never discloses approval 
     return Response.json({ id: 'mail-id' });
   };
   for (let i = 0; i < 2; i++) {
-    const response = await handleSubmission(request({ ...input, proof, to: 'attacker@example.org' }), deps({ fetchImpl }));
+    const response = await handleSubmission(request({ ...input, turnstileToken, to: 'attacker@example.org' }), deps({ fetchImpl }));
     assert.equal(response.status, 202);
     assert.doesNotMatch(await response.text(), /token|secret|friend-review|owner@example/);
   }
@@ -142,7 +142,7 @@ test('mail is escaped, idempotent, fixed-recipient and never discloses approval 
   assert.equal(url.search, '');
   assert.equal(verify(new URLSearchParams(url.hash.slice(1)).get('token'), env.COMMENTS_APPROVAL_SECRET, APPROVAL_PURPOSE).friend.title, input.title);
   for (const fetchImpl of [async () => new Response('secret', { status: 500 }), async () => { throw new Error(env.RESEND_API_KEY); }, async () => Response.json({})]) {
-    const response = await handleSubmission(request({ ...input, proof }), deps({ fetchImpl }));
+    const response = await handleSubmission(request({ ...input, turnstileToken }), deps({ fetchImpl }));
     assert.ok(response.status >= 500);
     assert.doesNotMatch(await response.text(), /resend-test-secret/);
   }

@@ -18,7 +18,7 @@
     "friend:add": "node scripts/add-friend.mjs",
     "check:friends": "node scripts/check-friends.mjs",
     "check:deploy": "node --test scripts/deploy.test.mjs scripts/identity.test.mjs",
-    "check:comments": "node --test scripts/comments.test.mjs scripts/comment-time.test.mjs",
+    "check:comments": "node --test scripts/comments.test.mjs scripts/comment-time.test.mjs scripts/turnstile.test.mjs",
     "check:friend-applications": "node --test scripts/friend-applications.test.mjs",
     "check:functions": "node --test scripts/functions.test.mjs",
     "check": "npm run check:deploy && npm run check:comments && npm run check:friend-applications && npm run check:functions && node scripts/check-friends.mjs && node scripts/check-images.mjs && node scripts/check-build.mjs"

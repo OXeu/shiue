@@ -3,7 +3,8 @@ export async function post(endpoint, body, signal) {
   const abort = () => controller.abort();
   if (signal?.aborted) controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  // Allow sequential Siteverify (10 s) and moderation email (12 s) requests.
+  const timeout = setTimeout(() => controller.abort(), 25000);
   try {
     const response = await fetch(endpoint, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
     const result = await response.json().catch(() => ({}));

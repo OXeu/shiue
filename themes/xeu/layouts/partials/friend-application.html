@@ -2,8 +2,7 @@
 <section class="comments surface friend-application" aria-labelledby="friend-application-title">
   <div class="comment-heading"><h2 id="friend-application-title">成为朋友</h2><span>友情链接申请</span></div>
   <p class="comment-note">如果你也有一处记录生活与想法的小天地，欢迎在这里留下它。</p>
-  {{ $powWorker := resources.Get "js/comment-pow-worker.js" | minify | fingerprint }}
-  <form class="comment-form" data-friend-form data-endpoint="/api/submissions" data-pow-worker="{{ $powWorker.RelPermalink }}">
+  <form class="comment-form" data-friend-form data-endpoint="/api/submissions">
     <fieldset disabled aria-describedby="friend-note">
       <legend>介绍一下你的网站</legend>
       <div class="friend-form-row">
@@ -16,12 +15,13 @@
       <input id="friend-icon" name="icon" type="url" inputmode="url" maxlength="2000" placeholder="https://example.com/avatar.png" aria-describedby="friend-icon-note">
       <p class="comment-note" id="friend-icon-note">留空会自动获取网站图标；也可以填写完整的公开图片网址。</p>
       <div class="comment-honeypot" aria-hidden="true"><label for="friend-contact">请留空</label><input id="friend-contact" name="contact" tabindex="-1" autocomplete="off"></div>
-      <p class="comment-note" id="friend-note">提交时会进行短暂的浏览器验证。申请经审核通过后显示在友链列表中，请勿填写隐私信息。</p>
+      <p class="comment-note" id="friend-note">提交时使用 Cloudflare Turnstile 验证。申请经审核通过后显示在友链列表中，请勿填写隐私信息。</p>
       <label class="comment-consent"><input type="checkbox" name="consent" required>我同意站点名称、网址、简介及图标经审核后公开，并保留在公开 Git 仓库的历史记录中。</label>
       <button class="page-link" type="submit">发送友链申请</button>
     </fieldset>
     <p class="comment-status" role="status" aria-live="polite"></p>
-    <button class="text-button" type="button" data-cancel-proof hidden>取消验证</button>
+    <div class="submission-verification" data-turnstile hidden></div>
+    <button class="text-button" type="button" data-cancel-verification hidden>取消验证</button>
   </form>
   <noscript><p>启用 JavaScript 后可以发送友链申请。</p></noscript>
 </section>
