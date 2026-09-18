@@ -130,7 +130,7 @@
 .comment-consent input { flex-shrink: 0; margin: 4px 0 0; accent-color: var(--button-fill); }
 .comment-honeypot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .comment-popover { position: fixed; inset: auto; z-index: 50; width: min(448px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); margin: 0; padding: 20px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--surface); color: var(--text); box-shadow: var(--shadow-lift); font-size: 14px; }
-.comment-editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.comment-editor-heading { position: sticky; top: -20px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -20px -20px 16px; padding: 20px 20px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .comment-editor-heading h3 { font-size: 16px; font-weight: 600; }
 .comment-editor-close { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; margin: -6px -6px -6px 0; border-radius: var(--radius-control); color: var(--muted); }
 .comment-editor-close:is(:hover, :focus-visible) { color: var(--text); background: var(--surface-muted); }
@@ -147,6 +147,7 @@
 .comment-draft-note { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
 @media (max-width: 600px) {
   .comment-popover { padding: 16px; }
+  .comment-editor-heading { top: -16px; margin: -16px -16px 16px; padding: 16px 16px 12px; }
   .comment-popover .comment-form :is(input:not([type="checkbox"]), textarea) { font-size: 16px; }
 }
 .comment-review .comment-note { margin-bottom: 24px; }
