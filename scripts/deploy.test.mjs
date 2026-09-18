@@ -180,6 +180,7 @@ test('deploy CLI and registered steps have a single entry and an explicit offlin
   const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(config.buildCommand, 'npm run deploy');
+  assert.equal(config.installCommand, 'node scripts/vercel-install.mjs');
   assert.equal(pkg.scripts.build, pkg.scripts.deploy);
   assert.deepEqual(config.crons, [{ path: '/api/daily-deploy', schedule: '17 3 * * *' }]);
   const ci = await readFile(new URL('../.github/workflows/build.yml', import.meta.url), 'utf8');

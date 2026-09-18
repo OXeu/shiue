@@ -13,9 +13,9 @@
                                                 ↓ 签名 workflow_dispatch
                                    publish-comment.yml
                                                 ↓
-                            独立 JSON → 构建验证 → Git push
+                            验签 → 独立 JSON → commit + push
                                                 ↓
-                                   Vercel Deploy Hook
+                               Vercel Git 集成自动构建部署
                                                 ↓
                                   Hugo 静态 HTML 展示评论
 ```
@@ -86,16 +86,19 @@ COMMENTS_GITHUB_REPOSITORY=OXeu/shiue
 COMMENTS_GITHUB_BRANCH=master
 ```
 
-仓库默认分支必须与上面的分支一致；工作流仅在默认分支执行。在 **GitHub 仓库 → Settings → Secrets and variables → Actions** 添加：
+仓库默认分支必须与上面的分支一致；工作流仅在默认分支执行。在 **GitHub 仓库 → Settings → Secrets and variables → Actions** 只需手动添加一个 Repository secret：
 
 | Secret | 含义 |
 | --- | --- |
 | `COMMENTS_WORKFLOW_SECRET` | 与 Vercel 同名变量完全一致 |
-| `VERCEL_DEPLOY_HOOK_URL` | 指向本项目生产分支的 Vercel Deploy Hook（与每日刷新可复用同一个） |
 
-发布工作流通过 `GITHUB_TOKEN` 的 `contents: write` 提交评论。仓库规则/分支保护仍然生效，需要允许此机器人提交；若仓库要求所有修改必须走 PR，本版本会安全失败，不会绕过保护。
+发布工作流通过 GitHub 自动提供的 `GITHUB_TOKEN`（`contents: write`）提交评论，无需另配推送 Token。`COMMENT_FILE` 来自验签步骤输出，`COMMENTS_BRANCH` 来自仓库默认分支，其他 `GITHUB_*` 上下文由 Actions 提供；这些都不需要手动配置。仓库规则/分支保护仍然生效，需要允许此机器人提交；若仓库要求所有修改必须走 PR，本版本会安全失败，不会绕过保护。
 
-必须先把工作流文件部署到默认分支，GitHub 才能接受 dispatch。Vercel 的环境变量不会自动同步成 GitHub Secrets，二者要分别设置。提交使用 `GITHUB_TOKEN` 时不能依赖新的 GitHub push 工作流自动执行，因此发布工作流显式运行 `npm run deploy`，成功推送后再调用 Deploy Hook。Hook 被接受只是排队，最终发布结果以 Vercel 为准。
+必须先把工作流文件部署到默认分支，GitHub 才能接受 dispatch。Vercel 的环境变量不会自动同步成 GitHub Secrets，`COMMENTS_WORKFLOW_SECRET` 两边要分别设置成相同值。评论工作流只做 checkout、准备 Node、验签写文件、提交推送；两个发布脚本只用 Node 内置模块，不安装 npm 依赖，不运行测试或 Hugo 构建，也不调用 Deploy Hook。代码回归测试仍留在普通构建 CI 中。
+
+推送后由已连接本仓库的 Vercel Git 集成自动构建部署。请保持 Vercel Production Branch 与仓库默认分支一致，并启用 Git 自动部署；若有 Ignored Build Step，不要忽略 `data/comments/` 的修改。CI 成功仅表示评论已推送，最终发布结果以 Vercel 为准。[Vercel Git 部署说明](https://vercel.com/docs/git/vercel-for-github)
+
+GitHub Secrets 中原来专供评论发布的 `VERCEL_DEPLOY_HOOK_URL` 已不再需要；确认没有其他工作流使用后可删除。Vercel 侧的 `CRON_SECRET` 与 `VERCEL_DEPLOY_HOOK_URL` 仍用于每日自动部署，不受此次精简影响。
 
 ## 审批安全与并发
 
@@ -116,14 +119,14 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
   SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-comments.mjs
 ```
 
-浏览器检查使用真实构建后的 Worker 计算并以 Node Crypto 验证证明，同时覆盖取消、超时、Worker 故障、不支持的浏览器、挑战服务不可用及过期后保留草稿。后端测试覆盖不配置任何限流变量时的完整流程，并确认挑战及预览没有额外外部请求。所有自动测试都不发送真实邮件、不调用 GitHub dispatch、不触发生产部署；Git 测试只操作临时仓库。配置好外部服务并部署后，再手动提交一条留言完成真实验收：浏览器验证 → 收邮件 → 核对内容 → 确认批准 → GitHub Action 成功 → 仓库新增评论文件 → Vercel 部署成功 → 页面出现留言。
+浏览器检查使用真实构建后的 Worker 计算并以 Node Crypto 验证证明，同时覆盖取消、超时、Worker 故障、不支持的浏览器、挑战服务不可用及过期后保留草稿。后端测试覆盖不配置任何限流变量时的完整流程，并确认挑战及预览没有额外外部请求；发布 CLI 在无 npm 依赖、无部署凭据的临时 checkout 中验证签名、推送及重复执行幂等。所有自动测试都不发送真实邮件、不调用 GitHub dispatch、不触发生产部署；Git 测试只操作临时仓库。配置好外部服务并部署后，再手动提交一条留言完成真实验收：浏览器验证 → 收邮件 → 核对内容 → 确认批准 → GitHub Action 成功 → 仓库新增评论文件 → Vercel 自动部署成功 → 页面出现留言。
 
 - **503**：检查 PoW/邮件/审批配置、`comment-pages.json` 是否随函数打包，以及是否误用 Preview 环境。无需检查或创建限流规则。
 - **502 / 未送达**：检查 Resend 发件域名、额度和 GitHub Token 权限。浏览器保留草稿/审批按钮，可重试。
 - **PoW 403 / 410**：证明无效或过期，重新点击提交会重新获取挑战。若持续失败，检查是否刚轮换了密钥/难度、混用了不同环境或浏览器拦截了 Worker。不要移除服务端验证来解决。
 - **验证超时**：草稿仍保留，可稍后重试或换浏览器；持续发生需用实际设备评估难度，不能无限占用 CPU。
 - **审批过期**：让读者重新提交。密钥轮换也会使旧链接失效。
-- **Action 失败**：在 Actions 查看失败步骤。构建失败时不推送；分支冲突/权限失败时不强推。Hook 失败时可能已写入 Git，可直接重新运行 Action；文件幂等校验不会重复添加。
-- **已排队但未展示**：检查 Vercel 构建、部署分支与域名。仓库里的 `npm run deploy` 本身只构建，不上传；真正发布由 Deploy Hook 启动。
+- **Action 失败**：在 Actions 查看失败步骤。验签失败时不写入；分支冲突/权限失败时不强推。可以重新运行 Action，文件幂等校验不会重复添加。
+- **已推送但未展示**：检查 Vercel Git 连接、自动部署设置、生产分支、忽略构建规则及构建日志。Vercel 构建失败不会回滚 Git 中已添加的评论，修复后可在 Vercel 重新部署；重复审批已存在的评论不会制造新的提交来触发部署。
 
 参考：[Vercel Functions](https://vercel.com/docs/functions/runtimes/node-js)、[Resend Send Email](https://resend.com/docs/api-reference/emails/send-email)、[GitHub workflow dispatch](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)。

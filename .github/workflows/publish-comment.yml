@@ -15,7 +15,7 @@ jobs:
   publish:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -24,21 +24,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '24'
-      - name: 检查发布配置
-        env:
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: node scripts/comments-deploy.mjs --validate
       - name: 验证审批并写入独立评论文件
         id: comment
         env:
           COMMENTS_WORKFLOW_SECRET: ${{ secrets.COMMENTS_WORKFLOW_SECRET }}
         run: node scripts/publish-comment.mjs
-      - name: 安装依赖
-        run: npm ci
-      - name: 验证评论流程
-        run: npm run check:comments
-      - name: 运行完整部署构建
-        run: npm run deploy
       - name: 安全推送评论（并发时重试）
         env:
           COMMENT_FILE: ${{ steps.comment.outputs.comment_file }}
@@ -47,7 +37,3 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           node scripts/push-comment.mjs
-      - name: 触发 Vercel 发布最新分支
-        env:
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: node scripts/comments-deploy.mjs

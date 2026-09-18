@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, readFile, writeFile, readdir } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, writeFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -12,7 +12,6 @@ import { APPROVAL_TTL, approvalClaim, readApproval, sign, validateComment, verif
 import { issueProof, POW_TTL, powDifficulty, verifyProof } from '../server/comments/pow.js';
 import { appendApprovedComment } from './publish-comment.mjs';
 import { pushComment } from './push-comment.mjs';
-import { deployComments, deployHook } from './comments-deploy.mjs';
 
 const now = Date.parse('2026-09-17T20:00:00.000Z');
 const env = {
@@ -247,12 +246,56 @@ test('concurrent branches and duplicate approvals rebase safely without dropping
   assert.equal(git(clones[0], ['log', '--format=%s']).toString().trim().split('\n').length, 3, '重复审批不产生重复提交');
 });
 
-test('deploy only uses validated Vercel hooks and propagates failures', async () => {
-  const hook = 'https://api.vercel.com/v1/integrations/deploy/project/token';
-  assert.equal(deployHook(hook), hook);
-  for (const invalid of ['https://evil.example/deploy', 'http://api.vercel.com/v1/integrations/deploy/a/b', `${hook}?extra=true`]) assert.throws(() => deployHook(invalid));
-  let called = false;
-  await deployComments({ hook, fetchImpl: async (url, options) => { called = true; assert.equal(url, hook); assert.equal(options.method, 'POST'); return new Response('', { status: 201 }); } });
-  assert.ok(called);
-  await assert.rejects(deployComments({ hook, fetchImpl: async () => new Response('', { status: 500 }) }));
+test('comment workflow needs one configured secret and only verifies, commits and pushes', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/publish-comment.yml', import.meta.url), 'utf8');
+  assert.deepEqual([...workflow.matchAll(/secrets\.([A-Z_]+)/g)].map(match => match[1]), ['COMMENTS_WORKFLOW_SECRET']);
+  assert.match(workflow, /contents: write/);
+  assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(workflow, /COMMENT_FILE: \$\{\{ steps\.comment\.outputs\.comment_file \}\}/);
+  assert.match(workflow, /COMMENTS_BRANCH: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(workflow, /node scripts\/publish-comment\.mjs/);
+  assert.match(workflow, /node scripts\/push-comment\.mjs/);
+  assert.doesNotMatch(workflow, /npm\s|hugo|comments-deploy|DEPLOY_HOOK|inputs\.envelope|git push.*--force/);
+});
+
+test('publishing CLIs run without npm dependencies or deploy credentials and duplicate retries add no commit', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-cli-'));
+  const remote = path.join(root, 'remote.git');
+  const checkout = path.join(root, 'checkout');
+  const branch = 'comments-test';
+  const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
+  git(root, ['init', '--bare', `--initial-branch=${branch}`, remote]);
+  git(root, ['clone', remote, checkout]);
+  git(checkout, ['config', 'user.name', 'Test']);
+  git(checkout, ['config', 'user.email', 'test@example.org']);
+  // Only source files: deliberately no node_modules, credentials, or built site.
+  for (const file of ['package.json', 'server/comments/core.js', 'scripts/publish-comment.mjs', 'scripts/push-comment.mjs']) {
+    await mkdir(path.dirname(path.join(checkout, file)), { recursive: true });
+    await copyFile(new URL(`../${file}`, import.meta.url), path.join(checkout, file));
+  }
+  git(checkout, ['add', '.']);
+  git(checkout, ['commit', '-m', 'init']);
+  git(checkout, ['push', 'origin', branch]);
+  const created = Date.now();
+  const comment = { ...claim().comment, createdAt: new Date(created).toISOString() };
+  const event = path.join(root, 'event.json');
+  const output = path.join(root, 'output');
+  await writeFile(event, JSON.stringify({ inputs: { envelope: envelope(comment, { approvedAt: comment.createdAt, expiresAt: created + APPROVAL_TTL }) } }));
+  const cliEnv = {
+    PATH: process.env.PATH, GITHUB_EVENT_PATH: event, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'owner/blog',
+    COMMENTS_WORKFLOW_SECRET: env.COMMENTS_WORKFLOW_SECRET,
+  };
+  const run = (script, variables) => execFileSync(process.execPath, [script], { cwd: checkout, env: variables, stdio: 'pipe' });
+  assert.throws(() => run('scripts/publish-comment.mjs', { ...cliEnv, COMMENTS_WORKFLOW_SECRET: '' }));
+  assert.equal(git(checkout, ['status', '--porcelain']).trim(), '', 'missing signature secret must not write comments');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await writeFile(output, '');
+    run('scripts/publish-comment.mjs', cliEnv);
+    const values = Object.fromEntries((await readFile(output, 'utf8')).trim().split('\n').map(line => line.split('=')));
+    assert.equal(values.comment_file, `data/comments/${comment.id}.json`);
+    run('scripts/push-comment.mjs', { PATH: process.env.PATH, COMMENT_FILE: values.comment_file, COMMENTS_BRANCH: branch });
+  }
+  assert.deepEqual(JSON.parse(git(remote, ['show', `${branch}:data/comments/${comment.id}.json`])), comment);
+  assert.equal(git(remote, ['rev-list', '--count', branch]).trim(), '2', 'init plus one comment commit');
+  assert.equal(git(checkout, ['status', '--porcelain']).trim(), '');
 });

@@ -30,7 +30,7 @@
 
 ## 评论
 
-读者提交 → 浏览器完成 SHA-256 工作量证明 → Vercel Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `data/comments/<UUID>.json` → 构建并触发 Vercel 部署。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验和并发安全 Git 推送。需要配置 Resend、Vercel 和 GitHub Secrets 后才能启用真实收发；无需配置限流规则，当前 PoW 不提供请求总量或费用上限，详见 [评论系统配置](docs/comments.md)。旧 Twikoo 数据未自动迁移。
+读者提交 → 浏览器完成 SHA-256 工作量证明 → Vercel Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `data/comments/<UUID>.json` 并提交推送 → Vercel Git 集成自动构建部署。评论 CI 不安装依赖、不构建、不调用 Deploy Hook，GitHub 只需配置一个 `COMMENTS_WORKFLOW_SECRET`。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验和并发安全 Git 推送。需要配置 Resend、Vercel 和上述 GitHub Secret 后才能启用真实收发；无需配置限流规则，当前 PoW 不提供请求总量或费用上限，详见 [评论系统配置](docs/comments.md)。旧 Twikoo 数据未自动迁移。
 
 卡片使用 22px 圆角、内嵌封面和轻柔阴影；图片、提示块与目录使用 16px 圆角，导航、标签及按钮采用胶囊形状。鼠标悬停时卡片轻微上浮，按钮按压时回弹，折叠内容短暂淡入；独立的 `translate` 属性避免干扰瀑布流重排，系统开启“减少动态效果”时取消这些位移动画。
 
@@ -43,6 +43,8 @@
 列表最多提供 960px 缩略图，正文最多 1440px，通过 `srcset`、`sizes` 按显示尺寸和像素密度选择；首页、分页和分类/标签列表首张卡片的封面立即加载并设置高优先级，其余图片默认懒加载。立即加载的封面使用响应式 `sizes`，懒加载图片使用 `auto` 加响应式回退。图片加载前由浏览器本地解码 BlurHash 占位，失败时保留占位。点击正文图片才加载原图。首页、分类、标签和搜索使用同一套图片数据。外部图片和 SVG 保留原地址；需要缩略图时可将外部图片保存为本地资源。
 
 `data/xeu/images.json` 与 `static/xeu-images/` 是自动生成并被 Git 忽略的文件。更新图片后执行 `npm run images`；预览时可另开终端运行 `npm run images:watch` 自动更新。BlurHash 解码器采用 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`。
+
+缩略图和 BlurHash 清单同时保存到 `node_modules/.cache/xeu-images/`，随 Vercel 构建缓存恢复。Vercel 安装入口会在执行 `npm ci` 前暂存、结束后放回这份缓存；未变化的图片直接恢复产物，新增或变更图片才重新处理。日志显示缓存复用、恢复及新生成数量；首次构建或平台未提供缓存时正常全量生成。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
 
 ## 站点头像与图标
 

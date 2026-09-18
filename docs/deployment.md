@@ -29,6 +29,7 @@
 | `scripts/deploy/identity.mjs` | 每次联网拉取 GitHub 头像、生成多尺寸站点图标和响应式头像 |
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
 | `scripts/hugo.sh` | Hugo 版本解析、官方校验和、工具缓存、底层执行和旧入口兼容 |
+| `scripts/vercel-install.mjs` | Vercel 安装依赖时保留图片构建缓存，再执行 `npm ci` |
 | `api/daily-deploy.js` | 经过鉴权的每日构建触发器，不在函数内执行耗时预处理 |
 
 步骤默认顺序执行，依赖关系直接体现在注册顺序中；友链检测内部最多 3 个请求并发，图片处理内部最多 2 张图片并发，避免所有预处理同时争用资源。
@@ -69,9 +70,21 @@ npm run dev                            # 下载头像、准备图片 + 开发服
 npm run check:deploy                    # 本地回归，不访问真实友链、不触发真实部署
 ```
 
-`HUGO_BIN` 可指定与 `.hugo-version` 一致的 Extended 二进制；未安装时，Linux x86_64 自动下载官方发行包并验证 SHA-256。二进制保存在 `.cache/deploy/hugo/<版本>/`，图片继续使用内容哈希缓存。缓存能否跨 Vercel 构建保留取决于平台，流程不能依赖缓存才能正确运行。
+`HUGO_BIN` 可指定与 `.hugo-version` 一致的 Extended 二进制；未安装时，Linux x86_64 自动下载官方发行包并验证 SHA-256。二进制保存在 `.cache/deploy/hugo/<版本>/`，图片使用下述内容哈希缓存。没有缓存时仍能正常完成构建。
 
 同一工作区不能同时运行两个部署流程。正常结束、失败或 Ctrl+C 时释放锁；若进程被 SIGKILL 或机器断电，需确认没有运行中的构建后再删除 `.cache/deploy/run.lock`。不要将该文件提交到 Git。
+
+## 图片构建缓存
+
+项目的 `framework: null` 使用 Vercel 的 Other 构建流程。[Vercel 构建器默认缓存规则](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/build-utils/src/default-cache-path-glob.ts)包含 `node_modules/**`，因此图片缓存放在 `node_modules/.cache/xeu-images/`：`images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，`files/` 保存 WebP 缩略图。单独放在 `static/`、`data/` 或普通 `.cache/` 下不能依靠这条规则跨构建保留。
+
+`vercel.json` 的 Install Command 使用 `node scripts/vercel-install.mjs`。脚本先把图片缓存移动到 `.cache/deploy/` 下的临时目录，执行原有 `npm ci` 后再放回，避免 npm 清空 `node_modules` 时删除缓存；安装失败也尝试恢复，并仍以失败状态退出。无需新增依赖或环境变量。如果控制台曾覆盖 Install Command，应与仓库配置保持一致。
+
+图片预处理逐张计算原图内容与处理配置的指纹。命中完整清单与缩略图时直接恢复到 `data/xeu/images.json` 和 `static/xeu-images/`，不重新压缩或计算 BlurHash；原图重命名也可按内容复用。新增图片、内容变更、处理配置变化或缓存不完整时补算，损坏的 JSON 清单按未命中处理。保存缓存时移除不再被当前图片引用的旧缩略图，避免长期累积。
+
+构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。第一次部署用于填充缓存，后续缓存可用且图片未变时应显示 `0 张新生成`。缓存被清除、过期或手动选择不使用缓存时会重新生成；[Deploy Hook 默认也使用构建缓存](https://vercel.com/docs/deploy-hooks#build-cache)，Hook 地址不要设置 `buildCache=false`。本地普通 `npm ci` 可能清除缓存副本，但已有发布产物仍可复用并重新填充缓存。
+
+`node scripts/check-images.mjs` 验证冷/热缓存、只携带构建缓存的新工作区、实际 `npm ci` 后恢复、安装失败、图片改名/更新、缺失文件、无效清单和旧缓存清理。
 
 ## 友链检测
 
@@ -120,4 +133,4 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 ## 评论审批发布
 
-同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 验证签名后写入独立评论文件，执行同一 `npm run deploy` 构建流程，安全推送 Git，再调用 Vercel Deploy Hook 发布。它不依赖数据库、Twikoo 或 Vercel 限流规则；当前不限制请求频率，PoW 不能保证调用量/费用上限。独立挑战密钥、外部服务及手动验收步骤见 [评论系统配置](comments.md)。
+同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 只验证签名、写入独立评论文件并提交推送，由 Vercel Git 集成自动构建部署；不安装 npm 依赖、不在评论 CI 中构建，也不调用 Deploy Hook。GitHub 只需配置 `COMMENTS_WORKFLOW_SECRET`，无需部署凭据；上面的每日刷新 Hook 保持独立。它不依赖数据库、Twikoo 或 Vercel 限流规则；当前不限制请求频率，PoW 不能保证调用量/费用上限。独立挑战密钥、外部服务及手动验收步骤见 [评论系统配置](comments.md)。
