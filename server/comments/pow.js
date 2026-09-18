@@ -7,7 +7,7 @@ import { CommentError, commentSecret, digest, sign, verify } from './core.js';
 export const POW_TTL = 5 * 60 * 1000;
 const PURPOSE = 'comment-pow-v1';
 export function powDifficulty(env) {
-  const value = env.COMMENTS_POW_DIFFICULTY ?? '5';
+  const value = env.COMMENTS_POW_DIFFICULTY ?? '4';
   if (!/^[4-6]$/.test(value)) throw new CommentError(503, '评论工作量证明尚未配置完成。');
   return Number(value);
 }

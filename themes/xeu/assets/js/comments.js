@@ -27,7 +27,7 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
     fields.disabled = true;
     editor.setBusy(true);
     cancel.hidden = false;
-    status.textContent = '正在获取浏览器验证任务…';
+    editor.showState('verifying', '正在准备验证，请稍候…');
     let sending = false;
     try {
       if (!window.Worker || !crypto?.subtle || !crypto.randomUUID) throw new Error('此浏览器不支持安全验证，请使用较新的浏览器。内容已保留。');
@@ -35,20 +35,20 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
       if (!editor.pending || editor.pending.fingerprint !== fingerprint) editor.pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
       const input = { ...values, id: editor.pending.id, createdAt: editor.pending.createdAt };
       const task = await post(form.dataset.challengeEndpoint, input, controller.signal);
-      status.textContent = '正在进行浏览器验证，通常需要几秒…';
+      status.textContent = '验证完成后会自动提交，请稍候。';
       const proof = await solveProof(form.dataset.powWorker, task, {
         signal: controller.signal,
-        onProgress: seconds => { status.textContent = `正在进行浏览器验证 · 已用 ${seconds} 秒，可随时取消`; },
+        onProgress: seconds => { status.textContent = `已用 ${seconds} 秒，请稍候。`; },
       });
       // Once sending begins, cancellation cannot guarantee an email was not sent.
       cancel.hidden = true;
       sending = true;
-      status.textContent = '验证完成，正在送交审核…';
+      editor.showState('sending', '验证已完成，正在提交你的留言…');
       const result = await post(form.dataset.endpoint, { ...input, proof }, controller.signal);
-      status.textContent = result.message || '评论已送交审核，通过后会显示在这里。';
       editor.clearDraft();
+      editor.showState('success', result.message || '评论已送交审核，通过后会显示在这里。');
     } catch (error) {
-      status.textContent = controller.signal.aborted ? (sending ? '发送结果尚未确认，内容已保留；重试会使用相同评论编号。' : '已取消验证，内容已保留。') : error.name === 'AbortError' ? '请求超时，内容已保留，请重试。' : error.message;
+      editor.showState('editing', controller.signal.aborted ? (sending ? '发送结果尚未确认，内容已保留；重试会使用相同评论编号。' : '已取消验证，内容已保留。') : error.name === 'AbortError' ? '请求超时，内容已保留，请重试。' : error.message);
     } finally {
       const focusSubmit = document.activeElement === cancel;
       busy = false; fields.disabled = false; cancel.hidden = true;

@@ -143,7 +143,15 @@ test('proofs bind canonical comment and site; tampering, changed difficulty, mis
   const valid = validateComment(input);
   const site = new URL(env.COMMENTS_SITE_URL);
   verifyProof(input.proof, valid, site, env, now);
-  assert.equal(powDifficulty({}), 5);
+  assert.equal(powDifficulty({}), 4);
+  const defaultEnv = { ...env };
+  delete defaultEnv.COMMENTS_POW_DIFFICULTY;
+  const defaultResponse = await challengeComment(request(input), deps({ env: defaultEnv }));
+  assert.equal(defaultResponse.status, 200);
+  const defaultTask = await defaultResponse.json();
+  assert.equal(defaultTask.difficulty, 4);
+  verifyProof(solve(defaultTask), valid, site, defaultEnv, now);
+  assert.equal(powDifficulty({ COMMENTS_POW_DIFFICULTY: '5' }), 5, '显式配置仍可覆盖默认难度');
   for (const value of ['0', '3', '7', '-1', '4.5', '', '04', 'NaN']) assert.throws(() => powDifficulty({ COMMENTS_POW_DIFFICULTY: value }));
   const claim = verify(input.proof.token, env.COMMENTS_POW_SECRET, 'comment-pow-v1');
   const tampered = Buffer.from(JSON.stringify({ ...claim, difficulty: 0 })).toString('base64url') + '.' + input.proof.token.split('.')[1];

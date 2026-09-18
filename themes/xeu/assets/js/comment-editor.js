@@ -7,6 +7,11 @@ export function setupCommentEditor(form) {
   const triggers = [...section.querySelectorAll('[data-new-comment], [data-reply-id]')];
   const parent = form.elements.namedItem('parentId');
   const status = form.querySelector('[role="status"]');
+  const feedback = form.querySelector('[data-comment-feedback]');
+  const stateTitle = form.querySelector('[data-state-title]');
+  const stateSymbol = form.querySelector('[data-state-symbol]');
+  const done = form.querySelector('[data-comment-done]');
+  const fields = form.querySelector('fieldset');
   const replyContext = form.querySelector('[data-reply-context]');
   const replyTarget = form.querySelector('[data-reply-target]');
   const nativePopover = typeof popover.showPopover === 'function';
@@ -14,6 +19,7 @@ export function setupCommentEditor(form) {
   let trigger;
   let open = false;
   let busy = false;
+  let state = 'editing';
   let pending;
   let frame;
   const key = () => `xeu-comment-draft:v1:${encodeURIComponent(form.dataset.path)}:${parent.value || 'root'}`;
@@ -68,11 +74,32 @@ export function setupCommentEditor(form) {
     cancelAnimationFrame(frame);
     if (open) frame = requestAnimationFrame(position);
   };
+  const showState = (nextState, message = '') => {
+    const previous = state;
+    state = nextState;
+    const overlay = state !== 'editing';
+    help.dismiss();
+    popover.classList.toggle('has-status', overlay);
+    popover.setAttribute('aria-labelledby', overlay ? 'comment-state-title' : 'comment-editor-title');
+    feedback.classList.toggle('comment-state-panel', overlay);
+    feedback.dataset.state = state;
+    fields.inert = overlay;
+    stateTitle.hidden = stateSymbol.hidden = !overlay;
+    stateTitle.textContent = { verifying: '浏览器验证', sending: '正在送交审核', success: '提交成功' }[state] || '';
+    status.textContent = message;
+    done.hidden = state !== 'success';
+    if (overlay) {
+      popover.scrollTop = 0;
+      if (open && previous !== state) (state === 'success' ? done : feedback).focus({ preventScroll: true });
+    }
+    reposition();
+  };
   const closed = () => {
     help.dismiss();
     saveDraft();
     open = false;
     trigger?.setAttribute('aria-expanded', 'false');
+    if (state === 'success') showState('editing');
   };
   const close = (restoreFocus = false) => {
     if (!open) return;
@@ -102,7 +129,7 @@ export function setupCommentEditor(form) {
         replyTarget.textContent = button.dataset.replyName || '';
         if (parent.value) replyTarget.href = `#comment-${parent.value}`;
         else replyTarget.removeAttribute('href');
-        status.textContent = '';
+        showState('editing');
         loadDraft();
       }
       open = true;
@@ -110,10 +137,11 @@ export function setupCommentEditor(form) {
       if (nativePopover) popover.showPopover({ source: button });
       else popover.hidden = false;
       position();
-      (busy ? popover.querySelector('[data-close-comment]') : form.elements.namedItem('message')).focus({ preventScroll: true });
+      (state === 'success' ? done : busy ? feedback : form.elements.namedItem('message')).focus({ preventScroll: true });
     });
   }
   popover.querySelector('[data-close-comment]').addEventListener('click', () => close(true));
+  done.addEventListener('click', () => close(true));
   document.addEventListener('keydown', event => {
     if (open && event.key === 'Escape') { event.preventDefault(); close(true); }
   });
@@ -133,6 +161,7 @@ export function setupCommentEditor(form) {
     get pending() { return pending; },
     set pending(value) { pending = value; saveDraft(); },
     saveDraft,
+    showState,
     clearDraft() {
       removeDraft();
       pending = undefined;

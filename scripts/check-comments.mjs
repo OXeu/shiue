@@ -10,7 +10,7 @@ const baseURL = process.env.SHIUE_TEST_URL || 'http://127.0.0.1:1313/';
 const artifacts = await mkdtemp(path.join(tmpdir(), 'xeu-comments-browser-'));
 const browser = await chromium.launch({ headless: true });
 const message = '<img src=x onerror="window.commentXSS=true">\n评论保持纯文本';
-const powEnv = { COMMENTS_POW_SECRET: 'browser-test-only'.repeat(4), COMMENTS_POW_DIFFICULTY: '4' };
+const powEnv = { COMMENTS_POW_SECRET: 'browser-test-only'.repeat(4) };
 try {
   for (const mode of ['light', 'dark']) for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
@@ -56,6 +56,7 @@ try {
       assert.equal(await form.isHidden(), true, '阅读时不显示编辑面板');
       await compose.click();
       assert.equal(await compose.getAttribute('aria-expanded'), 'true');
+      assert.equal(await popover.locator('.comment-help svg[viewBox="0 0 24 24"]').count(), 3, '三个说明使用 SVG 问号图标');
       await form.locator('[name="name"]').fill('测试读者');
       await form.locator('[name="message"]').fill(message);
       await form.locator('[name="consent"]').check();
@@ -110,8 +111,20 @@ try {
       await submit.click();
       await page.waitForFunction(() => document.querySelector('[data-comment-form] fieldset').disabled);
       await submit.evaluate(button => { button.click(); button.click(); });
+      await page.waitForFunction(() => document.querySelector('[data-comment-feedback]').dataset.state === 'sending');
+      assert.equal(await form.locator('fieldset').isHidden(), true, '状态面板覆盖编辑内容');
+      assert.equal(await form.locator('fieldset').evaluate(node => node.inert), true);
+      assert.equal(await form.locator('[data-cancel-proof]').isHidden(), true, '发信阶段不可取消');
+      const panelBounds = await form.locator('[data-comment-feedback]').boundingBox();
+      const popoverBounds = await popover.boundingBox();
+      assert.ok(Math.abs(panelBounds.width - popoverBounds.width) <= 2 && Math.abs(panelBounds.height - popoverBounds.height) <= 2, '状态面板覆盖整个 popover');
+      await page.screenshot({ path: path.join(artifacts, `sending-${mode}-${width}.png`) });
       release();
       await page.waitForFunction(() => document.querySelector('.comment-status').textContent.includes('评论已送交审核'));
+      assert.equal(await form.locator('[data-comment-feedback]').getAttribute('data-state'), 'success');
+      assert.equal(await form.locator('[data-comment-done]').isVisible(), true);
+      assert.equal(await form.locator('[data-comment-done]').evaluate(node => node === document.activeElement), true);
+      await page.screenshot({ path: path.join(artifacts, `success-${mode}-${width}.png`) });
       assert.equal(submissions.length, 2, '正在发送时不能重复提交');
       assert.equal(challenges.length, 2, '重试应取得新的短期挑战');
       assert.equal(workers.length, 2);
@@ -132,6 +145,11 @@ try {
       assert.equal(await page.locator('[data-comments] img, [data-comments] script').count(), 0, '留言和回复昵称不能变成 HTML');
       if (parentId) {
         // 回复成功后，继续发顶层留言，不应沿用上次的父编号。
+        await form.locator('[data-comment-done]').click();
+        assert.equal(await popover.isHidden(), true);
+        await page.locator(`[data-reply-id="${parentId}"]`).click();
+        assert.equal(await form.locator('fieldset').isVisible(), true, '成功后重开恢复可编辑面板');
+        assert.equal(await form.locator('textarea').inputValue(), '');
         await close.click();
         await compose.click();
         assert.equal(await form.locator('textarea').inputValue(), message, '回复成功不能清除独立留言的草稿');
@@ -258,29 +276,32 @@ try {
     } finally { await context.close(); }
   }
 
-  // Exercise the actual emitted worker at the default odd-nibble difficulty,
+  // Exercise the actual emitted worker at the default and optional odd-nibble difficulty,
   // then inject bounded failure cases only for cancellation/timeout scenarios.
   const proofPage = await browser.newPage();
   try {
     await proofPage.goto(new URL('p/ai-random-thoughts/', baseURL).href);
     const workerURL = await proofPage.locator('[data-comment-form]').getAttribute('data-pow-worker');
     const sample = { id: 'ae251682-6cc0-40df-bf31-6d48c12a985c', path: '/p/example/', name: '验证', message: '测试', createdAt: new Date().toISOString() };
-    const task = issueProof(sample, new URL(baseURL), { ...powEnv, COMMENTS_POW_DIFFICULTY: '5' }, Date.now());
-    const result = await proofPage.evaluate(({ workerURL, task }) => new Promise((resolve, reject) => {
-      const worker = new Worker(workerURL);
-      const start = performance.now();
-      const timer = setTimeout(() => { worker.terminate(); reject(new Error('worker timed out')); }, 95000);
-      worker.onmessage = ({ data }) => {
-        if (data.error || data.nonce !== undefined) {
-          clearTimeout(timer); worker.terminate();
-          data.error ? reject(new Error('worker failed')) : resolve({ nonce: data.nonce, elapsed: performance.now() - start });
-        }
-      };
-      worker.onerror = () => { clearTimeout(timer); worker.terminate(); reject(new Error('worker load failed')); };
-      worker.postMessage(task);
-    }), { workerURL, task });
-    verifyProof({ token: task.token, nonce: result.nonce }, sample, new URL(baseURL), { ...powEnv, COMMENTS_POW_DIFFICULTY: '5' }, Date.now());
-    console.log(`真实 Worker 难度 5：${result.elapsed.toFixed(0)} ms（本机单次样本，不代表移动设备性能）`);
+    for (const difficulty of [undefined, undefined, undefined, undefined, undefined, '5']) {
+      const benchmarkEnv = { ...powEnv, ...(difficulty ? { COMMENTS_POW_DIFFICULTY: difficulty } : {}) };
+      const task = issueProof(sample, new URL(baseURL), benchmarkEnv, Date.now());
+      const result = await proofPage.evaluate(({ workerURL, task }) => new Promise((resolve, reject) => {
+        const worker = new Worker(workerURL);
+        const start = performance.now();
+        const timer = setTimeout(() => { worker.terminate(); reject(new Error('worker timed out')); }, 95000);
+        worker.onmessage = ({ data }) => {
+          if (data.error || data.nonce !== undefined) {
+            clearTimeout(timer); worker.terminate();
+            data.error ? reject(new Error('worker failed')) : resolve({ nonce: data.nonce, elapsed: performance.now() - start });
+          }
+        };
+        worker.onerror = () => { clearTimeout(timer); worker.terminate(); reject(new Error('worker load failed')); };
+        worker.postMessage(task);
+      }), { workerURL, task });
+      verifyProof({ token: task.token, nonce: result.nonce }, sample, new URL(baseURL), benchmarkEnv, Date.now());
+      console.log(`真实 Worker 难度 ${task.difficulty}：${result.elapsed.toFixed(0)} ms（本机样本，不代表移动设备性能）`);
+    }
   } finally { await proofPage.close(); }
 
   for (const scenario of ['cancel', 'pagehide', 'timeout', 'worker-error', 'challenge-unavailable', 'expired-proof', 'unsupported']) {
@@ -297,6 +318,7 @@ try {
       }
     }, scenario);
     const page = await context.newPage();
+    if (scenario === 'cancel') await page.setViewportSize({ width: 320, height: 360 });
     let submits = 0;
     let challenges = 0;
     await context.route('**/api/comments-challenge', route => {
@@ -324,6 +346,10 @@ try {
       await form.locator('[type="submit"]').click();
       if (scenario === 'cancel' || scenario === 'pagehide') {
         await page.waitForFunction(() => document.querySelector('.comment-status').textContent.includes('已用'));
+        assert.equal(await form.locator('[data-comment-feedback]').getAttribute('data-state'), 'verifying');
+        assert.equal(await form.locator('fieldset').isHidden(), true);
+        assert.equal(await form.locator('[data-cancel-proof]').isVisible(), true);
+        await page.screenshot({ path: path.join(artifacts, `verifying-${scenario}.png`) });
         await page.locator('[data-close-comment]').click();
         await (parentId ? reply : page.locator('[data-new-comment]')).click();
         assert.equal(await form.locator('[name="message"]').inputValue(), message, '验证中关闭和重开保留当前草稿');
@@ -333,6 +359,8 @@ try {
       const expected = { cancel: '已取消', pagehide: '已取消', timeout: '未能完成', 'worker-error': '未能完成', 'challenge-unavailable': '暂时不可用', 'expired-proof': '已过期', unsupported: '不支持' }[scenario];
       await page.waitForFunction(expected => document.querySelector('.comment-status').textContent.includes(expected), expected);
       assert.equal(await form.locator('[name="message"]').inputValue(), message);
+      assert.equal(await form.locator('fieldset').isVisible(), true, '取消或失败后恢复编辑及草稿');
+      assert.equal(await form.locator('fieldset').evaluate(node => node.inert), false);
       assert.equal(await form.locator('[name="parentId"]').inputValue(), parentId, '取消验证或故障后保留回复对象');
       assert.equal(await form.locator('[type="submit"]').isEnabled(), true);
       assert.equal(await form.locator('[data-cancel-proof]').isHidden(), true);
@@ -391,5 +419,5 @@ try {
   for (const button of await noJS.locator('[data-reply-id]').all()) assert.equal(await button.isHidden(), true);
   if (process.env.SHIUE_TEST_REQUIRE_REPLIES === '1') assert.ok(await noJS.locator('.comment-replies .comment-message').count() >= 6, '无 JS 时多层回复仍可阅读');
   await noJS.close();
-  console.log(`评论浏览器检查通过：锚定 popover、关闭/刷新恢复草稿、文章与回复草稿隔离、存储/Popover 降级、时区与相对时间切换、选填邮箱、多层回复、真实 PoW、取消/超时/故障、幂等重试、浅色/深色、桌面/手机、邮件审批与通知重试、无 JS 展示。截图：${artifacts}`);
+  console.log(`评论浏览器检查通过：锚定 popover、覆盖式验证/提交/成功状态、关闭/刷新恢复草稿、文章与回复草稿隔离、存储/Popover 降级、时区与相对时间切换、选填邮箱、多层回复、真实 PoW、取消/超时/故障、幂等重试、浅色/深色、桌面/手机、邮件审批与通知重试、无 JS 展示。截图：${artifacts}`);
 } finally { await browser.close(); }
