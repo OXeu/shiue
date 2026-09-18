@@ -2,6 +2,22 @@
 
 基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel 静态部署。
 
+## 新建文章
+
+在仓库根目录执行交互式脚本（只需 Node.js 22 或更新版本，无需先安装依赖或 Hugo）：
+
+```bash
+npm run post:new
+```
+
+依次填写标题、网址名（slug）、摘要、分类、标签、封面和草稿状态。标题必填；其他项可按回车使用默认值或留空。分类与标签支持中文、英文逗号分隔。网址名用于文章目录及 `/p/<slug>/` 地址，默认从标题中的英文和数字生成，纯中文标题回退为带时间戳的名称，也可自行填写，例如 `my-new-post`。已有目录会提示重新输入。
+
+脚本生成 `content/post/<slug>/index.md`，自动填入当前日期，默认 `draft: true`。封面可留空，或填写 `cover.jpg` 这样的文件名、`/images/example.jpg` 这样的静态资源路径或图片网址；本地封面需自行放到对应目录。正文图片也可直接放在文章目录中，通过 `![说明](image.jpg)` 引用。
+
+也可提前传入标题：`npm run post:new -- "我的新文章"`。按 `Ctrl+C` 取消，查看帮助：`npm run post:new -- --help`。
+
+编辑生成的 Markdown 后，运行 `npm run dev -- --buildDrafts` 预览草稿（环境准备见下文「本地构建」）；准备发布时将 `draft` 改为 `false`，再提交文章与图片。
+
 ## X 帖子嵌入
 
 文章中使用 `x` 短代码接入 [X 官方嵌入组件](https://help.x.com/en/using-x/how-to-embed-a-post)，支持 `x.com` 和 `twitter.com` 的 HTTPS 帖子链接：

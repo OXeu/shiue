@@ -10,6 +10,7 @@
     "build": "node scripts/deploy.mjs",
     "deploy": "node scripts/deploy.mjs",
     "dev": "bash scripts/hugo.sh server --disableFastRender",
+    "post:new": "node scripts/new-post.mjs",
     "friend:add": "node scripts/add-friend.mjs",
     "check:friends": "node scripts/check-friends.mjs",
     "check:deploy": "node --test scripts/deploy.test.mjs scripts/identity.test.mjs",
