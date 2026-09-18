@@ -8,5 +8,6 @@
   {{ partial "footer.html" . }}
   {{ $scripts := resources.Get "js/main.js" | js.Build (dict "targetPath" "js/xeu.js" "minify" true "target" "es2020") | fingerprint }}
   <script src="{{ $scripts.RelPermalink }}" integrity="{{ $scripts.Data.Integrity }}" defer></script>
+  {{ partial "mermaid.html" . }}
 </body>
 </html>

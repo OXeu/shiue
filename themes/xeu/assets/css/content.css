@@ -39,6 +39,15 @@
 .copy-code:hover { background: var(--hover); color: var(--text); }
 .prose pre { max-width: 100%; overflow-x: auto; margin: 0; padding: 16px; line-height: 1.6; tab-size: 4; }
 .prose pre code { background: transparent; color: inherit; padding: 0; border-radius: 0; font-size: 13px; white-space: pre; overflow-wrap: normal; }
+.mermaid-block { min-width: 0; margin: 24px 0; }
+.mermaid-diagram { max-width: 100%; overflow-x: auto; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--surface); line-height: 1.5; }
+.mermaid-diagram > svg { display: block; margin-inline: auto; }
+.mermaid-diagram .label p { margin: 0; }
+.mermaid-source { margin-top: 8px; }
+.mermaid-source > summary { width: fit-content; padding: 8px 0; cursor: pointer; color: var(--muted); font-size: 13px; }
+.mermaid-source > summary:hover { color: var(--text); }
+.prose .mermaid-source .code-block { margin-block: 8px 0; }
+.prose .mermaid-status { margin-block: 8px; color: var(--muted); font-size: 13px; }
 .prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 14px; }
 .prose td, .prose th { border: 1px solid var(--border-hover); padding: 8px 12px; }
 .prose th { background: var(--surface-muted); text-align: left; }

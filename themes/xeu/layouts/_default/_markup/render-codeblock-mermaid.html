@@ -1,0 +1,9 @@
+{{- .Page.Store.Set "hasMermaid" true -}}
+<figure class="mermaid-block" data-mermaid>
+  <div class="mermaid-diagram" data-mermaid-output hidden tabindex="0" role="region" aria-label="Mermaid 图表，可横向滚动"></div>
+  <p class="mermaid-status" data-mermaid-status role="status" hidden>图表暂时无法显示，可查看下方源码。</p>
+  <details class="mermaid-source" open>
+    <summary>图表源码</summary>
+    <div class="code-block"><div class="code-toolbar"><span>mermaid</span><button type="button" class="copy-code">复制</button></div><pre><code class="language-mermaid">{{ .Inner }}</code></pre></div>
+  </details>
+</figure>

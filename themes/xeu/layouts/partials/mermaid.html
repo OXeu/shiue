@@ -1,0 +1,5 @@
+{{- if .Store.Get "hasMermaid" -}}
+  {{- $engine := resources.Get "js/mermaid-engine.js" | js.Build (dict "targetPath" "js/mermaid-engine.js" "format" "esm" "minify" true "target" "es2020") | fingerprint -}}
+  {{- $script := resources.Get "js/mermaid.js" | js.Build (dict "targetPath" "js/mermaid.js" "format" "esm" "minify" true "target" "es2020" "params" (dict "engineURL" $engine.RelPermalink)) | fingerprint -}}
+  <script type="module" src="{{ $script.RelPermalink }}" integrity="{{ $script.Data.Integrity }}" data-mermaid-script></script>
+{{- end -}}

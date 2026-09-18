@@ -33,6 +33,15 @@ const baseURL = process.env.SHIUE_TEST_BASE_URL || 'https://example.org/';
 // 测试留言只写入临时文章副本，不改写真实仓库或发布数据。
 const testContent = path.join(output, 'content');
 cpSync(path.join(root, 'content'), testContent, { recursive: true });
+const mermaidDirectory = path.join(testContent, 'post/mermaid-render-check');
+mkdirSync(mermaidDirectory, { recursive: true });
+const mermaidSource = 'flowchart LR\n  A["<img src=x onerror=alert(1)> & 示例"] --> B["完成"]';
+writeFileSync(path.join(mermaidDirectory, 'index.md'), [
+  '---', 'title: Mermaid 渲染验证', 'slug: mermaid-render-check', 'date: 2020-01-01',
+  'description: 验证图表源码转义与按页加载。', '---', '',
+  '```mermaid', mermaidSource, '```', '',
+  '```javascript', 'console.log("普通代码块仍可高亮和复制");', '```', '',
+].join('\n'));
 const commentDirectory = path.join(testContent, 'post/ai-random-thoughts/comments');
 mkdirSync(commentDirectory, { recursive: true });
 const fixtureComment = { id: 'e2ae8335-89b2-4f10-97db-cdb4603d23f4', path: new URL('p/ai-random-thoughts/', baseURL).pathname, name: '<img src=x onerror=alert(1)>', message: '<script>alert(1)</script>\n纯文本评论', createdAt: '2026-09-17T20:00:00.000Z' };
@@ -85,6 +94,29 @@ function localAsset(url, parent = baseURL) {
 
 const home = read('index.html');
 const $home = load(home);
+assert.equal($home('[data-mermaid-script]').length, 0, '没有图表的首页不得加载 Mermaid');
+const $mermaid = load(read('p/mermaid-render-check/index.html'));
+assert.equal($mermaid('[data-mermaid]').length, 1);
+assert.equal($mermaid('.mermaid-source[open] code').text().trim(), mermaidSource, '图表源码应逐字保留并默认可读');
+assert.equal($mermaid('.mermaid-source img, .mermaid-source script').length, 0, '图表源码必须转义');
+assert.equal($mermaid('[data-mermaid-output][hidden]').length, 1);
+assert.equal($mermaid('.mermaid-source .copy-code').length, 1);
+assert.equal($mermaid('.prose > .code-block .copy-code').length, 1, '普通代码块不受影响');
+const mermaidScript = $mermaid('script[data-mermaid-script][type="module"]');
+assert.equal(mermaidScript.length, 1);
+localAsset(mermaidScript.attr('src'));
+const loader = readFileSync(outputPath(mermaidScript.attr('src')), 'utf8');
+const engineURL = loader.match(/[^"'\s]*\/js\/mermaid-engine\.[a-f0-9]+\.js/)?.[0];
+assert.ok(engineURL, '加载器必须引用带内容指纹的本地 Mermaid 引擎');
+localAsset(engineURL);
+assert.ok(loader.includes('import('), '引擎应动态加载');
+const $rssMermaid = load(read('index.xml'), { xmlMode: true });
+const mermaidItem = $rssMermaid('item').filter((_, item) => $rssMermaid(item).find('link').text().endsWith('/p/mermaid-render-check/'));
+assert.equal(mermaidItem.length, 1);
+const rssDiagram = load(mermaidItem.find('description').text());
+const rssLines = text => text.trim().split('\n').map(line => line.trimStart());
+assert.deepEqual(rssLines(rssDiagram('.language-mermaid').text()), rssLines(mermaidSource), 'RSS 应保留可读的图表语句');
+assert.equal(rssDiagram('script').length, 0, 'RSS 不加载图表脚本');
 const authorLink = $home('.site-footer > p > a').first();
 assert.equal(authorLink.text(), 'Xeu', '版权信息中的作者名称应保留');
 assert.equal(authorLink.attr('href'), 'https://github.com/OXeu', '版权信息中的作者应链接至 GitHub 主页');

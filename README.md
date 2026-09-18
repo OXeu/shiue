@@ -18,6 +18,25 @@ npm run post:new
 
 编辑生成的 Markdown 后，运行 `npm run dev -- --buildDrafts` 预览草稿（环境准备见下文「本地构建」）；准备发布时将 `draft` 改为 `false`，再提交文章与图片。
 
+## Mermaid 图表
+
+正文使用标记为 `mermaid` 的围栏代码块即可绘制图表，无需短代码或额外的文章配置：
+
+````markdown
+```mermaid
+flowchart LR
+    reader[读者提交评论] --> mail[邮件审核]
+    mail --> git[写入 Git 仓库]
+    git --> build[重新生成静态站点]
+```
+````
+
+主题通过 [Hugo 代码块渲染钩子](https://gohugo.io/render-hooks/code-blocks/) 接入 [Mermaid](https://mermaid.js.org/config/usage)。Mermaid 固定版本随 npm 依赖安装，由 Hugo 打包成带内容指纹的本地脚本，阅读时无需访问第三方 CDN。只有含图表的页面加载初始化脚本，图表接近视口时才下载一次渲染引擎；支持同页多图，颜色和字体沿用主题令牌，随浅色、深色及系统外观变化重新绘制。图中显式指定的节点样式仍由作者控制。
+
+图表保留可读文字大小，宽图可在图框内横向滚动，也可聚焦图框后用方向键滚动。渲染成功后收起「图表源码」，展开后仍可复制；关闭 JavaScript、加载失败或语法错误时保留源码，RSS 同样保留源码。使用 Mermaid 的严格安全模式，Markdown 的 `unsafe = false` 无需调整，普通代码块的高亮和复制不受影响。
+
+`node scripts/check-build.mjs` 包含源码转义、资源路径、按页加载及 RSS 回归；在预览服务启动后，可运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-mermaid.mjs`，验证实际渲染、多图、主题切换、手机滚动、源码复制及失败回退。可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` 指定 Chromium 路径。
+
 ## X 帖子嵌入
 
 文章中使用 `x` 短代码接入 [X 官方嵌入组件](https://help.x.com/en/using-x/how-to-embed-a-post)，支持 `x.com` 和 `twitter.com` 的 HTTPS 帖子链接：
