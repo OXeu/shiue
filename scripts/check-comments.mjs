@@ -132,6 +132,7 @@ try {
       assert.equal(submissions.length, 2, '正在发送时不能重复提交');
       assert.equal(challenges.length, 2, '重试应取得新的短期挑战');
       assert.equal(workers.length, 0, 'Turnstile does not start the legacy PoW worker');
+      assert.equal(await page.evaluate(() => window.turnstileReadyCalls), 0, '异步加载不能调用 Turnstile ready()');
       assert.notEqual(submissions[0].turnstileToken, submissions[1].turnstileToken);
       assert.equal(submissions[0].id, submissions[1].id, '重试必须沿用幂等编号');
       assert.equal(submissions[0].createdAt, submissions[1].createdAt);

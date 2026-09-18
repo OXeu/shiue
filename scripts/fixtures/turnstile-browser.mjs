@@ -3,9 +3,13 @@ export function turnstileScript(scenario = 'success') {
   function install(mode) {
     window.turnstileRenders = 0;
     window.turnstileRemovals = 0;
+    window.turnstileReadyCalls = 0;
     const widgets = new Map();
     window.turnstile = {
-      ready(callback) { callback(); },
+      ready() {
+        window.turnstileReadyCalls++;
+        throw new Error('Remove async/defer from the Turnstile api.js script tag before using turnstile.ready().');
+      },
       render(container, options) {
         window.turnstileRenders++;
         const id = crypto.randomUUID();

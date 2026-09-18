@@ -1,8 +1,8 @@
 let loading;
 
 function loadTurnstile() {
-  if (globalThis.turnstile?.render) return Promise.resolve(globalThis.turnstile);
   if (loading) return loading;
+  if (typeof globalThis.turnstile?.render === 'function') return Promise.resolve(globalThis.turnstile);
   loading = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     let settled = false;
@@ -19,10 +19,9 @@ function loadTurnstile() {
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     script.async = true;
     script.onload = () => {
-      try {
-        if (!globalThis.turnstile?.ready) return failed();
-        globalThis.turnstile.ready(() => finish());
-      } catch { failed(); }
+      // The SDK rejects ready() for async scripts, even inside their load event.
+      if (typeof globalThis.turnstile?.render !== 'function') return failed();
+      finish();
     };
     script.onerror = failed;
     document.head.append(script);

@@ -63,6 +63,7 @@ try {
       await page.waitForFunction(() => document.querySelector('[data-friend-form] [role="status"]').textContent.includes('已送交审核'));
       assert.equal(submissions.length, 2);
       assert.equal(challenges, 2);
+      assert.equal(await page.evaluate(() => window.turnstileReadyCalls), 0, '异步加载不能调用 Turnstile ready()');
       assert.equal(submissions[0].id, submissions[1].id);
       assert.equal(submissions[0].createdAt, submissions[1].createdAt);
       assert.notEqual(submissions[0].turnstileToken, submissions[1].turnstileToken);
