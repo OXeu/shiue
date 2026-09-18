@@ -28,8 +28,8 @@
       </article>
       {{ if eq .Section "post" }}
       <nav class="adjacent-posts" aria-label="相邻文章">
-        {{ with .NextInSection }}<a href="{{ .RelPermalink }}"><span>← 较新文章</span><strong>{{ .Title }}</strong></a>{{ end }}
-        {{ with .PrevInSection }}<a href="{{ .RelPermalink }}"><span>较早文章 →</span><strong>{{ .Title }}</strong></a>{{ end }}
+        {{ with .NextInSection }}<a href="{{ .RelPermalink }}"><span>← 较新文章</span><strong>{{ .Title }}</strong></a>{{ else }}<div class="adjacent-post-placeholder" aria-hidden="true"><span>← 较新文章</span><strong>&nbsp;</strong></div>{{ end }}
+        {{ with .PrevInSection }}<a href="{{ .RelPermalink }}"><span>较早文章 →</span><strong>{{ .Title }}</strong></a>{{ else }}<div class="adjacent-post-placeholder" aria-hidden="true"><span>较早文章 →</span><strong>&nbsp;</strong></div>{{ end }}
       </nav>
       {{ end }}
       {{ partial "comments.html" . }}

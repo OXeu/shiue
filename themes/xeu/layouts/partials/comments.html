@@ -21,7 +21,7 @@
 <section class="comments surface" aria-labelledby="comments-title" data-comments>
   <div class="comment-heading">
     <h2 id="comments-title">评论</h2>
-    <div class="comment-heading-actions"><span>{{ len $comments }} 条留言</span><button class="text-button comment-compose" type="button" data-new-comment aria-haspopup="dialog" aria-controls="comment-editor" aria-expanded="false" hidden>评论</button></div>
+    <div class="comment-heading-actions"><span>{{ len $comments }} 条留言</span><button class="page-link" type="button" data-new-comment aria-haspopup="dialog" aria-controls="comment-editor" aria-expanded="false" hidden>评论</button></div>
   </div>
   {{ if $comments }}
   <ol class="comment-list">
@@ -31,7 +31,10 @@
   {{ $powWorker := resources.Get "js/comment-pow-worker.js" | minify | fingerprint }}
   <div class="comment-popover" id="comment-editor" popover="auto" role="dialog" aria-labelledby="comment-editor-title" hidden>
   <div class="comment-editor-heading">
-    <h3 id="comment-editor-title">写下你的留言</h3>
+    <div class="comment-label-row">
+      <h3 id="comment-editor-title">写下你的留言</h3>
+      <button class="comment-help" type="button" data-comment-help="comment-draft-note" aria-label="草稿保存说明" aria-describedby="comment-draft-note"><span aria-hidden="true">?</span></button>
+    </div>
     <button class="comment-editor-close" type="button" data-close-comment aria-label="关闭留言编辑器"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
   </div>
   <form class="comment-form" data-comment-form data-path="{{ .RelPermalink }}" data-endpoint="/api/comments-submit" data-challenge-endpoint="/api/comments-challenge" data-pow-worker="{{ $powWorker.RelPermalink }}">
@@ -45,21 +48,27 @@
       <label for="comment-name">昵称</label>
       <input id="comment-name" name="name" autocomplete="nickname" maxlength="40" required placeholder="怎么称呼你">
       </div><div>
-      <label for="comment-email">邮箱（选填）</label>
+      <div class="comment-label-row">
+        <label for="comment-email">邮箱（选填）</label>
+        <button class="comment-help" type="button" data-comment-help="comment-email-note" aria-label="邮箱通知说明" aria-describedby="comment-email-note"><span aria-hidden="true">?</span></button>
+      </div>
       <input id="comment-email" name="email" type="email" autocomplete="email" maxlength="254" aria-describedby="comment-email-note" placeholder="用于接收留言通知">
       </div></div>
-      <p class="comment-note" id="comment-email-note">填写即同意接收本条留言的审核通过和回复通知。邮箱仅用于通知，以加密形式保存，不会公开展示。</p>
-      <label for="comment-message">评论</label>
+      <div class="comment-label-row">
+        <label for="comment-message">评论</label>
+        <button class="comment-help" type="button" data-comment-help="comment-note" aria-label="留言提交说明" aria-describedby="comment-note"><span aria-hidden="true">?</span></button>
+      </div>
       <textarea id="comment-message" name="message" rows="5" maxlength="2000" required aria-describedby="comment-note" placeholder="关于这篇文章，你想说些什么？"></textarea>
       <div class="comment-honeypot" aria-hidden="true"><label for="comment-website">请留空</label><input id="comment-website" name="website" tabindex="-1" autocomplete="off"></div>
-      <p class="comment-note" id="comment-note">提交时浏览器会进行短暂计算以减少垃圾评论。留言通过邮件送交审核，通过后随网站更新显示。支持纯文本，请勿填写隐私信息。</p>
       <label class="comment-consent"><input type="checkbox" name="consent" required>我同意昵称和留言经审核后公开，并保留在公开 Git 仓库的历史记录中。</label>
       <button class="page-link" type="submit">提交留言</button>
     </fieldset>
     <p class="comment-status" role="status" aria-live="polite"></p>
     <button class="text-button" type="button" data-cancel-proof hidden>取消验证</button>
   </form>
-  <p class="comment-note comment-draft-note" data-draft-note>草稿（含昵称和邮箱）仅保存在此浏览器，提交成功后清除。</p>
+  <p class="comment-tooltip" id="comment-email-note" role="tooltip" hidden>填写即同意接收本条留言的审核通过和回复通知。邮箱仅用于通知，以加密形式保存，不会公开展示。</p>
+  <p class="comment-tooltip" id="comment-note" role="tooltip" hidden>提交时浏览器会进行短暂计算以减少垃圾评论。留言通过邮件送交审核，通过后随网站更新显示。支持纯文本，请勿填写隐私信息。</p>
+  <p class="comment-tooltip" id="comment-draft-note" data-draft-note role="tooltip" hidden>草稿（含昵称和邮箱）仅保存在此浏览器，提交成功后清除。</p>
   </div>
   <noscript><p>查看留言不需要 JavaScript；启用 JavaScript 后可以提交留言。</p></noscript>
 </section>

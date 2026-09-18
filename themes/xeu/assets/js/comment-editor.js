@@ -1,6 +1,9 @@
+import { setupCommentHelp } from './comment-help.js';
+
 export function setupCommentEditor(form) {
   const section = form.closest('[data-comments]');
   const popover = form.closest('.comment-popover');
+  const help = setupCommentHelp(popover);
   const triggers = [...section.querySelectorAll('[data-new-comment], [data-reply-id]')];
   const parent = form.elements.namedItem('parentId');
   const status = form.querySelector('[role="status"]');
@@ -66,6 +69,7 @@ export function setupCommentEditor(form) {
     if (open) frame = requestAnimationFrame(position);
   };
   const closed = () => {
+    help.dismiss();
     saveDraft();
     open = false;
     trigger?.setAttribute('aria-expanded', 'false');
