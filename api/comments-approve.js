@@ -1,7 +1,7 @@
 import { CommentError, readApproval, requireSecret, sign } from '../server/comments/core.js';
-import { checkRequest, failure, json, limitRequest, readJSON } from '../server/comments/http.js';
+import { checkRequest, failure, json, readJSON } from '../server/comments/http.js';
 
-export async function approveComment(request, { env = process.env, fetchImpl = fetch, limiter, now = Date.now() } = {}) {
+export async function approveComment(request, { env = process.env, fetchImpl = fetch, now = Date.now() } = {}) {
   try {
     const site = checkRequest(request, env);
     const input = await readJSON(request);
@@ -12,7 +12,6 @@ export async function approveComment(request, { env = process.env, fetchImpl = f
     const branch = env.COMMENTS_GITHUB_BRANCH || 'master';
     if (!/^[\w.-]+\/[\w.-]+$/.test(repository || '') || !/^[\w./-]+$/.test(branch) || !env.COMMENTS_GITHUB_TOKEN) throw new CommentError(503, '评论发布流程尚未配置完成。');
     requireSecret(env.COMMENTS_WORKFLOW_SECRET);
-    await limitRequest(request, env, limiter);
     const envelope = sign({ v: 1, repository, comment: claim.comment, approvedAt: new Date(now).toISOString(), expiresAt: claim.expiresAt }, env.COMMENTS_WORKFLOW_SECRET, 'comment-publish-v1');
     const response = await fetchImpl(`https://api.github.com/repos/${repository}/actions/workflows/publish-comment.yml/dispatches`, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(12000),

@@ -104,7 +104,7 @@ try {
     console.log(`真实 Worker 难度 5：${result.elapsed.toFixed(0)} ms（本机单次样本，不代表移动设备性能）`);
   } finally { await proofPage.close(); }
 
-  for (const scenario of ['cancel', 'pagehide', 'timeout', 'worker-error', 'challenge-rate-limit', 'expired-proof', 'unsupported']) {
+  for (const scenario of ['cancel', 'pagehide', 'timeout', 'worker-error', 'challenge-unavailable', 'expired-proof', 'unsupported']) {
     const context = await browser.newContext();
     await context.addInitScript(scenario => {
       window.powTerminations = 0;
@@ -122,7 +122,7 @@ try {
     let challenges = 0;
     await context.route('**/api/comments-challenge', route => {
       challenges++;
-      if (scenario === 'challenge-rate-limit') return route.fulfill({ status: 429, json: { error: '操作过于频繁，请稍后重试。' } });
+      if (scenario === 'challenge-unavailable') return route.fulfill({ status: 503, json: { error: '评论服务暂时不可用，请稍后重试。' } });
       return route.fulfill({ json: issueProof(validateComment(route.request().postDataJSON()), new URL(baseURL), powEnv, Date.now()) });
     });
     await context.route('**/api/comments-submit', route => {
@@ -144,7 +144,7 @@ try {
         if (scenario === 'cancel') await form.locator('[data-cancel-proof]').click();
         else await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
       }
-      const expected = { cancel: '已取消', pagehide: '已取消', timeout: '未能完成', 'worker-error': '未能完成', 'challenge-rate-limit': '过于频繁', 'expired-proof': '已过期', unsupported: '不支持' }[scenario];
+      const expected = { cancel: '已取消', pagehide: '已取消', timeout: '未能完成', 'worker-error': '未能完成', 'challenge-unavailable': '暂时不可用', 'expired-proof': '已过期', unsupported: '不支持' }[scenario];
       await page.waitForFunction(expected => document.querySelector('.comment-status').textContent.includes(expected), expected);
       assert.equal(await form.locator('[name="message"]').inputValue(), message);
       assert.equal(await form.locator('[type="submit"]').isEnabled(), true);

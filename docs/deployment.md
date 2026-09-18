@@ -120,4 +120,4 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 ## 评论审批发布
 
-同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 验证签名后写入独立评论文件，执行同一 `npm run deploy` 构建流程，安全推送 Git，再调用 Vercel Deploy Hook 发布。它不依赖数据库或 Twikoo。PoW 不能代替函数执行前的边缘限流；独立挑战密钥、两条 SDK 限流规则、外部服务及手动验收步骤见 [评论系统配置](comments.md)。
+同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 验证签名后写入独立评论文件，执行同一 `npm run deploy` 构建流程，安全推送 Git，再调用 Vercel Deploy Hook 发布。它不依赖数据库、Twikoo 或 Vercel 限流规则；当前不限制请求频率，PoW 不能保证调用量/费用上限。独立挑战密钥、外部服务及手动验收步骤见 [评论系统配置](comments.md)。

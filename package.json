@@ -17,7 +17,6 @@
     "check": "npm run check:deploy && npm run check:comments && node scripts/check-friends.mjs && node scripts/check-images.mjs && node scripts/check-build.mjs"
   },
   "dependencies": {
-    "@vercel/firewall": "1.2.5",
     "blurhash": "2.0.5",
     "cheerio": "1.2.0",
     "sharp": "0.35.4"

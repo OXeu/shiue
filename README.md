@@ -30,7 +30,7 @@
 
 ## 评论
 
-读者提交 → 浏览器完成 SHA-256 工作量证明 → Vercel Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `data/comments/<UUID>.json` → 构建并触发 Vercel 部署。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验、Vercel Firewall 限流和并发安全 Git 推送。需要配置 Resend、Vercel 和 GitHub Secrets 后才能启用真实收发；PoW 不能代替边缘限流，详见 [评论系统配置](docs/comments.md)。旧 Twikoo 数据未自动迁移。
+读者提交 → 浏览器完成 SHA-256 工作量证明 → Vercel Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `data/comments/<UUID>.json` → 构建并触发 Vercel 部署。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验和并发安全 Git 推送。需要配置 Resend、Vercel 和 GitHub Secrets 后才能启用真实收发；无需配置限流规则，当前 PoW 不提供请求总量或费用上限，详见 [评论系统配置](docs/comments.md)。旧 Twikoo 数据未自动迁移。
 
 卡片使用 22px 圆角、内嵌封面和轻柔阴影；图片、提示块与目录使用 16px 圆角，导航、标签及按钮采用胶囊形状。鼠标悬停时卡片轻微上浮，按钮按压时回弹，折叠内容短暂淡入；独立的 `translate` 属性避免干扰瀑布流重排，系统开启“减少动态效果”时取消这些位移动画。
 
@@ -119,7 +119,7 @@ SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mj
 
 `node scripts/check-readability.mjs` 使用相同环境变量，检查主要页面在浅色/深色与桌面/手机下的实际文字对比度（普通文字至少 4.5:1，大号文字至少 3:1）、横向溢出、五类提示、搜索占位文字、按钮悬停和键盘焦点，并保存页面截图。
 
-`npm run check:comments` 检查 PoW、签名、限流、邮件幂等、审批和临时 Git 仓库中的并发写入。`node scripts/check-comments.mjs` 使用上述 Playwright 环境变量，检查真实 Worker 计算、取消/超时/故障、浅深色、桌面手机、失败保留草稿、重复点击、审批确认和无脚本静态展示。测试模拟外部服务，不发送真实邮件或触发线上发布。
+`npm run check:comments` 检查无限流配置下的流程、PoW、签名、邮件幂等、审批和临时 Git 仓库中的并发写入。`node scripts/check-comments.mjs` 使用上述 Playwright 环境变量，检查真实 Worker 计算、取消/超时/故障、浅深色、桌面手机、失败保留草稿、重复点击、审批确认和无脚本静态展示。测试模拟外部服务，不发送真实邮件或触发线上发布。
 
 ## Vercel
 

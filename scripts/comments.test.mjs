@@ -18,13 +18,12 @@ const now = Date.parse('2026-09-17T20:00:00.000Z');
 const env = {
   COMMENTS_SITE_URL: 'https://blog.example.org/', COMMENTS_APPROVAL_SECRET: 'a'.repeat(64), COMMENTS_WORKFLOW_SECRET: 'b'.repeat(64),
   RESEND_API_KEY: 'resend-test-secret', COMMENTS_EMAIL_FROM: 'Blog <blog@example.org>', COMMENTS_EMAIL_TO: 'owner@example.org',
-  COMMENTS_GITHUB_TOKEN: 'github-test-secret', COMMENTS_GITHUB_REPOSITORY: 'owner/blog', COMMENTS_GITHUB_BRANCH: 'master', COMMENTS_RATE_LIMIT_ID: 'comments',
-  COMMENTS_POW_SECRET: 'c'.repeat(64), COMMENTS_POW_DIFFICULTY: '4', COMMENTS_CHALLENGE_RATE_LIMIT_ID: 'comment-challenges',
+  COMMENTS_GITHUB_TOKEN: 'github-test-secret', COMMENTS_GITHUB_REPOSITORY: 'owner/blog', COMMENTS_GITHUB_BRANCH: 'master',
+  COMMENTS_POW_SECRET: 'c'.repeat(64), COMMENTS_POW_DIFFICULTY: '4',
 };
 const input = { id: 'fe251682-6cc0-40df-bf31-6d48c12a985c', path: '/p/example/', name: '读者', message: '第一行\n<script>alert(1)</script> ${{ secrets.TOKEN }} $(echo unsafe)', createdAt: new Date(now).toISOString(), website: '', consent: true };
 const pages = async () => [{ path: input.path, title: '文章标题 <test>' }];
-const limiter = async () => ({ rateLimited: false });
-const deps = extra => ({ env, now, pages, limiter, ...extra });
+const deps = extra => ({ env, now, pages, ...extra });
 const request = (data, headers = {}, method = 'POST') => new Request('https://blog.example.org/api/comments-submit', { method, headers: { origin: 'https://blog.example.org', 'content-type': 'application/json', ...headers }, ...(method !== 'GET' ? { body: JSON.stringify(data) } : {}) });
 const claim = () => approvalClaim(input, { title: '文章标题' }, new URL(env.COMMENTS_SITE_URL), now);
 const approval = () => sign(claim(), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
@@ -36,13 +35,10 @@ function solve(task) {
 }
 input.proof = solve(issueProof(validateComment(input), new URL(env.COMMENTS_SITE_URL), env, now));
 
-test('challenge endpoint validates input, uses a separate fail-closed limiter and signs a bounded random puzzle', async () => {
+test('challenge endpoint validates input and signs a bounded random puzzle without firewall configuration', async () => {
   const challenges = [];
   for (let i = 0; i < 2; i++) {
-    const response = await challengeComment(request(input), deps({ limiter: async id => {
-      assert.equal(id, env.COMMENTS_CHALLENGE_RATE_LIMIT_ID);
-      return { rateLimited: false };
-    } }));
+    const response = await challengeComment(request(input), deps());
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const task = await response.json();
@@ -54,20 +50,14 @@ test('challenge endpoint validates input, uses a separate fail-closed limiter an
     challenges.push(task.challenge);
   }
   assert.notEqual(challenges[0], challenges[1]);
-  const noLimit = async () => assert.fail('must validate before external calls');
   for (const [body, status] of [[{ ...input, consent: false }, 400], [{ ...input, website: 'spam' }, 400], [{ ...input, path: '/not-enabled/' }, 400], [{ ...input, message: 'x'.repeat(27000) }, 413]]) {
-    assert.equal((await challengeComment(request(body), deps({ limiter: noLimit }))).status, status);
+    assert.equal((await challengeComment(request(body), deps())).status, status);
   }
   for (const [extra, status] of [
-    [{ COMMENTS_POW_SECRET: '' }, 503], [{ COMMENTS_CHALLENGE_RATE_LIMIT_ID: '' }, 503],
-    [{ COMMENTS_CHALLENGE_RATE_LIMIT_ID: undefined }, 503], [{ COMMENTS_POW_DIFFICULTY: '0' }, 503], [{ VERCEL_ENV: 'preview' }, 503],
-  ]) assert.equal((await challengeComment(request(input), deps({ env: { ...env, ...extra }, limiter: noLimit }))).status, status);
-  assert.equal((await challengeComment(request(input, {}, 'GET'), deps({ limiter: noLimit }))).status, 405);
-  assert.equal((await challengeComment(request(input, { origin: 'https://evil.example' }), deps({ limiter: noLimit }))).status, 403);
-  for (const [result, status] of [[{ rateLimited: true }, 429], [{ rateLimited: false, error: 'not-found' }, 503], [{}, 503]]) {
-    assert.equal((await challengeComment(request(input), deps({ limiter: async () => result }))).status, status);
-  }
-  assert.equal((await challengeComment(request(input), deps({ limiter: async () => { throw new Error('down'); } }))).status, 503);
+    [{ COMMENTS_POW_SECRET: '' }, 503], [{ COMMENTS_POW_DIFFICULTY: '0' }, 503], [{ VERCEL_ENV: 'preview' }, 503],
+  ]) assert.equal((await challengeComment(request(input), deps({ env: { ...env, ...extra } }))).status, status);
+  assert.equal((await challengeComment(request(input, {}, 'GET'), deps())).status, 405);
+  assert.equal((await challengeComment(request(input, { origin: 'https://evil.example' }), deps())).status, 403);
 });
 
 test('proofs bind canonical comment and site; tampering, changed difficulty, missing proof and invalid nonce fail before network', async () => {
@@ -84,7 +74,7 @@ test('proofs bind canonical comment and site; tampering, changed difficulty, mis
   const bad = [undefined, {}, { ...input.proof, nonce: wrongNonce }, { ...input.proof, token: tampered }, { ...input.proof, token: approval() },
     ...[-1, 0, 1.5, '01', '-1', '1e2', '1.0', '9007199254740992', 'x'.repeat(2000)].map(nonce => ({ ...input.proof, nonce }))];
   const noNetwork = async () => assert.fail('invalid proofs must not make outbound calls');
-  for (const proof of bad) assert.equal((await submitComment(request({ ...input, proof }), deps({ limiter: noNetwork, fetchImpl: noNetwork }))).status, 403);
+  for (const proof of bad) assert.equal((await submitComment(request({ ...input, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
   for (const change of [{ id: 'ae251682-6cc0-40df-bf31-6d48c12a985c' }, { name: 'someone else' }, { message: 'different' }, { createdAt: new Date(now + 1).toISOString() }, { path: '/p/another/' }]) {
     assert.throws(() => verifyProof(input.proof, { ...valid, ...change }, site, env, now), { status: 403 });
   }
@@ -93,7 +83,7 @@ test('proofs bind canonical comment and site; tampering, changed difficulty, mis
   assert.throws(() => verifyProof(input.proof, valid, site, { ...env, COMMENTS_POW_SECRET: 'd'.repeat(64) }, now), { status: 403 });
   assert.throws(() => verifyProof(input.proof, valid, site, { ...env, COMMENTS_POW_SECRET: '' }, now), { status: 503 });
   assert.throws(() => verifyProof(input.proof, valid, site, env, now - 60000), { status: 403 });
-  assert.equal((await submitComment(request(input), deps({ now: now + POW_TTL, limiter: noNetwork, fetchImpl: noNetwork }))).status, 410);
+  assert.equal((await submitComment(request(input), deps({ now: now + POW_TTL, fetchImpl: noNetwork }))).status, 410);
 });
 
 test('submission sends escaped details to a fixed recipient; approval capability never reaches the visitor', async () => {
@@ -130,25 +120,33 @@ test('retry of the same logical submission produces exactly the same email and i
   assert.equal(requests[0].headers['idempotency-key'], requests[2].headers['idempotency-key'], 'renewing a challenge must not change email idempotency');
 });
 
-test('full local flow: submitted email → preview → confirmed dispatch → approved file', async () => {
+test('full production-config flow without rate-limit settings: challenge → email → preview → dispatch → file', async t => {
+  const production = { ...env, VERCEL: '1', VERCEL_ENV: 'production' };
+  const realFetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('unexpected outbound call'); });
+  const calls = [];
   let token;
-  const challenge = await challengeComment(request(input), deps());
+  const challenge = await challengeComment(request(input), deps({ env: production }));
+  assert.equal(challenge.status, 200);
   const proof = solve(await challenge.json());
-  const submitted = await submitComment(request({ ...input, proof }), deps({ fetchImpl: async (_, options) => {
+  const submitted = await submitComment(request({ ...input, proof }), deps({ env: production, fetchImpl: async (url, options) => {
+    calls.push(url);
     token = JSON.parse(options.body).text.match(/#token=([\w.-]+)/)[1];
     return Response.json({ id: 'email-id' });
   } }));
   assert.equal(submitted.status, 202);
-  const preview = await approveComment(request({ action: 'preview', token }), deps({ fetchImpl: async () => assert.fail() }));
+  const preview = await approveComment(request({ action: 'preview', token }), deps({ env: production }));
   assert.equal(preview.status, 200);
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-flow-'));
   let file;
-  const approved = await approveComment(request({ action: 'approve', token }), deps({ fetchImpl: async (_, options) => {
+  const approved = await approveComment(request({ action: 'approve', token }), deps({ env: production, fetchImpl: async (url, options) => {
+    calls.push(url);
     file = await appendApprovedComment({ root, envelope: JSON.parse(options.body).inputs.envelope, secret: env.COMMENTS_WORKFLOW_SECRET, repository: env.COMMENTS_GITHUB_REPOSITORY, now });
     return new Response(null, { status: 204 });
   } }));
   assert.equal(approved.status, 202);
   assert.deepEqual(JSON.parse(await readFile(path.join(root, file.relative), 'utf8')), claim().comment);
+  assert.deepEqual(calls, ['https://api.resend.com/emails', 'https://api.github.com/repos/owner/blog/actions/workflows/publish-comment.yml/dispatches']);
+  assert.equal(realFetch.mock.callCount(), 0, 'no firewall or other hidden outbound calls');
 });
 
 test('bad input, honeypot, missing consent, oversized bodies, foreign origins and missing configuration fail before email', async () => {
@@ -170,11 +168,7 @@ test('bad input, honeypot, missing consent, oversized bodies, foreign origins an
   assert.equal((await submitComment(malformed, deps({ fetchImpl: noEmail }))).status, 400);
 });
 
-test('rate limiting and upstream failures fail closed without disclosing credentials', async () => {
-  for (const [result, status] of [[{ rateLimited: true }, 429], [{ rateLimited: false, error: 'not-found' }, 503], [{}, 503]]) {
-    assert.equal((await submitComment(request(input), deps({ limiter: async () => result, fetchImpl: async () => assert.fail() }))).status, status);
-  }
-  assert.equal((await submitComment(request(input), deps({ limiter: async () => { throw new Error('network'); } }))).status, 503);
+test('upstream failures remain recoverable without disclosing credentials', async () => {
   for (const fetchImpl of [async () => new Response('secret', { status: 429 }), async () => { throw new Error(env.RESEND_API_KEY); }, async () => Response.json({})]) {
     const response = await submitComment(request(input), deps({ fetchImpl }));
     assert.ok(response.status >= 500);

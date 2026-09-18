@@ -1,9 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import { checkRateLimit } from '@vercel/firewall';
 import { approvalClaim, CommentError, siteURL } from './core.js';
 
 export function json(status, body) {
-  return Response.json(body, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', ...(status === 429 ? { 'retry-after': '60' } : {}) } });
+  return Response.json(body, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
 }
 export function failure(error) {
   // 不将上游响应、令牌、邮件正文或环境变量写入日志 / 返回给访客。
@@ -39,21 +38,6 @@ export async function readJSON(request) {
     if (error instanceof CommentError) throw error;
     throw new CommentError(400, '提交内容格式不正确。');
   } finally { reader.releaseLock(); }
-}
-export async function limitRequest(request, env, limiter = checkRateLimit, id = env.COMMENTS_RATE_LIMIT_ID) {
-  if (!id || (limiter === checkRateLimit && env.VERCEL !== '1')) throw new CommentError(503, '评论限流尚未配置完成。');
-  const headers = new Headers(request.headers);
-  headers.set('host', siteURL(env.COMMENTS_SITE_URL).host);
-  let timer;
-  try {
-    const result = await Promise.race([
-      // 无框架函数也可能不设置 NODE_ENV；显式主机避免 SDK 的开发模式直接放行。
-      limiter(id, { headers, firewallHostForDevelopment: siteURL(env.COMMENTS_SITE_URL).host }),
-      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('rate limit timeout')), 5000); }),
-    ]);
-    if (result.rateLimited) throw new CommentError(429, '操作过于频繁，请稍后重试。');
-    if (result.error || result.rateLimited !== false) throw new Error('rate limit unavailable');
-  } finally { clearTimeout(timer); }
 }
 export async function readPages() {
   return JSON.parse(await readFile(new URL('../../public/comment-pages.json', import.meta.url), 'utf8'));
