@@ -1,6 +1,6 @@
 # 🍧Shiue - Xeu's mini world
 
-基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel、Netlify 和 Cloudflare Pages 的静态站点与 Serverless Functions 部署，配置见[多平台部署](docs/serverless.md)。
+基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel、Netlify 和 Cloudflare Workers / Pages 的静态站点与 Serverless Functions 部署，配置见[多平台部署](docs/serverless.md)。
 
 ## 新建文章
 
@@ -166,7 +166,7 @@ SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mj
 
 ## Serverless 部署
 
-Vercel、Netlify 和 Cloudflare Pages 共用 `/api/submissions`，平台入口只负责运行环境与评论白名单读取。Vercel、Netlify 分别使用 `vercel.json`、`netlify.toml`，Cloudflare Pages 的变量和运行时配置由控制台管理；三者均通过 Git 集成响应评论、友链及每日空提交。Hugo 根配置使用 `hugo.toml`，避免被自动识别为 Zola。环境变量、预览隔离、构建和迁移步骤见 [Serverless 部署](docs/serverless.md)。`npm run check:functions` 验证三个平台入口。
+Vercel、Netlify 和 Cloudflare Workers / Pages 共用 `/api/submissions`，平台入口只负责运行环境与评论白名单读取。Vercel、Netlify 分别使用 `vercel.json`、`netlify.toml`；Cloudflare 业务变量由控制台管理，Workers 使用不含变量的最小 `wrangler.jsonc` 和 `keep_vars`，Pages 使用控制台配置。各平台均可通过 Git 集成响应评论、友链及每日空提交。Hugo 根配置使用 `hugo.toml`，避免被自动识别为 Zola。Workers 控制台构建命令设为 `npm run build`，部署命令设为 `npx wrangler deploy`。环境变量、预览隔离、构建和迁移步骤见 [Serverless 部署](docs/serverless.md)。`npm run check:functions` 验证所有平台入口。
 
 ### Vercel
 

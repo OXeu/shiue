@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { handleSubmission as vercel } from '../api/submissions.js';
 import netlify from '../netlify/functions/submissions.mjs';
 import { onRequest as cloudflare } from '../functions/api/submissions.js';
+import worker from '../cloudflare/worker.js';
 import { commentSecret, verify } from '../server/comments/core.js';
 import { openCommentEmail, sealComment } from '../server/comments/email.js';
 import { readPages } from '../server/runtime/node.js';
@@ -44,7 +45,7 @@ async function manifestDirectory(t) {
 }
 
 test('all provider entries run challenge, moderation, preview, publishing and encrypted notifications', async t => {
-  for (const provider of ['vercel', 'netlify', 'cloudflare']) await t.test(provider, async t => {
+  for (const provider of ['vercel', 'netlify', 'cloudflare', 'cloudflare-workers']) await t.test(provider, async t => {
     setEnv(t, env);
     const root = await manifestDirectory(t);
     assert.deepEqual(await readPages(path.join(root, 'public/comment-pages.json')), pageList);
@@ -58,6 +59,7 @@ test('all provider entries run challenge, moderation, preview, publishing and en
       const req = request(body);
       if (provider === 'vercel') return vercel(req, { env: { ...env, VERCEL_ENV: 'production' }, pages: async () => pageList });
       if (provider === 'netlify') return netlify(req, { deploy: { context: 'production' } });
+      if (provider === 'cloudflare-workers') return worker.fetch(req, { ...env, COMMENTS_ENV: 'production', ASSETS: assets });
       return cloudflare({ request: req, env: { ...env, COMMENTS_ENV: 'production', ASSETS: assets } });
     };
     const mails = [];
@@ -94,7 +96,7 @@ test('all provider entries run challenge, moderation, preview, publishing and en
     assert.equal(mails.length, 3, 'two moderation emails and one comment approval notification');
     assert.equal(published[0].comment.email, undefined);
     assert.equal(openCommentEmail(published[0].comment, commentSecret(env, 'email')), 'reader@example.org');
-    assert.equal(assetReads, provider === 'cloudflare' ? 3 : 0, 'only comment challenge, submit and approval read the asset');
+    assert.equal(assetReads, provider.startsWith('cloudflare') ? 3 : 0, 'only comment challenge, submit and approval read the asset');
   });
 });
 
@@ -109,21 +111,66 @@ test('preview and unknown environments reject forged production origins before a
       assert.equal((await vercel(request(body), { env: { ...env, VERCEL_ENV: deployment }, pages: unexpected })).status, 503);
       assert.equal((await netlify(request(body), { deploy: { context: deployment } })).status, 503);
       assert.equal((await cloudflare({ request: request(body), env: { ...env, COMMENTS_ENV: deployment, ASSETS: { fetch: unexpected } } })).status, 503);
+      assert.equal((await worker.fetch(request(body), { ...env, COMMENTS_ENV: deployment, ASSETS: { fetch: unexpected } })).status, 503);
     }
     assert.equal((await netlify(request({ ...comment(), action }), {})).status, 503);
     assert.equal((await cloudflare({ request: request({ ...comment(), action }), env: { ...env, ASSETS: { fetch: unexpected } } })).status, 503);
+    assert.equal((await worker.fetch(request({ ...comment(), action }), { ...env, ASSETS: { fetch: unexpected } })).status, 503);
   }
   assert.equal(calls, 0);
 });
 
 test('Cloudflare uses its deployment assets and handles a missing or invalid whitelist without network fallback', async t => {
   const external = t.mock.method(globalThis, 'fetch', async () => assert.fail('no external fetch'));
-  for (const response of [new Response('not found', { status: 404 }), new Response('<html>not JSON</html>'), Response.json({})]) {
-    const result = await cloudflare({ request: request({ ...comment(), action: 'challenge' }), env: { ...env, COMMENTS_ENV: 'production', ASSETS: { fetch: async () => response } } });
+  for (const response of [() => new Response('not found', { status: 404 }), () => new Response('<html>not JSON</html>'), () => Response.json({})]) {
+    const workerResult = await worker.fetch(request({ ...comment(), action: 'challenge' }), { ...env, COMMENTS_ENV: 'production', ASSETS: { fetch: response } });
+    assert.equal(workerResult.status, 503);
+    const result = await cloudflare({ request: request({ ...comment(), action: 'challenge' }), env: { ...env, COMMENTS_ENV: 'production', ASSETS: { fetch: response } } });
     assert.equal(result.status, 503);
     assert.doesNotMatch(await result.text(), /<html>|test-resend/);
   }
   assert.equal(external.mock.callCount(), 0);
+});
+
+test('Workers keeps static responses intact and reserves the API namespace', async () => {
+  for (const [pathname, status, body] of [['/', 200, 'home'], ['/comment-review/', 200, 'review'], ['/missing', 404, 'not found']]) {
+    const req = new Request(`https://blog.example.org${pathname}`);
+    const response = new Response(body, { status, headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } });
+    const result = await worker.fetch(req, { ASSETS: { fetch: async forwarded => { assert.equal(forwarded, req); return response; } } });
+    assert.equal(result, response);
+    assert.equal(await result.text(), body);
+  }
+  const assets = { fetch: async () => assert.fail('API must not fall through to assets') };
+  assert.equal((await worker.fetch(new Request('https://blog.example.org/api/unknown'), { ASSETS: assets })).status, 404);
+  assert.equal((await worker.fetch(new Request('https://blog.example.org/api/submissions'), { ASSETS: assets })).status, 405);
+});
+
+test('Workers preview URLs reject inherited production bindings and a forged production Origin', async t => {
+  const unexpected = async () => assert.fail('preview must not read assets or send requests');
+  t.mock.method(globalThis, 'fetch', unexpected);
+  for (const type of ['comment', 'friend']) for (const action of ['challenge', 'submit', 'preview', 'approve', 'notify']) {
+    for (const origin of ['https://version-shiue.example.workers.dev', 'http://blog.example.org']) {
+      const req = new Request(`${origin}/api/submissions`, request({ ...comment(), type, action }));
+      const response = await worker.fetch(req, { ...env, COMMENTS_ENV: 'production', ASSETS: { fetch: unexpected } });
+      assert.equal(response.status, 503);
+      assert.match((await response.json()).error, /预览环境/);
+    }
+  }
+});
+
+test('Workers wiring disables auto-configuration without taking ownership of dashboard variables', async () => {
+  const config = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  assert.equal(config.keep_vars, true);
+  assert.equal(config.vars, undefined);
+  assert.equal(config.env, undefined);
+  assert.equal(config.build, undefined, 'build command remains in the dashboard');
+  assert.equal(config.pages_build_output_dir, undefined, 'Pages must continue using dashboard configuration');
+  assert.equal(config.main, 'cloudflare/worker.js');
+  assert.ok(config.compatibility_flags.includes('nodejs_compat'));
+  assert.equal(config.assets.directory, './public');
+  assert.equal(config.assets.binding, 'ASSETS');
+  assert.deepEqual(config.assets.run_worker_first, ['/api/*']);
+  assert.equal(config.assets.not_found_handling, '404-page');
 });
 
 test('Netlify fails closed when the bundled whitelist is missing', async t => {

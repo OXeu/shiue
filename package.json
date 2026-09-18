@@ -12,6 +12,8 @@
     "dev": "bash scripts/hugo.sh server --disableFastRender",
     "dev:cloudflare": "npx wrangler pages dev public --compatibility-date=2026-03-01 --compatibility-flags=nodejs_compat --binding=COMMENTS_ENV=development",
     "deploy:cloudflare": "npx wrangler pages deploy public",
+    "dev:cloudflare:workers": "npx wrangler dev --var COMMENTS_ENV:development",
+    "deploy:cloudflare:workers": "npx wrangler deploy",
     "post:new": "node scripts/new-post.mjs",
     "friend:add": "node scripts/add-friend.mjs",
     "check:friends": "node scripts/check-friends.mjs",

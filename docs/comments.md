@@ -45,7 +45,7 @@
 
 在 Resend 验证发件域名并创建仅允许发送邮件的 API Key。建议为审核邮件关闭点击和打开跟踪，保留原始 URL fragment。发件地址必须属于已验证域名；审核邮件收件人由服务端固定，读者通知收件人只能取自已签名的留言邮箱或已发布父留言的邮箱密文。
 
-在所选平台的生产函数环境设置以下变量（Vercel、Netlify、Cloudflare Pages 的具体入口见[多平台部署](serverless.md)）：
+在所选平台的生产函数环境设置以下变量（Vercel、Netlify、Cloudflare Workers / Pages 的具体入口见[多平台部署](serverless.md)）：
 
 | 变量 | 含义 |
 | --- | --- |
