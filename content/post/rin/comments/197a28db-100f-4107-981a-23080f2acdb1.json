@@ -1,0 +1,12 @@
+{
+  "id": "197a28db-100f-4107-981a-23080f2acdb1",
+  "path": "/p/rin/",
+  "name": "雅丶涵",
+  "message": "cf 的 13335 因为是默认公开使用的，所以握手的时候会有比较久的时间\ncf 还有一个 asn 握手时间没那么久，但是需要进行自选操作\n对了，你说的国内加速更好的方法也是使用分区域 DNS 解析才能得到最好，cf 提供的 saas 可以外挂域名，不需要使用 cf 的 DNS ",
+  "createdAt": "2024-08-28T04:10:33.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 12,
+    "commentId": 67
+  }
+}

@@ -1,0 +1,318 @@
+{
+  "source": "https://legacy.xeu.life",
+  "fetchedAt": "2026-09-18T04:53:19.341Z",
+  "sourceCount": 137,
+  "importedCount": 105,
+  "duplicatesRemoved": 11,
+  "filteredCount": 21,
+  "policy": {
+    "duplicates": "同文章、同作者、正文经换行/NFC/首尾空白规范化后相同；保留最早 createdAt，同时间保留最小旧编号。登录作者按旧 user.id 区分，游客按昵称区分。",
+    "filtering": "逐条人工复核测试、无意义片段/纯问候/签到、无意义重复文字与纯引流推广；保留技术讨论、补充说明、感谢及有效批评。过滤决定绑定原文 SHA-256。",
+    "privacy": "只恢复公开昵称、原文、提交时间及来源编号；不导入邮箱、IP、头像、游客网址或账号资料。",
+    "replies": "旧公开接口无父子关系，保留原有平铺评论及正文中的 @昵称，不推测回复对象。"
+  },
+  "articles": [
+    {
+      "feedId": 12,
+      "title": "Rin - 全栈 Cloudflare 的个人博客项目",
+      "path": "/p/rin/",
+      "sourceCount": 88,
+      "imported": 76,
+      "duplicates": 6,
+      "filtered": 6
+    },
+    {
+      "feedId": 30,
+      "title": "Ubuntu Router 配置",
+      "path": "/p/ubuntu-router/",
+      "sourceCount": 4,
+      "imported": 1,
+      "duplicates": 0,
+      "filtered": 3
+    },
+    {
+      "feedId": 14,
+      "title": "针对国内配置 CDN 加速 Cloudflare Pages 访问",
+      "path": "/p/cloudflare-pages-cdn/",
+      "sourceCount": 27,
+      "imported": 19,
+      "duplicates": 2,
+      "filtered": 6
+    },
+    {
+      "feedId": 4,
+      "title": "博客焕新",
+      "path": "/p/blog-renewal/",
+      "sourceCount": 7,
+      "imported": 3,
+      "duplicates": 1,
+      "filtered": 3
+    },
+    {
+      "feedId": 5,
+      "title": "Binder 是什么",
+      "path": "/p/binder/",
+      "sourceCount": 5,
+      "imported": 3,
+      "duplicates": 1,
+      "filtered": 1
+    },
+    {
+      "feedId": 10,
+      "title": "Outline 部署指南",
+      "path": "/p/outline-deployment-guide/",
+      "sourceCount": 4,
+      "imported": 3,
+      "duplicates": 1,
+      "filtered": 0
+    },
+    {
+      "feedId": 9,
+      "title": "错把过滤器当处理函数",
+      "path": "/p/filter-mistaken-as-handler/",
+      "sourceCount": 1,
+      "imported": 0,
+      "duplicates": 0,
+      "filtered": 1
+    },
+    {
+      "feedId": 20,
+      "title": "不要胡乱取名",
+      "path": "/p/shell-variable-naming/",
+      "sourceCount": 0,
+      "imported": 0,
+      "duplicates": 0,
+      "filtered": 0
+    },
+    {
+      "feedId": 7,
+      "title": "Jetpack Compose 实现 BottomSheetDialog",
+      "path": "/p/compose-bottom-sheet/",
+      "sourceCount": 0,
+      "imported": 0,
+      "duplicates": 0,
+      "filtered": 0
+    },
+    {
+      "feedId": 2,
+      "title": "解决Rust二进制程序无法部署在Alpine容器中的问题",
+      "path": "/p/rust-alpine/",
+      "sourceCount": 0,
+      "imported": 0,
+      "duplicates": 0,
+      "filtered": 0
+    },
+    {
+      "feedId": 19,
+      "title": "macOS Ventura 安装 sshfs",
+      "path": "/p/macos-ventura-sshfs/",
+      "sourceCount": 0,
+      "imported": 0,
+      "duplicates": 0,
+      "filtered": 0
+    },
+    {
+      "feedId": 6,
+      "title": "Jetpack Compose 中ComposeView 绑定到Dialog中遇到的问题",
+      "path": "/p/compose-bind/",
+      "sourceCount": 0,
+      "imported": 0,
+      "duplicates": 0,
+      "filtered": 0
+    },
+    {
+      "feedId": 8,
+      "title": "Jetpack Compose Accompanist IME弹出状态问题",
+      "path": "/p/compose-ime/",
+      "sourceCount": 1,
+      "imported": 0,
+      "duplicates": 0,
+      "filtered": 1
+    }
+  ],
+  "duplicates": [
+    {
+      "feedId": 12,
+      "commentId": 116,
+      "duplicateOf": 115
+    },
+    {
+      "feedId": 12,
+      "commentId": 117,
+      "duplicateOf": 115
+    },
+    {
+      "feedId": 12,
+      "commentId": 118,
+      "duplicateOf": 115
+    },
+    {
+      "feedId": 12,
+      "commentId": 171,
+      "duplicateOf": 170
+    },
+    {
+      "feedId": 12,
+      "commentId": 172,
+      "duplicateOf": 170
+    },
+    {
+      "feedId": 12,
+      "commentId": 173,
+      "duplicateOf": 170
+    },
+    {
+      "feedId": 14,
+      "commentId": 131,
+      "duplicateOf": 130
+    },
+    {
+      "feedId": 14,
+      "commentId": 132,
+      "duplicateOf": 130
+    },
+    {
+      "feedId": 4,
+      "commentId": 123,
+      "duplicateOf": 122
+    },
+    {
+      "feedId": 5,
+      "commentId": 141,
+      "duplicateOf": 140
+    },
+    {
+      "feedId": 10,
+      "commentId": 135,
+      "duplicateOf": 134
+    }
+  ],
+  "filtered": [
+    {
+      "feedId": 12,
+      "commentId": 74,
+      "reason": "数字测试",
+      "contentSha256": "1f49cfcb080bd090dc2f62c5b84b391c8e771e478332a90a28e0a387f8fedb7e"
+    },
+    {
+      "feedId": 12,
+      "commentId": 102,
+      "reason": "无意义字母串",
+      "contentSha256": "37bd400ed8e52bc0060a31c23344bbb9c5d83d71a6455bc04a1f1c8670f80a5f"
+    },
+    {
+      "feedId": 12,
+      "commentId": 133,
+      "reason": "与文章无关的纯引流推广",
+      "contentSha256": "23cd7b457cb041867e5476b872bbdded916a4cd6760a02b73e80ce3aab81882f"
+    },
+    {
+      "feedId": 12,
+      "commentId": 145,
+      "reason": "与文章无关的纯引流推广",
+      "contentSha256": "54062d5b054582e7cc0956695db50ecde7f1a65473629de7f0245cc15bb95a8d"
+    },
+    {
+      "feedId": 12,
+      "commentId": 170,
+      "reason": "纯问候刷屏",
+      "contentSha256": "f942bb2d9b1add895eccb9274a96a61d9f22df9adbc00e2cc3747757e659a955"
+    },
+    {
+      "feedId": 12,
+      "commentId": 178,
+      "reason": "无上下文的零碎文字",
+      "contentSha256": "e6bd24d69c4241d15e42cbc79f344e33b05e951d589b989050b72084e86c74a6"
+    },
+    {
+      "feedId": 30,
+      "commentId": 161,
+      "reason": "纯数字测试",
+      "contentSha256": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8"
+    },
+    {
+      "feedId": 30,
+      "commentId": 175,
+      "reason": "无文章内容的签到",
+      "contentSha256": "87537f4252b5ae43d3b4eecf55a1ce2144aca402a6e6bb12237863d99d3d2dc6"
+    },
+    {
+      "feedId": 30,
+      "commentId": 179,
+      "reason": "与文章无关的告别",
+      "contentSha256": "f3d199e70c99c55df5366bf3837c0242391149672e70ec4fb8ee06c6cc9baf18"
+    },
+    {
+      "feedId": 14,
+      "commentId": 54,
+      "reason": "纯问候",
+      "contentSha256": "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969"
+    },
+    {
+      "feedId": 14,
+      "commentId": 85,
+      "reason": "无意义重复文字",
+      "contentSha256": "19bc388febfecd6a6653652c3d5b258cb34dda22c358a37481493de7900600c0"
+    },
+    {
+      "feedId": 14,
+      "commentId": 112,
+      "reason": "试发留言",
+      "contentSha256": "184206b0bd9f9a1b4c74eb2729d8f4d8d1aa22a830efb4fb7d751a39238e004e"
+    },
+    {
+      "feedId": 14,
+      "commentId": 130,
+      "reason": "无上下文的零碎文字",
+      "contentSha256": "a0267b2d6df2f32682bbe648ccbe14710ad1aad6ca941656d9eab52143b59874"
+    },
+    {
+      "feedId": 14,
+      "commentId": 144,
+      "reason": "无意义重复文字",
+      "contentSha256": "29658410d7a5be64b3b8861e8a800457f1bb82c4052f5ca1b8760165252bb827"
+    },
+    {
+      "feedId": 14,
+      "commentId": 176,
+      "reason": "无上下文的零碎文字",
+      "contentSha256": "bd5a043855a4c7dfdbd8eb1c6fdf6c890e6ce1dc5f5697c583b0592fc392ef1b"
+    },
+    {
+      "feedId": 4,
+      "commentId": 18,
+      "reason": "无文章内容的打招呼",
+      "contentSha256": "2d32fe573c46227a8afb81b10dc3a2eb52585f281f6b2269eb44f519d3799031"
+    },
+    {
+      "feedId": 4,
+      "commentId": 122,
+      "reason": "无意义重复字母",
+      "contentSha256": "7c2ecd07f155648431e0f94b89247d713c5786e1e73e953f2fe7eca39534cd6d"
+    },
+    {
+      "feedId": 4,
+      "commentId": 169,
+      "reason": "明确的 TEST 测试留言",
+      "contentSha256": "94ee059335e587e501cc4bf90613e0814f00a7b08bc7c648fd865a2af6a22cc2"
+    },
+    {
+      "feedId": 5,
+      "commentId": 166,
+      "reason": "纯问候",
+      "contentSha256": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4"
+    },
+    {
+      "feedId": 9,
+      "commentId": 167,
+      "reason": "纯数字测试",
+      "contentSha256": "556d7dc3a115356350f1f9910b1af1ab0e312d4b3e4fc788d2da63668f36d017"
+    },
+    {
+      "feedId": 8,
+      "commentId": 177,
+      "reason": "无上下文的零碎文字",
+      "contentSha256": "c84459f0729f445c3ec28740c86cbe9979aec87da726d4bb09d792c502c78c1f"
+    }
+  ]
+}

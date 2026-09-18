@@ -1,0 +1,12 @@
+{
+  "id": "27f8d8ec-6400-4b6a-b629-1c788f25603e",
+  "path": "/p/rin/",
+  "name": "Xeu",
+  "message": "@苹果派派 favicon 不太好从环境变量配置，现在的解决方案是克隆仓库以后手动替换 client/public/favicon.png 文件",
+  "createdAt": "2024-06-11T06:10:34.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 12,
+    "commentId": 29
+  }
+}

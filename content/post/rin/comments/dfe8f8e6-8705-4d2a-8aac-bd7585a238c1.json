@@ -1,0 +1,12 @@
+{
+  "id": "dfe8f8e6-8705-4d2a-8aac-bd7585a238c1",
+  "path": "/p/rin/",
+  "name": "Zhedong Cen",
+  "message": "我重新梳理一下了部署过程，写了一篇step-by-step的详细指南，供大家参考：https://blog.ecust.online/feed/rin-deploy-tutorial-zh。\nI’ve reorganized the deployment process and written a detailed step-by-step guide for your reference：https://blog.ecust.online/feed/rin-deploy-tutorial-en",
+  "createdAt": "2025-09-24T14:20:04.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 12,
+    "commentId": 107
+  }
+}

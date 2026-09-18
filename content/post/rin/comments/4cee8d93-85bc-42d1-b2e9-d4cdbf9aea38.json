@@ -1,0 +1,12 @@
+{
+  "id": "4cee8d93-85bc-42d1-b2e9-d4cdbf9aea38",
+  "path": "/p/rin/",
+  "name": "wrisin",
+  "message": "@Xeu 目前webhook发送post请求内容为{\"content\": \"消息内容\"}，而IOS端bark app的post请求参数为body，title等，我发现worker.js里面有相关代码可以修改请求参数，所以想直接从cloudflare在线编辑rin-server代码，但是考虑到之前直接部署生成，我怕直接改对程序有影响，请问我如何优雅的使用bark app，话有点密了，大佬莫嫌烦，bark文档：https://github.com/Finb/Bark/blob/master/README.md",
+  "createdAt": "2024-08-24T18:40:13.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 12,
+    "commentId": 64
+  }
+}

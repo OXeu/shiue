@@ -1,0 +1,12 @@
+{
+  "id": "641301da-0d2c-4a22-8fd6-f95ecd2dc12e",
+  "path": "/p/outline-deployment-guide/",
+  "name": "ZuoLan",
+  "message": "谢谢博主的文章，一点有效的补充～\n\n1. Github 那个隐藏真实邮箱还是蛮有用的，另外如果把 Outline 部署在完全离线的环境，没有办法用 Github 登录的话，可以部署一个 Gitea 服务（轻量的 Git 私有托管服务），它支持 OAuth2 授权，兼容 Outline 的 OIDC 认证。\n\n2. Outline 几乎不支持搜索中文（分词太弱了），有一个轻微修改的方法，便能极大改善搜索体验。参考链接： https://github.com/outline/outline/issues/3207#issuecomment-1629326646",
+  "createdAt": "2024-06-07T06:22:38.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 10,
+    "commentId": 10
+  }
+}

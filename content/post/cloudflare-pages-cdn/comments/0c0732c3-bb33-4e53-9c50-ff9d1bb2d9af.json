@@ -1,0 +1,12 @@
+{
+  "id": "0c0732c3-bb33-4e53-9c50-ff9d1bb2d9af",
+  "path": "/p/cloudflare-pages-cdn/",
+  "name": "Xeu",
+  "message": "@onshine 没有使用过 minio，但是 minio 文档中应该会有说 S3 协议下 endpoint 怎么填",
+  "createdAt": "2024-06-24T06:07:02.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 14,
+    "commentId": 50
+  }
+}

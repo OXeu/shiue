@@ -1,0 +1,12 @@
+{
+  "id": "9115bcfd-0554-493e-bf3d-b278ef968511",
+  "path": "/p/outline-deployment-guide/",
+  "name": "obsidian",
+  "message": "有没有可能，将github仓库里的obsidian笔记文件，通过cloudflare展示，相当于做一个obsidian workers在线版。",
+  "createdAt": "2026-06-06T08:38:46.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 10,
+    "commentId": 134
+  }
+}

@@ -1,0 +1,128 @@
+[
+  {
+    "feedId": 4,
+    "commentId": 18,
+    "reason": "无文章内容的打招呼",
+    "contentSha256": "2d32fe573c46227a8afb81b10dc3a2eb52585f281f6b2269eb44f519d3799031"
+  },
+  {
+    "feedId": 4,
+    "commentId": 122,
+    "reason": "无意义重复字母",
+    "contentSha256": "7c2ecd07f155648431e0f94b89247d713c5786e1e73e953f2fe7eca39534cd6d"
+  },
+  {
+    "feedId": 4,
+    "commentId": 169,
+    "reason": "明确的 TEST 测试留言",
+    "contentSha256": "94ee059335e587e501cc4bf90613e0814f00a7b08bc7c648fd865a2af6a22cc2"
+  },
+  {
+    "feedId": 5,
+    "commentId": 166,
+    "reason": "纯问候",
+    "contentSha256": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4"
+  },
+  {
+    "feedId": 8,
+    "commentId": 177,
+    "reason": "无上下文的零碎文字",
+    "contentSha256": "c84459f0729f445c3ec28740c86cbe9979aec87da726d4bb09d792c502c78c1f"
+  },
+  {
+    "feedId": 9,
+    "commentId": 167,
+    "reason": "纯数字测试",
+    "contentSha256": "556d7dc3a115356350f1f9910b1af1ab0e312d4b3e4fc788d2da63668f36d017"
+  },
+  {
+    "feedId": 12,
+    "commentId": 74,
+    "reason": "数字测试",
+    "contentSha256": "1f49cfcb080bd090dc2f62c5b84b391c8e771e478332a90a28e0a387f8fedb7e"
+  },
+  {
+    "feedId": 12,
+    "commentId": 102,
+    "reason": "无意义字母串",
+    "contentSha256": "37bd400ed8e52bc0060a31c23344bbb9c5d83d71a6455bc04a1f1c8670f80a5f"
+  },
+  {
+    "feedId": 12,
+    "commentId": 133,
+    "reason": "与文章无关的纯引流推广",
+    "contentSha256": "23cd7b457cb041867e5476b872bbdded916a4cd6760a02b73e80ce3aab81882f"
+  },
+  {
+    "feedId": 12,
+    "commentId": 145,
+    "reason": "与文章无关的纯引流推广",
+    "contentSha256": "54062d5b054582e7cc0956695db50ecde7f1a65473629de7f0245cc15bb95a8d"
+  },
+  {
+    "feedId": 12,
+    "commentId": 170,
+    "reason": "纯问候刷屏",
+    "contentSha256": "f942bb2d9b1add895eccb9274a96a61d9f22df9adbc00e2cc3747757e659a955"
+  },
+  {
+    "feedId": 12,
+    "commentId": 178,
+    "reason": "无上下文的零碎文字",
+    "contentSha256": "e6bd24d69c4241d15e42cbc79f344e33b05e951d589b989050b72084e86c74a6"
+  },
+  {
+    "feedId": 14,
+    "commentId": 54,
+    "reason": "纯问候",
+    "contentSha256": "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969"
+  },
+  {
+    "feedId": 14,
+    "commentId": 85,
+    "reason": "无意义重复文字",
+    "contentSha256": "19bc388febfecd6a6653652c3d5b258cb34dda22c358a37481493de7900600c0"
+  },
+  {
+    "feedId": 14,
+    "commentId": 112,
+    "reason": "试发留言",
+    "contentSha256": "184206b0bd9f9a1b4c74eb2729d8f4d8d1aa22a830efb4fb7d751a39238e004e"
+  },
+  {
+    "feedId": 14,
+    "commentId": 130,
+    "reason": "无上下文的零碎文字",
+    "contentSha256": "a0267b2d6df2f32682bbe648ccbe14710ad1aad6ca941656d9eab52143b59874"
+  },
+  {
+    "feedId": 14,
+    "commentId": 144,
+    "reason": "无意义重复文字",
+    "contentSha256": "29658410d7a5be64b3b8861e8a800457f1bb82c4052f5ca1b8760165252bb827"
+  },
+  {
+    "feedId": 14,
+    "commentId": 176,
+    "reason": "无上下文的零碎文字",
+    "contentSha256": "bd5a043855a4c7dfdbd8eb1c6fdf6c890e6ce1dc5f5697c583b0592fc392ef1b"
+  },
+  {
+    "feedId": 30,
+    "commentId": 161,
+    "reason": "纯数字测试",
+    "contentSha256": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8"
+  },
+  {
+    "feedId": 30,
+    "commentId": 175,
+    "reason": "无文章内容的签到",
+    "contentSha256": "87537f4252b5ae43d3b4eecf55a1ce2144aca402a6e6bb12237863d99d3d2dc6"
+  },
+  {
+    "feedId": 30,
+    "commentId": 179,
+    "reason": "与文章无关的告别",
+    "contentSha256": "f3d199e70c99c55df5366bf3837c0242391149672e70ec4fb8ee06c6cc9baf18"
+  }
+]

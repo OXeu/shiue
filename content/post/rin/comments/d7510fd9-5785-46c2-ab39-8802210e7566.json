@@ -1,0 +1,12 @@
+{
+  "id": "d7510fd9-5785-46c2-ab39-8802210e7566",
+  "path": "/p/rin/",
+  "name": "黯淡人影",
+  "message": "我也部署失败了，很奇怪。按着步骤来的，首先网页的title没有根据环境变量改变。另外github登录点进去是访问/usr/github 网页内容： 404: No such page!查看令牌无访问，确认自己回调地址没填错。 还有一些我觉得疑惑的 1.前端地址和后端地址是能够分开来的吗？弄不清楚教程意思。 2.Actions secrets and variablesy的变量有必要设置吗直接触发有无影响？没设置的时候触发一次，用默认值的也触发了一次，workers列表多了一个。 3.pages里面的环境变量是一定要加密吗？",
+  "createdAt": "2024-06-07T06:46:59.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 12,
+    "commentId": 11
+  }
+}

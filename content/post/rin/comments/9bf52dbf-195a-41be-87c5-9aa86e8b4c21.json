@@ -1,0 +1,12 @@
+{
+  "id": "9bf52dbf-195a-41be-87c5-9aa86e8b4c21",
+  "path": "/p/rin/",
+  "name": "Xeu",
+  "message": "@BurtSweet Pages 的环境变量中 API_URL 末尾不能有 `/`，去掉后重新部署应该就能好",
+  "createdAt": "2025-01-17T03:13:15.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 12,
+    "commentId": 91
+  }
+}

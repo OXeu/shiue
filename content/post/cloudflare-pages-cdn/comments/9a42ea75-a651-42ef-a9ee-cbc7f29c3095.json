@@ -1,0 +1,12 @@
+{
+  "id": "9a42ea75-a651-42ef-a9ee-cbc7f29c3095",
+  "path": "/p/cloudflare-pages-cdn/",
+  "name": "Jackchen0514",
+  "message": "上传图片的时候，我看调用了 API_URL 如 https://rin-server.xxxxx.workers.dev/storage 这个接口， 报400错误，然后又调用一次，204 No Content",
+  "createdAt": "2024-06-12T15:06:23.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 14,
+    "commentId": 39
+  }
+}

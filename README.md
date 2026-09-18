@@ -32,7 +32,7 @@
 
 留言邮箱可选填，用于接收审核通过和直接回复通知。审批 Vercel Function 成功发起 GitHub Action 后发送通知，邮件失败可单独重试；通知时发布任务尚未完成。邮箱加密保存在对应文章的留言文件中。留言与友链只需生成一个 `COMMENTS_SECRET`：运行一次 `openssl rand -hex 32`，将同一值填入 Vercel 和 GitHub，程序自动派生各用途密钥；已有的分用途密钥继续兼容。
 
-读者提交 → 浏览器完成 SHA-256 工作量证明 → Vercel Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `content/post/<文章目录>/comments/<UUID>.json` 并提交推送 → Vercel Git 集成自动构建部署。支持多层嵌套回复，留言按文章存储并生成静态 HTML。评论 CI 不安装依赖、不构建、不调用 Deploy Hook，GitHub 只需配置同一个 `COMMENTS_SECRET`。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论及回复对象的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验和并发安全 Git 推送。需要配置 Resend、Vercel 和上述 GitHub Secret 后才能启用真实收发；无需配置限流规则，当前 PoW 不提供请求总量或费用上限，详见 [评论系统配置](docs/comments.md)。旧 Twikoo 数据未自动迁移。
+读者提交 → 浏览器完成 SHA-256 工作量证明 → Vercel Function 调用 Resend 发审核邮件 → 博主打开链接并确认 → GitHub Action 添加 `content/post/<文章目录>/comments/<UUID>.json` 并提交推送 → Vercel Git 集成自动构建部署。支持多层嵌套回复，留言按文章存储并生成静态 HTML。评论 CI 不安装依赖、不构建、不调用 Deploy Hook，GitHub 只需配置同一个 `COMMENTS_SECRET`。无数据库，待审内容不进入公开仓库，读取评论不依赖 API。含绑定评论及回复对象的短期 PoW、签名审批、7 天有效期、邮件幂等、同源校验和并发安全 Git 推送。需要配置 Resend、Vercel 和上述 GitHub Secret 后才能启用真实收发；无需配置限流规则，当前 PoW 不提供请求总量或费用上限，详见 [评论系统配置](docs/comments.md)。已从旧站 Rin 公开接口恢复 105 条历史评论，去重与过滤记录见 [旧站评论恢复](docs/legacy-comments-migration.md)；更早的 Twikoo 数据不在本次迁移范围内。
 
 卡片使用 22px 圆角、内嵌封面和轻柔阴影；图片、提示块与目录使用 16px 圆角，导航、标签及按钮采用胶囊形状。鼠标悬停时卡片轻微上浮，按钮按压时回弹，折叠内容短暂淡入；独立的 `translate` 属性避免干扰瀑布流重排，系统开启“减少动态效果”时取消这些位移动画。
 

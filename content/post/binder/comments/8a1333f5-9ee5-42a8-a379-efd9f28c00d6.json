@@ -1,0 +1,12 @@
+{
+  "id": "8a1333f5-9ee5-42a8-a379-efd9f28c00d6",
+  "path": "/p/binder/",
+  "name": "Xeu",
+  "message": "这篇文章最初是为了学习 Binder 实现和原理而写的，但写到最后实际上变成了 Binder 和 AIDL 是什么的笔记，对于底层实现和原理反而没有涉及😥",
+  "createdAt": "2024-06-01T17:36:15.000Z",
+  "legacy": {
+    "source": "https://legacy.xeu.life",
+    "feedId": 5,
+    "commentId": 1
+  }
+}
