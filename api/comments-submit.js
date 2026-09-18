@@ -1,4 +1,4 @@
-import { CommentError, digest, moderationEmail, requireSecret, sign } from '../server/comments/core.js';
+import { CommentError, commentSecret, digest, moderationEmail, sign } from '../server/comments/core.js';
 import { checkRequest, failure, json, readPages, readSubmission } from '../server/comments/http.js';
 import { verifyProof } from '../server/comments/pow.js';
 
@@ -6,11 +6,12 @@ export async function submitComment(request, { env = process.env, fetchImpl = fe
   try {
     const site = checkRequest(request, env);
     const { input, claim } = await readSubmission(request, site, now, pages);
-    requireSecret(env.COMMENTS_APPROVAL_SECRET);
+    const approvalSecret = commentSecret(env, 'approval');
+    if (claim.comment.email) commentSecret(env, 'email');
     if (!env.RESEND_API_KEY || !env.COMMENTS_EMAIL_FROM || !env.COMMENTS_EMAIL_TO) throw new CommentError(503, '评论服务尚未配置完成。');
     // Invalid proofs make no outbound calls; PoW is required even without a rate-limit service.
     verifyProof(input.proof, claim.comment, site, env, now);
-    const token = sign(claim, env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
+    const token = sign(claim, approvalSecret, 'comment-approval-v1');
     const email = moderationEmail(claim, token, site, env.COMMENTS_EMAIL_FROM, env.COMMENTS_EMAIL_TO);
     const response = await fetchImpl('https://api.resend.com/emails', {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(12000),

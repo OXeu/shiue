@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { copyFile, mkdir, mkdtemp, readFile, writeFile, readdir } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, writeFile, readdir, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -8,10 +8,12 @@ import { createHash } from 'node:crypto';
 import { challengeComment } from '../api/comments-challenge.js';
 import { submitComment } from '../api/comments-submit.js';
 import { approveComment } from '../api/comments-approve.js';
-import { APPROVAL_TTL, approvalClaim, readApproval, sign, validateComment, verify } from '../server/comments/core.js';
+import { APPROVAL_TTL, approvalClaim, commentSecret, readApproval, sign, validateComment, validateStoredComment, verify } from '../server/comments/core.js';
+import { openCommentEmail, sealComment } from '../server/comments/email.js';
 import { issueProof, POW_TTL, powDifficulty, verifyProof } from '../server/comments/pow.js';
 import { appendApprovedComment } from './publish-comment.mjs';
 import { pushComment } from './push-comment.mjs';
+import { commentFile, parseCommentFile } from '../server/comments/storage.js';
 
 const now = Date.parse('2026-09-17T20:00:00.000Z');
 const env = {
@@ -19,20 +21,98 @@ const env = {
   RESEND_API_KEY: 'resend-test-secret', COMMENTS_EMAIL_FROM: 'Blog <blog@example.org>', COMMENTS_EMAIL_TO: 'owner@example.org',
   COMMENTS_GITHUB_TOKEN: 'github-test-secret', COMMENTS_GITHUB_REPOSITORY: 'owner/blog', COMMENTS_GITHUB_BRANCH: 'master',
   COMMENTS_POW_SECRET: 'c'.repeat(64), COMMENTS_POW_DIFFICULTY: '4',
+  COMMENTS_EMAIL_SECRET: 'email-encryption-test-only'.repeat(3),
 };
+const masterEnv = { ...env, COMMENTS_SECRET: 'single-master-secret-for-tests'.repeat(3) };
+for (const name of ['COMMENTS_APPROVAL_SECRET', 'COMMENTS_POW_SECRET', 'COMMENTS_WORKFLOW_SECRET', 'COMMENTS_EMAIL_SECRET']) delete masterEnv[name];
 const input = { id: 'fe251682-6cc0-40df-bf31-6d48c12a985c', path: '/p/example/', name: '读者', message: '第一行\n<script>alert(1)</script> ${{ secrets.TOKEN }} $(echo unsafe)', createdAt: new Date(now).toISOString(), website: '', consent: true };
-const pages = async () => [{ path: input.path, title: '文章标题 <test>' }];
+const directory = 'post/source-example';
+const pages = async () => [{ path: input.path, title: '文章标题 <test>', directory, commentIds: [] }];
+async function seedArticle(root, articleDirectory = directory) {
+  await mkdir(path.join(root, 'content', articleDirectory), { recursive: true });
+  await writeFile(path.join(root, 'content', articleDirectory, 'index.md'), '---\ntitle: Example\nslug: example\n---\nArticle\n');
+}
 const deps = extra => ({ env, now, pages, ...extra });
 const request = (data, headers = {}, method = 'POST') => new Request('https://blog.example.org/api/comments-submit', { method, headers: { origin: 'https://blog.example.org', 'content-type': 'application/json', ...headers }, ...(method !== 'GET' ? { body: JSON.stringify(data) } : {}) });
 const claim = () => approvalClaim(input, { title: '文章标题' }, new URL(env.COMMENTS_SITE_URL), now);
 const approval = () => sign(claim(), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
-const envelope = (comment = claim().comment, options = {}) => sign({ v: 1, repository: 'owner/blog', comment, approvedAt: new Date(now).toISOString(), expiresAt: now + APPROVAL_TTL, ...options }, env.COMMENTS_WORKFLOW_SECRET, 'comment-publish-v1');
+const envelope = (comment = claim().comment, options = {}) => sign({ v: 1, repository: 'owner/blog', directory, comment, approvedAt: new Date(now).toISOString(), expiresAt: now + APPROVAL_TTL, ...options }, env.COMMENTS_WORKFLOW_SECRET, 'comment-publish-v1');
 function solve(task) {
   for (let nonce = 0; ; nonce++) {
     if (createHash('sha256').update(task.challenge + nonce).digest('hex').startsWith('0'.repeat(task.difficulty))) return { token: task.token, nonce: String(nonce) };
   }
 }
 input.proof = solve(issueProof(validateComment(input), new URL(env.COMMENTS_SITE_URL), env, now));
+
+test('one master secret derives isolated keys while existing configurations retain their keys', () => {
+  const purposes = ['approval', 'pow', 'workflow', 'email'];
+  const derived = purposes.map(purpose => commentSecret(masterEnv, purpose));
+  assert.equal(new Set(derived).size, purposes.length);
+  assert.ok(!derived.includes(masterEnv.COMMENTS_SECRET));
+  const value = { id: input.id };
+  const token = sign(value, derived[0], 'test-purpose');
+  for (const secret of derived.slice(1)) assert.throws(() => verify(token, secret, 'test-purpose'));
+  const mixed = { ...env, COMMENTS_SECRET: masterEnv.COMMENTS_SECRET };
+  for (const purpose of purposes) {
+    assert.equal(commentSecret(mixed, purpose), env[`COMMENTS_${purpose.toUpperCase()}_SECRET`]);
+    assert.throws(() => commentSecret({}, purpose), { status: 503 });
+    assert.throws(() => commentSecret({ COMMENTS_SECRET: 'too-short' }, purpose), { status: 503 });
+  }
+  assert.equal(readApproval(approval(), commentSecret(mixed, 'approval'), new URL(env.COMMENTS_SITE_URL), now).comment.id, input.id);
+  const stored = sealComment({ ...input, email: 'legacy@example.org' }, env.COMMENTS_EMAIL_SECRET);
+  assert.equal(openCommentEmail(stored, commentSecret(mixed, 'email')), 'legacy@example.org');
+  assert.equal(commentSecret({ ...masterEnv, COMMENTS_WORKFLOW_SECRET: '' }, 'workflow'), derived[2], 'GitHub 未配置的旧 Secret 为空字符串');
+});
+
+test('a single master secret covers submission, approval, encrypted publishing, reply mail and notification retries', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-master-'));
+  await seedArticle(root);
+  const stored = [];
+  const recipients = [];
+  const pageList = async () => [{ ...(await pages())[0], commentIds: stored.map(comment => comment.id), notificationEmails: Object.fromEntries(stored.map(comment => [comment.id, { emailEncrypted: comment.emailEncrypted, emailHash: comment.emailHash }])) }];
+  for (let depth = 0; depth < 2; depth++) {
+    const body = { ...input, id: `fe251682-6cc0-40df-bf31-${String(depth).padStart(12, '0')}`, email: `author${depth}@example.org`, ...(depth ? { parentId: stored[0].id } : {}) };
+    const options = deps({ env: masterEnv, pages: pageList });
+    const challenged = await challengeComment(request(body), options);
+    assert.equal(challenged.status, 200);
+    const proof = solve(await challenged.json());
+    let token;
+    const submitted = await submitComment(request({ ...body, proof }), { ...options, fetchImpl: async (url, init) => {
+      assert.equal(url, 'https://api.resend.com/emails');
+      token = JSON.parse(init.body).text.match(/#token=([\w.-]+)/)[1];
+      return Response.json({ id: 'moderation-mail' });
+    } });
+    assert.equal(submitted.status, 202);
+    const preview = await approveComment(request({ action: 'preview', token }), options);
+    assert.equal(preview.status, 200);
+    const approved = await approveComment(request({ action: 'approve', token }), { ...options, fetchImpl: async (url, init) => {
+      if (url.startsWith('https://api.github.com/')) {
+        const result = await appendApprovedComment({ root, envelope: JSON.parse(init.body).inputs.envelope, secret: commentSecret({ COMMENTS_SECRET: masterEnv.COMMENTS_SECRET }, 'workflow'), repository: 'owner/blog', now });
+        const comment = JSON.parse(await readFile(path.join(root, result.relative), 'utf8'));
+        assert.equal(comment.email, undefined);
+        assert.equal(openCommentEmail(comment, commentSecret(masterEnv, 'email')), body.email);
+        stored.push(comment);
+        return new Response(null, { status: 204 });
+      }
+      const to = JSON.parse(init.body).to[0];
+      if (depth && to === 'author0@example.org') return new Response(null, { status: 503 });
+      recipients.push(to);
+      return Response.json({ id: 'notification-mail' });
+    } });
+    assert.equal(approved.status, 202);
+    const result = await approved.json();
+    if (depth) {
+      assert.equal(result.notifications.failed, 1);
+      const retried = await approveComment(request({ action: 'notify', token, notificationToken: result.notificationToken }), { ...options, fetchImpl: async (url, init) => {
+        assert.equal(url, 'https://api.resend.com/emails', '重试不能再发起 GitHub Action');
+        recipients.push(JSON.parse(init.body).to[0]);
+        return Response.json({ id: 'retry-mail' });
+      } });
+      assert.deepEqual((await retried.json()).notifications, { sent: 1, failed: 0 });
+    } else assert.deepEqual(result.notifications, { sent: 1, failed: 0 });
+  }
+  assert.deepEqual(recipients, ['author0@example.org', 'author1@example.org', 'author0@example.org']);
+});
 
 test('challenge endpoint validates input and signs a bounded random puzzle without firewall configuration', async () => {
   const challenges = [];
@@ -136,6 +216,7 @@ test('full production-config flow without rate-limit settings: challenge → ema
   const preview = await approveComment(request({ action: 'preview', token }), deps({ env: production }));
   assert.equal(preview.status, 200);
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-flow-'));
+  await seedArticle(root);
   let file;
   const approved = await approveComment(request({ action: 'approve', token }), deps({ env: production, fetchImpl: async (url, options) => {
     calls.push(url);
@@ -208,9 +289,11 @@ test('tampered, expired and cross-site approvals cannot dispatch; GitHub errors 
 
 test('approved comments use exclusive UUID files, reject overwrites, preserve text, and require workflow signature', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-data-'));
+  await seedArticle(root);
   const options = { root, envelope: envelope(), secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now };
   const result = await appendApprovedComment(options);
   assert.equal(result.created, true);
+  assert.equal(result.relative, commentFile(directory, input.id), '文章存储目录不能由公开 URL 猜测');
   assert.deepEqual(JSON.parse(await readFile(path.join(root, result.relative), 'utf8')), claim().comment);
   assert.equal((await appendApprovedComment(options)).created, false);
   await assert.rejects(appendApprovedComment({ ...options, envelope: envelope({ ...claim().comment, message: 'changed' }) }), /拒绝覆盖/);
@@ -218,7 +301,8 @@ test('approved comments use exclusive UUID files, reject overwrites, preserve te
   await assert.rejects(appendApprovedComment({ ...options, repository: 'other/repo' }));
   await assert.rejects(appendApprovedComment({ ...options, now: now + APPROVAL_TTL }));
   await assert.rejects(appendApprovedComment({ ...options, envelope: envelope({ ...claim().comment, id: '../../outside' }) }));
-  assert.equal((await readdir(path.join(root, 'data/comments'))).length, 1);
+  assert.equal((await readdir(path.join(root, 'content', directory, 'comments'))).length, 1);
+  await assert.rejects(readFile(path.join(root, 'data/comments', `${input.id}.json`)), { code: 'ENOENT' });
 });
 
 test('concurrent branches and duplicate approvals rebase safely without dropping comments', async () => {
@@ -233,22 +317,181 @@ test('concurrent branches and duplicate approvals rebase safely without dropping
     git(clone, ['config', 'user.email', 'test@example.org']);
   }
   await writeFile(path.join(clones[0], 'README.md'), 'test\n');
-  git(clones[0], ['add', 'README.md']); git(clones[0], ['commit', '-m', 'init']); git(clones[0], ['push', 'origin', 'master']);
+  await seedArticle(clones[0]);
+  git(clones[0], ['add', '.']); git(clones[0], ['commit', '-m', 'init']); git(clones[0], ['push', 'origin', 'master']);
   for (const clone of clones.slice(1)) git(clone, ['pull', 'origin', 'master']);
-  const first = claim().comment;
-  const second = { ...first, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321', message: '另一条评论' };
-  for (const [index, comment] of [first, second, first].entries()) {
+  const first = sealComment({ ...claim().comment, email: 'subscriber@example.org' }, env.COMMENTS_EMAIL_SECRET);
+  const second = sealComment({ ...claim().comment, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321', message: '另一条评论', email: 'another@example.org' }, env.COMMENTS_EMAIL_SECRET);
+  const duplicate = sealComment({ ...claim().comment, email: 'subscriber@example.org' }, env.COMMENTS_EMAIL_SECRET);
+  assert.notEqual(first.emailEncrypted, duplicate.emailEncrypted);
+  for (const [index, comment] of [first, second, duplicate].entries()) {
     const result = await appendApprovedComment({ root: clones[index], envelope: envelope(comment), secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now });
     pushComment({ cwd: clones[index], file: result.relative, branch: 'master' });
   }
   git(clones[0], ['pull', '--rebase', 'origin', 'master']);
-  assert.equal((await readdir(path.join(clones[0], 'data/comments'))).length, 2);
+  assert.equal((await readdir(path.join(clones[0], 'content', directory, 'comments'))).length, 2);
   assert.equal(git(clones[0], ['log', '--format=%s']).toString().trim().split('\n').length, 3, '重复审批不产生重复提交');
+  assert.equal(JSON.parse(await readFile(path.join(clones[0], commentFile(directory, first.id)), 'utf8')).emailEncrypted, first.emailEncrypted, '重复审批的随机密文冲突应保留已发布版本');
+});
+
+test('optional email is validated, canonicalized and bound to proof without exposing it in challenges', async () => {
+  assert.deepEqual(validateComment({ ...input, email: '  ' }), validateComment(input));
+  assert.equal(validateComment({ ...input, email: ' Reader+comments@EXAMPLE.ORG ' }).email, 'Reader+comments@example.org');
+  const noNetwork = async () => assert.fail('invalid email or proof must not send email');
+  for (const email of [null, 42, 'not-an-email', 'a@b@c.org', 'a@example.org\r\nBcc: x@example.org', 'a@-example.org', 'x'.repeat(65) + '@example.org']) {
+    assert.equal((await challengeComment(request({ ...input, email }), deps())).status, 400);
+    assert.equal((await submitComment(request({ ...input, email }), deps({ fetchImpl: noNetwork }))).status, 400);
+  }
+  const body = { ...input, email: 'reader@example.org' };
+  const response = await challengeComment(request(body), deps());
+  const task = await response.json();
+  assert.equal(response.status, 200);
+  assert.ok(!JSON.stringify(task).includes(body.email));
+  const proof = solve(task);
+  const emails = [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const submitted = await submitComment(request({ ...body, proof }), deps({ fetchImpl: async (_, options) => {
+      emails.push(options);
+      return Response.json({ id: 'moderation-receipt' });
+    } }));
+    assert.equal(submitted.status, 202);
+    assert.ok(!(await submitted.text()).includes(body.email));
+  }
+  assert.equal(emails[0].body, emails[1].body, '含邮箱的重复提交也应保持审核邮件幂等');
+  const token = JSON.parse(emails[0].body).text.match(/#token=([\w.-]+)/)[1];
+  assert.equal(readApproval(token, env.COMMENTS_APPROVAL_SECRET, new URL(env.COMMENTS_SITE_URL), now).comment.email, body.email);
+  for (const email of [undefined, '', 'other@example.org']) assert.equal((await submitComment(request({ ...body, email, proof }), deps({ fetchImpl: noNetwork }))).status, 403);
+  assert.equal((await challengeComment(request(body), deps({ env: { ...env, COMMENTS_EMAIL_SECRET: '' } }))).status, 503);
+});
+
+test('email encryption authenticates its comment and publishing cannot write plaintext or overwrite a different email', async () => {
+  const body = { ...input, email: 'reader@example.org' };
+  const stored = sealComment(body, env.COMMENTS_EMAIL_SECRET);
+  assert.equal(stored.email, undefined);
+  assert.ok(!JSON.stringify(stored).includes(body.email));
+  assert.equal(openCommentEmail(stored, env.COMMENTS_EMAIL_SECRET), body.email);
+  assert.equal(openCommentEmail(claim().comment, ''), undefined);
+  const tampered = stored.emailEncrypted.slice(0, 3) + (stored.emailEncrypted[3] === 'A' ? 'B' : 'A') + stored.emailEncrypted.slice(4);
+  for (const changed of [{ ...stored, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321' }, { ...stored, path: '/p/other/' }, { ...stored, emailHash: '0'.repeat(64) }, { ...stored, emailEncrypted: tampered }]) {
+    assert.throws(() => openCommentEmail(changed, env.COMMENTS_EMAIL_SECRET));
+  }
+  assert.throws(() => openCommentEmail(stored, 'wrong-secret'.repeat(5)));
+  assert.throws(() => validateStoredComment({ ...stored, email: body.email }));
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-email-'));
+  await seedArticle(root);
+  const publish = comment => appendApprovedComment({ root, envelope: envelope(comment), secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now });
+  await assert.rejects(publish(validateComment(body)), /明文邮箱/);
+  await publish(stored);
+  assert.equal((await publish(sealComment(body, env.COMMENTS_EMAIL_SECRET))).created, false);
+  await assert.rejects(publish(sealComment({ ...body, email: 'different@example.org' }, env.COMMENTS_EMAIL_SECRET)), /拒绝覆盖/);
+  assert.equal(JSON.parse(await readFile(path.join(root, commentFile(directory, body.id)), 'utf8')).emailEncrypted, stored.emailEncrypted);
+});
+
+function notificationFixture(email = 'reply-author@example.org', parentEmail = 'parent-author@example.org') {
+  const parent = sealComment({ ...input, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321', email: parentEmail }, env.COMMENTS_EMAIL_SECRET);
+  const comment = { ...input, email, parentId: parent.id };
+  const signedClaim = approvalClaim(comment, { title: '<文章标题>' }, new URL(env.COMMENTS_SITE_URL), now);
+  const token = sign(signedClaim, env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
+  const pageList = async () => [{ ...(await pages())[0], commentIds: [parent.id], notificationEmails: parent.emailEncrypted ? { [parent.id]: { emailEncrypted: parent.emailEncrypted, emailHash: parent.emailHash } } : {} }];
+  return { comment, parent, token, pageList };
+}
+
+test('approval sends two private notifications only after successful dispatch and never publishes plaintext email', async () => {
+  const fixture = notificationFixture();
+  const calls = [];
+  let stored;
+  const response = await approveComment(request({ action: 'approve', token: fixture.token, to: 'attacker@example.org' }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
+    calls.push({ url, options });
+    if (url.startsWith('https://api.github.com/')) {
+      stored = verify(JSON.parse(options.body).inputs.envelope, env.COMMENTS_WORKFLOW_SECRET, 'comment-publish-v1').comment;
+      assert.equal(stored.email, undefined);
+      assert.equal(openCommentEmail(stored, env.COMMENTS_EMAIL_SECRET), fixture.comment.email);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      assert.equal(calls.length, 1, 'GitHub 尚未接受任务时不能发送通知');
+      return new Response(null, { status: 204 });
+    }
+    assert.ok(stored);
+    return Response.json({ id: 'notification-id' });
+  } }));
+  assert.equal(response.status, 202);
+  const result = await response.json();
+  assert.deepEqual(result.notifications, { sent: 2, failed: 0 });
+  assert.equal(result.notificationToken, undefined);
+  assert.equal(calls.length, 3);
+  const emails = calls.slice(1).map(call => JSON.parse(call.options.body));
+  assert.deepEqual(emails.map(email => email.to), [['reply-author@example.org'], ['parent-author@example.org']]);
+  assert.match(emails[0].subject, /通过审核/);
+  assert.match(emails[1].subject, /收到了回复/);
+  for (const email of emails) {
+    assert.match(email.html, /&lt;script&gt;/);
+    assert.doesNotMatch(email.html, /<script>|#token=|reply-author@example|parent-author@example/);
+    assert.ok(email.text.includes(`#comment-${fixture.comment.id}`));
+    assert.match(email.text, /构建和部署成功后/);
+  }
+  const noMail = async url => {
+    assert.ok(url.startsWith('https://api.github.com/'));
+    return new Response(null, { status: 502 });
+  };
+  assert.equal((await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: noMail }))).status, 502);
+  assert.equal((await approveComment(request({ action: 'preview', token: fixture.token }), deps({ fetchImpl: async () => assert.fail() }))).status, 200);
+});
+
+test('notification failures can be retried without dispatching or resending successful messages', async () => {
+  const fixture = notificationFixture();
+  const calls = [];
+  const response = await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
+    calls.push({ url, options });
+    if (url.startsWith('https://api.github.com/')) return new Response(null, { status: 204 });
+    return JSON.parse(options.body).to[0] === fixture.comment.email ? Response.json({ id: 'accepted' }) : new Response('private upstream error', { status: 503 });
+  } }));
+  assert.equal(response.status, 202);
+  const result = await response.json();
+  assert.deepEqual(result.notifications, { sent: 1, failed: 1 });
+  assert.ok(result.notificationToken);
+  assert.doesNotMatch(JSON.stringify(result), /private upstream|parent-author@example|reply-author@example/);
+  const retries = [];
+  const retried = await approveComment(request({ action: 'notify', token: fixture.token, notificationToken: result.notificationToken }), deps({ pages: async () => assert.fail('retry uses signed original recipients'), fetchImpl: async (url, options) => {
+    assert.equal(url, 'https://api.resend.com/emails');
+    retries.push(options);
+    return Response.json({ id: 'accepted' });
+  } }));
+  assert.equal(retried.status, 202);
+  assert.deepEqual((await retried.json()).notifications, { sent: 1, failed: 0 });
+  assert.equal(retries.length, 1);
+  assert.deepEqual(JSON.parse(retries[0].body).to, ['parent-author@example.org']);
+  const failed = calls.find(call => call.url.endsWith('/emails') && JSON.parse(call.options.body).to[0] === 'parent-author@example.org');
+  assert.equal(retries[0].body, failed.options.body);
+  assert.equal(retries[0].headers['idempotency-key'], failed.options.headers['idempotency-key']);
+  for (const notificationToken of [undefined, fixture.token, result.notificationToken.slice(0, -4) + 'xxxx']) {
+    assert.equal((await approveComment(request({ action: 'notify', token: fixture.token, notificationToken }), deps({ fetchImpl: async () => assert.fail() }))).status, 400);
+  }
+  assert.equal((await approveComment(request({ action: 'notify', token: approval(), notificationToken: result.notificationToken }), deps({ fetchImpl: async () => assert.fail() }))).status, 400);
+  assert.equal((await approveComment(request({ action: 'notify', token: fixture.token, notificationToken: result.notificationToken }), deps({ now: now + 86400000, fetchImpl: async () => assert.fail() }))).status, 400);
+});
+
+test('notification opt-outs and self-replies skip unwanted mail; unreadable parent emails remain retryable', async () => {
+  for (const [email, parentEmail, expected] of [[undefined, undefined, []], [undefined, 'parent@example.org', ['parent@example.org']], ['author@example.org', undefined, ['author@example.org']], ['same@example.org', 'same@example.org', ['same@example.org']]]) {
+    const fixture = notificationFixture(email || '', parentEmail || '');
+    const recipients = [];
+    const response = await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, fetchImpl: async (url, options) => {
+      if (url.startsWith('https://api.github.com/')) return new Response(null, { status: 204 });
+      recipients.push(...JSON.parse(options.body).to);
+      return Response.json({ id: 'accepted' });
+    } }));
+    assert.equal(response.status, 202);
+    assert.deepEqual(recipients, expected);
+  }
+  const fixture = notificationFixture('', 'parent@example.org');
+  const response = await approveComment(request({ action: 'approve', token: fixture.token }), deps({ pages: fixture.pageList, env: { ...env, COMMENTS_EMAIL_SECRET: '' }, fetchImpl: async url => {
+    assert.ok(url.startsWith('https://api.github.com/'));
+    return new Response(null, { status: 204 });
+  } }));
+  assert.deepEqual((await response.json()).notifications, { sent: 0, failed: 1 });
 });
 
 test('comment workflow needs one configured secret and only verifies, commits and pushes', async () => {
   const workflow = await readFile(new URL('../.github/workflows/publish-comment.yml', import.meta.url), 'utf8');
-  assert.deepEqual([...workflow.matchAll(/secrets\.([A-Z_]+)/g)].map(match => match[1]), ['COMMENTS_WORKFLOW_SECRET']);
+  assert.deepEqual([...workflow.matchAll(/secrets\.([A-Z_]+)/g)].map(match => match[1]), ['COMMENTS_SECRET', 'COMMENTS_WORKFLOW_SECRET'], '主密钥可单独工作，旧发布密钥仅供兼容');
   assert.match(workflow, /contents: write/);
   assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
   assert.match(workflow, /COMMENT_FILE: \$\{\{ steps\.comment\.outputs\.comment_file \}\}/);
@@ -269,10 +512,11 @@ test('publishing CLIs run without npm dependencies or deploy credentials and dup
   git(checkout, ['config', 'user.name', 'Test']);
   git(checkout, ['config', 'user.email', 'test@example.org']);
   // Only source files: deliberately no node_modules, credentials, or built site.
-  for (const file of ['package.json', 'server/comments/core.js', 'scripts/publish-comment.mjs', 'scripts/push-comment.mjs']) {
+  for (const file of ['package.json', 'server/comments/core.js', 'server/comments/storage.js', 'scripts/publish-comment.mjs', 'scripts/push-comment.mjs']) {
     await mkdir(path.dirname(path.join(checkout, file)), { recursive: true });
     await copyFile(new URL(`../${file}`, import.meta.url), path.join(checkout, file));
   }
+  await seedArticle(checkout);
   git(checkout, ['add', '.']);
   git(checkout, ['commit', '-m', 'init']);
   git(checkout, ['push', 'origin', branch]);
@@ -280,22 +524,106 @@ test('publishing CLIs run without npm dependencies or deploy credentials and dup
   const comment = { ...claim().comment, createdAt: new Date(created).toISOString() };
   const event = path.join(root, 'event.json');
   const output = path.join(root, 'output');
-  await writeFile(event, JSON.stringify({ inputs: { envelope: envelope(comment, { approvedAt: comment.createdAt, expiresAt: created + APPROVAL_TTL }) } }));
+  const signed = sign({ v: 1, repository: 'owner/blog', directory, comment, approvedAt: comment.createdAt, expiresAt: created + APPROVAL_TTL }, commentSecret(masterEnv, 'workflow'), 'comment-publish-v1');
+  await writeFile(event, JSON.stringify({ inputs: { envelope: signed } }));
   const cliEnv = {
     PATH: process.env.PATH, GITHUB_EVENT_PATH: event, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'owner/blog',
-    COMMENTS_WORKFLOW_SECRET: env.COMMENTS_WORKFLOW_SECRET,
+    COMMENTS_SECRET: masterEnv.COMMENTS_SECRET,
   };
   const run = (script, variables) => execFileSync(process.execPath, [script], { cwd: checkout, env: variables, stdio: 'pipe' });
-  assert.throws(() => run('scripts/publish-comment.mjs', { ...cliEnv, COMMENTS_WORKFLOW_SECRET: '' }));
+  assert.throws(() => run('scripts/publish-comment.mjs', { ...cliEnv, COMMENTS_SECRET: '' }));
   assert.equal(git(checkout, ['status', '--porcelain']).trim(), '', 'missing signature secret must not write comments');
   for (let attempt = 0; attempt < 2; attempt++) {
     await writeFile(output, '');
     run('scripts/publish-comment.mjs', cliEnv);
     const values = Object.fromEntries((await readFile(output, 'utf8')).trim().split('\n').map(line => line.split('=')));
-    assert.equal(values.comment_file, `data/comments/${comment.id}.json`);
+    assert.equal(values.comment_file, commentFile(directory, comment.id));
     run('scripts/push-comment.mjs', { PATH: process.env.PATH, COMMENT_FILE: values.comment_file, COMMENTS_BRANCH: branch });
   }
-  assert.deepEqual(JSON.parse(git(remote, ['show', `${branch}:data/comments/${comment.id}.json`])), comment);
+  assert.deepEqual(JSON.parse(git(remote, ['show', `${branch}:${commentFile(directory, comment.id)}`])), comment);
   assert.equal(git(remote, ['rev-list', '--count', branch]).trim(), '2', 'init plus one comment commit');
   assert.equal(git(checkout, ['status', '--porcelain']).trim(), '');
+});
+
+test('nested replies retain their parent through proof, email, approval and article-local publishing', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-replies-'));
+  await seedArticle(root);
+  const ids = [];
+  const replyPages = async () => [{ ...(await pages())[0], commentIds: [...ids] }];
+  for (let depth = 0; depth < 5; depth++) {
+    const parentId = ids.at(-1);
+    const body = { ...input, id: `fe251682-6cc0-40df-bf31-${String(depth).padStart(12, '0')}`, ...(parentId ? { parentId } : {}) };
+    const task = await challengeComment(request(body), deps({ pages: replyPages }));
+    assert.equal(task.status, 200);
+    body.proof = solve(await task.json());
+    if (parentId) assert.throws(() => verifyProof(body.proof, validateComment({ ...body, parentId: input.id }), new URL(env.COMMENTS_SITE_URL), env, now), { status: 403 });
+    let token;
+    const submitted = await submitComment(request(body), deps({ pages: replyPages, fetchImpl: async (_, options) => {
+      const email = JSON.parse(options.body);
+      if (parentId) {
+        assert.ok(email.text.includes(`#comment-${parentId}`));
+        assert.ok(email.html.includes(`#comment-${parentId}`));
+      }
+      token = email.text.match(/#token=([\w.-]+)/)[1];
+      return Response.json({ id: 'receipt' });
+    } }));
+    assert.equal(submitted.status, 202);
+    const preview = await approveComment(request({ action: 'preview', token }), deps());
+    assert.equal((await preview.json()).comment.parentId, parentId);
+    const approved = await approveComment(request({ action: 'approve', token, directory: 'post/attacker' }), deps({ pages: replyPages, fetchImpl: async (_, options) => {
+      const signed = JSON.parse(options.body).inputs.envelope;
+      const result = await appendApprovedComment({ root, envelope: signed, secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now });
+      assert.equal(result.relative, commentFile(directory, body.id));
+      assert.deepEqual(JSON.parse(await readFile(path.join(root, result.relative), 'utf8')), validateComment(body));
+      return new Response(null, { status: 204 });
+    } }));
+    assert.equal(approved.status, 202);
+    ids.push(body.id);
+  }
+});
+
+test('invalid, missing, self and foreign parents fail before email or workflow dispatch', async () => {
+  const noNetwork = async () => assert.fail('invalid parent must not send email or dispatch');
+  for (const parentId of [null, '', '../outside', 42, input.id, 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321']) {
+    const body = { ...input, parentId };
+    assert.equal((await challengeComment(request(body), deps())).status, 400);
+    assert.equal((await submitComment(request(body), deps({ fetchImpl: noNetwork }))).status, 400);
+  }
+  const parentId = 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321';
+  const body = { ...input, parentId };
+  const foreignPages = async () => [...await pages(), { path: '/p/other/', title: '另一篇文章', directory: 'post/other', commentIds: [parentId] }];
+  assert.equal((await challengeComment(request(body), deps({ pages: foreignPages }))).status, 400);
+  const token = sign(approvalClaim(body, (await pages())[0], new URL(env.COMMENTS_SITE_URL), now), env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1');
+  assert.equal((await approveComment(request({ action: 'approve', token }), deps({ fetchImpl: noNetwork }))).status, 400, '审批时父留言已删除应拒绝发布');
+  assert.equal((await approveComment(request({ action: 'approve', token: approval() }), deps({ pages: async () => [], fetchImpl: noNetwork }))).status, 400);
+});
+
+test('publishing validates article directories, same-article parents, missing parents and cycles', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-comments-paths-'));
+  await seedArticle(root);
+  const publish = (comment, options = {}) => appendApprovedComment({ root, envelope: envelope(comment, options), secret: env.COMMENTS_WORKFLOW_SECRET, repository: 'owner/blog', now });
+  for (const invalid of [undefined, '', '../outside', 'post/../../outside', 'post/./example', '/post/example', 'post/example\nmalicious', 'post\\example']) {
+    await assert.rejects(publish(claim().comment, { directory: invalid }));
+    assert.throws(() => parseCommentFile(`content/${invalid}/comments/${input.id}.json`));
+  }
+  await assert.rejects(publish(claim().comment, { directory: 'post/missing' }));
+  const parent = { ...claim().comment, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321' };
+  const reply = { ...claim().comment, parentId: parent.id };
+  await assert.rejects(publish(reply), /不存在/);
+  await seedArticle(root, 'post/other');
+  await publish(parent, { directory: 'post/other' });
+  await assert.rejects(publish(reply), /不存在/);
+  const parentFile = path.join(root, commentFile(directory, parent.id));
+  await mkdir(path.dirname(parentFile), { recursive: true });
+  await writeFile(parentFile, JSON.stringify({ ...parent, path: '/p/other/' }));
+  await assert.rejects(publish(reply), /不属于/);
+  await writeFile(parentFile, JSON.stringify({ ...parent, parentId: reply.id }));
+  await assert.rejects(publish(reply), /循环/);
+  await writeFile(parentFile, JSON.stringify({ ...parent, parentId: 'b380e8f6-0f53-4d32-a0a4-a48e4d2bc321' }));
+  assert.equal((await publish(reply)).created, true, '祖先删除后仍可回复现存留言');
+  await unlink(parentFile);
+  await symlink(path.join(root, commentFile('post/other', parent.id)), parentFile);
+  await assert.rejects(publish(reply), /无效/);
+  await symlink(path.join(root, 'content', directory), path.join(root, 'content/post/link'));
+  await assert.rejects(publish(claim().comment, { directory: 'post/link' }), /普通目录/);
 });

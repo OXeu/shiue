@@ -223,6 +223,7 @@ test('real Hugo rendering clears recovered status, preserves new failures and su
   await writeFile(path.join(root, 'layouts/partials/comments.html'), '');
   await copyFile(new URL('../themes/xeu/layouts/_default/friends.html', import.meta.url), path.join(root, 'layouts/_default/friends.html'));
   await copyFile(new URL('../themes/xeu/layouts/partials/friend-card.html', import.meta.url), path.join(root, 'layouts/partials/friend-card.html'));
+  await copyFile(new URL('../themes/xeu/layouts/partials/friend-application.html', import.meta.url), path.join(root, 'layouts/partials/friend-application.html'));
   await writeFile(path.join(root, 'data/friends.json'), JSON.stringify([
     { title: 'Recovered', description: 'Recovered site', website: 'https://recovered.example/', image: '/friends/one.webp', health: '526' },
     { title: 'Unavailable', description: 'Unavailable site', website: 'https://down.example/', image: '/friends/two.webp', health: '' },

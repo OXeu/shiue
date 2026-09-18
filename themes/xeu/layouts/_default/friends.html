@@ -23,5 +23,6 @@
   </section>
   {{ end }}
   {{ with .Content }}<div class="prose surface">{{ . }}</div>{{ end }}
+  {{ partial "friend-application.html" . }}
   {{ partial "comments.html" . }}
 {{ end }}

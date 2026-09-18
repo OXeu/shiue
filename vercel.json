@@ -8,11 +8,14 @@
     "api/daily-deploy.js": { "maxDuration": 30 },
     "api/comments-challenge.js": { "maxDuration": 15, "includeFiles": "public/comment-pages.json" },
     "api/comments-submit.js": { "maxDuration": 30, "includeFiles": "public/comment-pages.json" },
-    "api/comments-approve.js": { "maxDuration": 30 }
+    "api/comments-approve.js": { "maxDuration": 30, "includeFiles": "public/comment-pages.json" },
+    "api/friends-challenge.js": { "maxDuration": 15 },
+    "api/friends-submit.js": { "maxDuration": 30 },
+    "api/friends-approve.js": { "maxDuration": 30 }
   },
   "headers": [
     {
-      "source": "/comment-review/(.*)",
+      "source": "/(comment-review|friend-review)/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
         { "key": "Referrer-Policy", "value": "no-referrer" },

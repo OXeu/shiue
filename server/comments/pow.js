@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { CommentError, digest, requireSecret, sign, verify } from './core.js';
+import { CommentError, commentSecret, digest, sign, verify } from './core.js';
 
 // Anubis-compatible puzzle: SHA-256(UTF-8(challenge + decimal nonce)),
 // difficulty counts zero HEX DIGITS (4 bits each), not zero bytes.
@@ -11,7 +11,7 @@ export function powDifficulty(env) {
   if (!/^[4-6]$/.test(value)) throw new CommentError(503, '评论工作量证明尚未配置完成。');
   return Number(value);
 }
-export function issueProof(comment, site, env, now) {
+export function issueProof(comment, site, env, now, purpose = PURPOSE) {
   const claim = {
     v: 1, algorithm: 'sha256', difficulty: powDifficulty(env),
     challenge: randomBytes(32).toString('hex'), binding: digest(comment), site: site.href,
@@ -19,17 +19,17 @@ export function issueProof(comment, site, env, now) {
   };
   return {
     algorithm: claim.algorithm, challenge: claim.challenge, difficulty: claim.difficulty,
-    expiresAt: claim.expiresAt, token: sign(claim, env.COMMENTS_POW_SECRET, PURPOSE),
+    expiresAt: claim.expiresAt, token: sign(claim, commentSecret(env, 'pow'), purpose),
   };
 }
-export function verifyProof(proof, comment, site, env, now) {
-  requireSecret(env.COMMENTS_POW_SECRET);
+export function verifyProof(proof, comment, site, env, now, purpose = PURPOSE) {
+  const secret = commentSecret(env, 'pow');
   const difficulty = powDifficulty(env);
   const invalid = () => new CommentError(403, '工作量证明无效，请重新提交以获取验证任务。');
   if (!proof || typeof proof.token !== 'string' || proof.token.length > 2048 ||
       typeof proof.nonce !== 'string' || !/^(0|[1-9]\d{0,15})$/.test(proof.nonce) || !Number.isSafeInteger(Number(proof.nonce))) throw invalid();
   let claim;
-  try { claim = verify(proof.token, env.COMMENTS_POW_SECRET, PURPOSE); }
+  try { claim = verify(proof.token, secret, purpose); }
   catch { throw invalid(); }
   if (!claim || claim.v !== 1 || claim.algorithm !== 'sha256' || claim.difficulty !== difficulty ||
       typeof claim.challenge !== 'string' || !/^[a-f0-9]{64}$/.test(claim.challenge) ||

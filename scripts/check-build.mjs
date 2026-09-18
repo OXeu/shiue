@@ -9,6 +9,7 @@ import { isBlurhashValid } from 'blurhash';
 import sharp from 'sharp';
 import { load } from 'cheerio';
 import { prepareIdentity, readIdentity, identityAssets } from './deploy/identity.mjs';
+import { openCommentEmail, sealComment } from '../server/comments/email.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Build verification can reuse validated generated files; a clean checkout
@@ -29,12 +30,21 @@ for (const [source, image] of Object.entries(images)) {
 const output = mkdtempSync(path.join(tmpdir(), 'shiue-build-'));
 const destination = path.join(output, 'public');
 const baseURL = process.env.SHIUE_TEST_BASE_URL || 'https://example.org/';
-// 测试评论只进入临时 data 目录，不改写真实仓库或发布数据。
-const testData = path.join(output, 'data');
-cpSync(path.join(root, 'data'), testData, { recursive: true });
-mkdirSync(path.join(testData, 'comments'), { recursive: true });
+// 测试留言只写入临时文章副本，不改写真实仓库或发布数据。
+const testContent = path.join(output, 'content');
+cpSync(path.join(root, 'content'), testContent, { recursive: true });
+const commentDirectory = path.join(testContent, 'post/ai-random-thoughts/comments');
+mkdirSync(commentDirectory, { recursive: true });
 const fixtureComment = { id: 'e2ae8335-89b2-4f10-97db-cdb4603d23f4', path: new URL('p/ai-random-thoughts/', baseURL).pathname, name: '<img src=x onerror=alert(1)>', message: '<script>alert(1)</script>\n纯文本评论', createdAt: '2026-09-17T20:00:00.000Z' };
-writeFileSync(path.join(testData, 'comments', `${fixtureComment.id}.json`), JSON.stringify(fixtureComment));
+const fixtureComments = [fixtureComment];
+for (let depth = 1; depth <= 6; depth++) {
+  fixtureComments.push({ ...fixtureComment, id: `e2ae8335-89b2-4f10-97db-${String(depth).padStart(12, '0')}`, parentId: fixtureComments.at(-1).id, name: `第 ${depth} 层读者`, message: `第 ${depth} 层回复\n${'很长的纯文本留言'.repeat(20)}`, createdAt: `2026-09-17T20:00:0${depth}.000Z` });
+}
+const orphan = { ...fixtureComment, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321', parentId: 'fe251682-6cc0-40df-bf31-6d48c12a985c', name: '保留的回复', message: '父留言删除后仍可阅读' };
+fixtureComments.push(orphan);
+const fixtureEmail = 'build-private-reader@example.org';
+const fixtureEmailSecret = 'build-email-test-key'.repeat(3);
+for (const comment of fixtureComments) writeFileSync(path.join(commentDirectory, `${comment.id}.json`), JSON.stringify(comment.id === fixtureComment.id ? sealComment({ ...comment, email: fixtureEmail }, fixtureEmailSecret) : comment));
 const result = spawnSync(process.env.HUGO_BIN || 'hugo', [
   '--source', root,
   '--destination', destination,
@@ -45,7 +55,7 @@ const result = spawnSync(process.env.HUGO_BIN || 'hugo', [
   '--noBuildLock',
 ], {
   encoding: 'utf8',
-  env: { ...process.env, SHIUE_IMAGES_READY: '1', HUGO_DATADIR: testData, HUGO_RESOURCEDIR: path.join(output, 'resources') },
+  env: { ...process.env, SHIUE_IMAGES_READY: '1', HUGO_CONTENTDIR: testContent, HUGO_RESOURCEDIR: path.join(output, 'resources') },
 });
 process.stdout.write(result.stdout || '');
 process.stderr.write(result.stderr || '');
@@ -134,6 +144,19 @@ read('categories/index.html');
 read('links/index.html');
 const friends = JSON.parse(readFileSync(path.join(root, 'data/friends.json'), 'utf8'));
 const friendHTML = read('友链/index.html');
+const $friendPage = load(friendHTML);
+const $friendForm = $friendPage('[data-friend-form]');
+assert.equal($friendForm.attr('data-endpoint'), '/api/friends-submit');
+assert.equal($friendForm.attr('data-challenge-endpoint'), '/api/friends-challenge');
+assert.equal($friendForm.find('fieldset[disabled]').length, 1, '无脚本时申请按钮应禁用');
+assert.equal($friendForm.find('[name="consent"][required]').length, 1);
+for (const field of ['title', 'website', 'description']) assert.equal($friendForm.find(`[name="${field}"][required]`).length, 1);
+localAsset($friendForm.attr('data-pow-worker'));
+const $friendReview = load(read('friend-review/index.html'));
+assert.equal($friendReview('[data-friend-review]').attr('data-endpoint'), '/api/friends-approve');
+assert.match($friendReview('meta[name="robots"]').attr('content'), /noindex/);
+assert.equal($friendReview('[data-review-content][hidden]').length, 1);
+assert.doesNotMatch(read('sitemap.xml'), /friend-review/);
 assert.equal((friendHTML.match(/class=["']?friend-card(?:\s|>|["'])/g) || []).length, friends.length, '友链页条目数与数据不一致');
 const friendIcons = [...friendHTML.matchAll(/<img\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)]
   .map(match => match[1] || match[2] || match[3]);
@@ -163,12 +186,29 @@ assert.match(rss, /<item>/);
 const search = JSON.parse(read('search/index.json'));
 const commentPages = JSON.parse(read('comment-pages.json'));
 assert.ok(commentPages.some(page => page.path === fixtureComment.path));
+const fixturePage = commentPages.find(page => page.path === fixtureComment.path);
+assert.equal(fixturePage.directory, 'post/ai-random-thoughts');
+assert.equal(openCommentEmail({ ...fixtureComment, ...fixturePage.notificationEmails[fixtureComment.id] }, fixtureEmailSecret), fixtureEmail);
+for (const file of ['comment-pages.json', 'index.xml', 'search/index.json']) assert.ok(!read(file).includes(fixtureEmail), `明文邮箱不能进入 ${file}`);
+for (const comment of fixtureComments) assert.ok(fixturePage.commentIds.includes(comment.id));
 assert.ok(!commentPages.some(page => page.path.includes('comment-review')), '审批页不能开放评论');
 const $commentsArticle = load(read('p/ai-random-thoughts/index.html'));
+assert.equal($commentsArticle('[name="email"][type="email"]').length, 1);
+assert.equal($commentsArticle('[name="email"][required]').length, 0, '邮箱必须可不填');
 const renderedComment = $commentsArticle(`#comment-${fixtureComment.id}`);
-assert.equal(renderedComment.find('.comment-message').text(), fixtureComment.message);
-assert.equal(renderedComment.find('strong').text(), fixtureComment.name);
+assert.equal(renderedComment.children('.comment-message').text(), fixtureComment.message);
+assert.equal(renderedComment.children('.comment-byline').find('strong').text(), fixtureComment.name);
 assert.equal(renderedComment.find('script, img').length, 0, '评论必须作为纯文本转义，不能运行 HTML');
+for (const comment of fixtureComments.slice(1, -1)) {
+  const node = $commentsArticle(`#comment-${comment.id}`);
+  assert.equal(node.parent().parent().attr('id'), `comment-${comment.parentId}`, '回复必须挂在直接父留言下');
+  assert.equal(node.children('.comment-message').text(), comment.message);
+  assert.equal(node.children('[data-reply-id]').attr('data-reply-id'), comment.id, '每一层留言都可被回复');
+  assert.equal(node.children('.comment-parent').find('a').attr('href'), `#comment-${comment.parentId}`);
+}
+assert.equal($commentsArticle(`#comment-${orphan.id}`).parent().hasClass('comment-replies'), false, '删除父留言后回复仍应显示');
+assert.ok($commentsArticle('.comment-replies-flat').length > 0, '深层回复应限制视觉缩进');
+assert.equal($commentsArticle('[name="parentId"][type="hidden"]').length, 1);
 assert.equal(load(read('p/rin/index.html'))(`#comment-${fixtureComment.id}`).length, 0, '不同文章的评论不能串页');
 const $review = load(read('comment-review/index.html'));
 assert.match($review('meta[name="robots"]').attr('content'), /noindex/);
@@ -192,9 +232,8 @@ for (const article of search) {
       assert.ok(parseInt(width, 10) <= 960, '列表缩略图过大');
     }
   }
-  for (const match of html.matchAll(/<img\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
-    localAsset(match[1] || match[2] || match[3]);
-  }
+  const $article = load(html);
+  for (const image of $article('img[src]').toArray()) localAsset($article(image).attr('src'));
 }
 const styles = [...home.matchAll(/<link\b[^>]*href=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)]
   .map(match => match[1] || match[2] || match[3]).filter(url => url.endsWith('.css'));
@@ -209,6 +248,7 @@ for (const style of styles) {
 const htmlFiles = readdirSync(destination, { recursive: true }).filter(file => file.endsWith('.html'));
 for (const relative of htmlFiles) {
   const html = read(relative);
+  assert.ok(!html.includes(fixtureEmail), '明文邮箱不能进入公开页面');
   const $ = load(html);
   for (const comments of $('[data-comments]').toArray()) {
     assert.equal($(comments).find('[data-comment-form]').attr('data-endpoint'), '/api/comments-submit', `${relative} 应使用本站评论接口`);
@@ -231,9 +271,7 @@ for (const relative of htmlFiles) {
     assert.ok(head.indexOf(font.get(0)) < head.indexOf(firstDependency), `${relative} 字体应先于 CSS 和脚本预加载`);
   }
   checkCardImages(html);
-  for (const match of html.matchAll(/<(?:img|script)\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
-    localAsset(match[1] || match[2] || match[3]);
-  }
+  for (const asset of $('img[src], script[src]').toArray()) localAsset($(asset).attr('src'));
   for (const match of html.matchAll(/\bsrcset="([^"]+)"/g)) {
     match[1].split(',').forEach(candidate => localAsset(candidate.trim().split(/\s+/)[0]));
   }

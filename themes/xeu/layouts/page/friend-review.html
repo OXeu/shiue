@@ -1,0 +1,19 @@
+{{ define "main" }}
+<section class="comment-review friend-review" data-friend-review data-endpoint="/api/friends-approve">
+  <div class="page-heading"><h1>友链申请审核</h1></div>
+  <p class="comment-note">打开此页不会发布友链。请核对网站内容与图标来源后，再确认批准。</p>
+  <p class="comment-status" role="status" aria-live="polite">正在读取审批链接…</p>
+  <div data-review-content hidden>
+    <div class="comment-item">
+      <div class="comment-byline"><strong data-review-title></strong><time data-review-time></time></div>
+      <p class="comment-message" data-review-description></p>
+      <p>网址：<a class="comment-article-link" data-review-website rel="noopener noreferrer" target="_blank"></a></p>
+      <p>图标：<a class="comment-article-link" data-review-icon rel="noopener noreferrer" target="_blank"></a></p>
+    </div>
+    <p class="comment-note">批准后会下载图标并将站点信息写入公开 Git 仓库，构建与部署成功后展示。已存在的网址会保留原有条目；忽略邮件即可不予发布。</p>
+    <button class="page-link" type="button" data-approve-friend>确认批准并添加友链</button>
+  </div>
+  <p><a class="comment-article-link" data-workflow-link hidden rel="noopener noreferrer" target="_blank">查看 GitHub 发布任务 →</a></p>
+  <noscript><p>审批操作需要 JavaScript。此页尚未执行任何发布操作。</p></noscript>
+</section>
+{{ end }}

@@ -1,0 +1,6 @@
+{{- $comments := slice -}}
+{{- range .Resources.Match "comments/*.json" -}}
+  {{- $comment := .Content | transform.Unmarshal -}}
+  {{- $comments = $comments | append $comment -}}
+{{- end -}}
+{{- return (sort $comments "createdAt" "asc") -}}

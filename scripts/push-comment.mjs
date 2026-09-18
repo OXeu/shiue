@@ -1,11 +1,14 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateComment } from '../server/comments/core.js';
+import { sameStoredComment, validateStoredComment } from '../server/comments/core.js';
+import { parseCommentFile } from '../server/comments/storage.js';
 
 export function pushComment({ file, branch, cwd = process.cwd() }) {
-  if (!/^data\/comments\/[0-9a-f-]{36}\.json$/.test(file || '') || !/^[\w./-]+$/.test(branch || '') || branch.startsWith('-')) throw new Error('Invalid publish target');
+  parseCommentFile(file);
+  if (!/^[\w./-]+$/.test(branch || '') || branch.startsWith('-')) throw new Error('Invalid publish target');
   const git = args => execFileSync('git', args, { cwd, stdio: 'pipe' });
   git(['check-ref-format', `refs/heads/${branch}`]);
   git(['add', '--', file]);
@@ -17,16 +20,27 @@ export function pushComment({ file, branch, cwd = process.cwd() }) {
   for (let attempt = 0; attempt < 5; attempt++) {
     if (spawnSync('git', ['push', 'origin', `HEAD:refs/heads/${branch}`], { cwd, stdio: 'pipe' }).status === 0) return;
     git(['fetch', 'origin', `refs/heads/${branch}`]);
-    git(['rebase', 'FETCH_HEAD']);
+    try { git(['rebase', 'FETCH_HEAD']); }
+    catch (error) {
+      // 同一审批的随机邮箱密文可能不同；只合并本条留言且公开内容与邮箱摘要完全一致的冲突。
+      const conflicts = git(['diff', '--name-only', '--diff-filter=U']).toString().trim().split('\n');
+      if (conflicts.length !== 1 || conflicts[0] !== file) throw error;
+      const upstream = git(['show', `:2:${file}`]).toString();
+      const local = git(['show', `:3:${file}`]).toString();
+      if (!sameStoredComment(JSON.parse(upstream), JSON.parse(local))) throw error;
+      writeFileSync(path.join(cwd, file), upstream);
+      git(['add', '--', file]);
+      git(['-c', 'core.editor=true', 'rebase', '--continue']);
+    }
   }
   throw new Error('Branch remained busy or write permission was denied');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const file = process.env.COMMENT_FILE;
-    if (!/^data\/comments\/[0-9a-f-]{36}\.json$/.test(file || '')) throw new Error();
-    const comment = validateComment(JSON.parse(await readFile(file, 'utf8')));
-    if (file !== `data/comments/${comment.id}.json`) throw new Error();
+    const { id } = parseCommentFile(file);
+    const comment = validateStoredComment(JSON.parse(await readFile(file, 'utf8')));
+    if (id !== comment.id) throw new Error();
     pushComment({ file, branch: process.env.COMMENTS_BRANCH });
     console.log('评论提交已推送。');
   } catch { console.error('推送评论失败，请检查分支权限或重新运行任务。'); process.exitCode = 1; }

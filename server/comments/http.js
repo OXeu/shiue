@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { approvalClaim, CommentError, siteURL } from './core.js';
+import { approvalClaim, CommentError, siteURL, validateCommentPage } from './core.js';
 
 export function json(status, body) {
   return Response.json(body, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
@@ -48,5 +48,7 @@ export async function readSubmission(request, site, now, pages = readPages) {
   if (typeof input.website !== 'string' || input.website) throw new CommentError(400, '评论未通过校验。');
   const page = (await pages()).find(page => page.path === input.path);
   if (!page) throw new CommentError(400, '此页面未开放评论。');
-  return { input, claim: approvalClaim(input, page, site, now) };
+  const claim = approvalClaim(input, page, site, now);
+  validateCommentPage(claim.comment, page);
+  return { input, claim };
 }

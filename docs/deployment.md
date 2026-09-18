@@ -133,4 +133,4 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 ## 评论审批发布
 
-同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 只验证签名、写入独立评论文件并提交推送，由 Vercel Git 集成自动构建部署；不安装 npm 依赖、不在评论 CI 中构建，也不调用 Deploy Hook。GitHub 只需配置 `COMMENTS_WORKFLOW_SECRET`，无需部署凭据；上面的每日刷新 Hook 保持独立。它不依赖数据库、Twikoo 或 Vercel 限流规则；当前不限制请求频率，PoW 不能保证调用量/费用上限。独立挑战密钥、外部服务及手动验收步骤见 [评论系统配置](comments.md)。
+同项目的 `/api/comments-challenge`、`/api/comments-submit` 与 `/api/comments-approve` 使用 Vercel Functions，静态博客仍输出至 `public/`。挑战和提交接口随函数打包 `public/comment-pages.json` 以验证文章；提交前需要完成绑定评论内容、5 分钟有效的 SHA-256 工作量证明；审批页 `/comment-review/` 不被索引。`publish-comment.yml` 只验证签名、写入独立评论文件并提交推送，由 Vercel Git 集成自动构建部署；不安装 npm 依赖、不在评论 CI 中构建，也不调用 Deploy Hook。Vercel 与 GitHub 只需配置同一个 `COMMENTS_SECRET`，程序自动派生 PoW、审批、发布和邮箱加密密钥，GitHub 无需部署凭据；上面的每日刷新 Hook 保持独立。它不依赖数据库、Twikoo 或 Vercel 限流规则；当前不限制请求频率，PoW 不能保证调用量/费用上限。主密钥、外部服务及手动验收步骤见 [评论系统配置](comments.md)。
