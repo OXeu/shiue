@@ -1,6 +1,14 @@
 {{- .Page.Store.Set "hasMermaid" true -}}
 <figure class="mermaid-block" data-mermaid>
-  <div class="mermaid-diagram" data-mermaid-output hidden tabindex="0" role="region" aria-label="Mermaid 图表，可横向滚动"></div>
+  <div class="mermaid-controls" data-mermaid-controls hidden role="group" aria-label="图表缩放">
+    <button type="button" data-mermaid-action="out" aria-label="缩小图表" title="缩小">−</button>
+    <output data-mermaid-zoom aria-label="缩放比例" aria-live="off">100%</output>
+    <button type="button" data-mermaid-action="in" aria-label="放大图表" title="放大">+</button>
+    <button type="button" data-mermaid-action="actual" title="原始大小（1）">原始大小</button>
+    <button type="button" data-mermaid-action="fit" title="适应窗口（0）">适应窗口</button>
+  </div>
+  <div class="mermaid-diagram" data-mermaid-output hidden tabindex="0" role="region" aria-label="Mermaid 图表，可拖拽移动；加减键缩放，方向键移动，0 适应窗口，1 原始大小"></div>
+  <p class="mermaid-hint" data-mermaid-hint hidden>拖拽移动 · Ctrl/⌘ + 滚轮缩放 · 触屏双指缩放</p>
   <p class="mermaid-status" data-mermaid-status role="status" hidden>图表暂时无法显示，可查看下方源码。</p>
   <details class="mermaid-source" open>
     <summary>图表源码</summary>

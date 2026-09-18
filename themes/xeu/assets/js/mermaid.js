@@ -1,4 +1,5 @@
 import { engineURL } from '@params';
+import { createMermaidViewport } from './mermaid-viewport.js';
 
 const root = document.documentElement;
 const states = [...document.querySelectorAll('[data-mermaid]')].map(element => ({
@@ -52,6 +53,8 @@ function configuration(mode) {
 function fail(state) {
   state.failed = true;
   state.output.hidden = true;
+  state.element.querySelector('[data-mermaid-controls]').hidden = true;
+  state.element.querySelector('[data-mermaid-hint]').hidden = true;
   state.details.open = true;
   state.status.hidden = false;
 }
@@ -84,18 +87,13 @@ async function draw() {
         try {
           const { svg, bindFunctions } = await mermaid.render(id, state.source);
           if (colorMode() !== mode) { pending = true; break; }
-          const scrollLeft = state.output.scrollLeft;
           state.output.innerHTML = svg;
           const diagram = state.output.querySelector('svg');
-          const width = diagram.viewBox.baseVal.width;
-          // 保留布局尺寸，宽图在容器内滚动，避免移动端将文字缩成一团。
-          if (width > 0) diagram.style.width = `${Math.ceil(width)}px`;
-          diagram.style.maxWidth = 'none';
-          diagram.style.height = 'auto';
           if (!diagram.hasAttribute('aria-labelledby')) diagram.setAttribute('aria-label', 'Mermaid 图表');
           bindFunctions?.(state.output);
           state.output.hidden = false;
-          state.output.scrollLeft = scrollLeft;
+          state.viewer ||= createMermaidViewport(state.element);
+          state.viewer.update(diagram);
           if (!state.mode) state.details.open = false;
           state.mode = mode;
           state.element.dataset.mermaidTheme = mode;

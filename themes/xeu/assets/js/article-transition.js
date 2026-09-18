@@ -1,6 +1,10 @@
 // 在首次绘制前注册跨文档事件；保留原生链接、历史记录和新标签页行为。
 (() => {
-  if (!('onpageswap' in window) || !('onpagereveal' in window)) return;
+  if (!('CSSViewTransitionRule' in window) || !('onpageswap' in window) || !('onpagereveal' in window)) return;
+  // 单文档过渡支持不代表能解析 @view-transition；确认跨文档支持后才添加规则。
+  const optIn = document.createElement('style');
+  optIn.textContent = '@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }';
+  document.head.append(optIn);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const root = document.documentElement;
   let active;

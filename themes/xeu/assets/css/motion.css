@@ -6,7 +6,6 @@
   --motion-image: 280ms;
 }
 html { scrollbar-gutter: stable; }
-@view-transition { navigation: auto; }
 ::view-transition-old(root) { animation: page-leave 140ms ease-out both; }
 ::view-transition-new(root) { animation: page-arrive 260ms var(--ease-out) both; }
 .site-header { view-transition-name: site-header; }
@@ -87,7 +86,6 @@ html[data-article-transition-cover="true"]::view-transition-new(article-title) {
 .image-dialog-status { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 24px; right: 24px; color: #fff; text-align: center; font-size: 13px; pointer-events: none; }
 .is-preview-source { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
-  @view-transition { navigation: none; }
   ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   .reveal-pending { opacity: 1; }
   .post-card:hover, .post-card:hover .card-cover img, .page-link:hover, .friend-card:hover, .term-list > a:hover, .page-link:active, .text-button:active, .color-modes button:active, .site-nav a:active, .term-list > a:active, .search-form button:active, .copy-code:active { transform: none; translate: none; }

@@ -3,7 +3,10 @@
 .reading-column { min-width: 0; }
 .article-heading { padding-bottom: 8px; margin-bottom: 32px; }
 .article-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.article-heading h1 { margin-top: 16px; font-size: 36px; line-height: 1.4; font-weight: 700; letter-spacing: -.025em; text-wrap: pretty; }
+.article-heading h1 { margin-top: 16px; font-size: 36px; line-height: 1.4; font-weight: 700; letter-spacing: -.025em; }
+@supports (text-wrap: pretty) {
+  .article-heading h1 { text-wrap: pretty; }
+}
 .article-heading h1:first-child { margin-top: 0; }
 .article-tags { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; font-size: 13px; color: var(--muted); }
 .article-tags a { padding: 5px 12px; border-radius: var(--radius-control); background: var(--surface-muted); }
@@ -43,6 +46,16 @@
 .mermaid-diagram { max-width: 100%; overflow-x: auto; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--surface); line-height: 1.5; }
 .mermaid-diagram > svg { display: block; margin-inline: auto; }
 .mermaid-diagram .label p { margin: 0; }
+.mermaid-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.mermaid-controls button { min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: var(--radius-control); background: var(--surface-muted); font-size: 13px; }
+.mermaid-controls button:is(:hover, :focus-visible) { background: var(--hover); }
+.mermaid-controls button:disabled { cursor: default; opacity: .45; }
+.mermaid-controls output { min-width: 54px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-soft); }
+.mermaid-diagram.is-interactive { position: relative; height: clamp(260px, 55vh, 480px); padding: 0; overflow: hidden; touch-action: none; user-select: none; cursor: grab; }
+.mermaid-diagram.is-interactive > svg { position: absolute; top: 0; left: 0; margin: 0; transform-origin: 0 0; }
+.mermaid-diagram.is-dragging { cursor: grabbing; }
+.mermaid-diagram.is-dragging > svg { will-change: transform; }
+.prose .mermaid-hint { margin: 8px 0; color: var(--muted); font-size: 12px; }
 .mermaid-source { margin-top: 8px; }
 .mermaid-source > summary { width: fit-content; padding: 8px 0; cursor: pointer; color: var(--muted); font-size: 13px; }
 .mermaid-source > summary:hover { color: var(--text); }

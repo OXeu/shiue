@@ -60,10 +60,11 @@ try {
   await reveal();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '手机页面不可横向溢出');
   const diagram = page.locator('[data-mermaid-output]');
-  assert.ok(await diagram.evaluate(element => element.scrollWidth > element.clientWidth), '宽图应局部滚动');
+  assert.equal(await page.locator('[data-mermaid-controls]:visible').count(), 1, '图表应提供缩放工具');
+  const transform = await diagram.locator('svg').evaluate(svg => svg.style.transform);
   await diagram.focus();
   await page.keyboard.press('ArrowRight');
-  await page.waitForFunction(() => document.querySelector('[data-mermaid-output]').scrollLeft > 0);
+  assert.notEqual(await diagram.locator('svg').evaluate(svg => svg.style.transform), transform, '方向键应移动图表');
   await page.locator('[data-mermaid]').screenshot({ path: path.join(artifacts, 'mobile-dark.png') });
 
   await page.locator('.mermaid-source > summary').click();
@@ -128,7 +129,7 @@ try {
   assert.equal(await noJS.locator('[data-mermaid-output]').isVisible(), false);
   await noJS.close();
   assert.deepEqual(errors, []);
-  console.log(`Mermaid 浏览器检查通过：实际架构图、按需加载、多图、浅深色与系统主题、切换竞态、手机滚动、源码复制、安全转义、语法和网络失败、无 JS。截图：${artifacts}`);
+  console.log(`Mermaid 浏览器检查通过：实际架构图、按需加载、多图、浅深色与系统主题、切换竞态、手机布局、键盘平移、源码复制、安全转义、语法和网络失败、无 JS。截图：${artifacts}`);
 } finally {
   await browser.close();
 }
