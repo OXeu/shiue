@@ -4,6 +4,7 @@
   "name": "Xeu",
   "message": "@wrisin 现在是有自定义发布时间的",
   "createdAt": "2024-08-24T17:36:29.000Z",
+  "parentId": "d703e433-0b86-4a2f-af5e-4a16cd993425",
   "legacy": {
     "source": "https://legacy.xeu.life",
     "feedId": 12,

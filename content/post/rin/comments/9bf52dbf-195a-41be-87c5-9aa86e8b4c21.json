@@ -4,6 +4,7 @@
   "name": "Xeu",
   "message": "@BurtSweet Pages 的环境变量中 API_URL 末尾不能有 `/`，去掉后重新部署应该就能好",
   "createdAt": "2025-01-17T03:13:15.000Z",
+  "parentId": "00f8aa41-c00d-49fe-91a7-783091461ecc",
   "legacy": {
     "source": "https://legacy.xeu.life",
     "feedId": 12,

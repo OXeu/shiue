@@ -4,6 +4,7 @@
   "name": "Xeu",
   "message": "@onshine 没有使用过 minio，但是 minio 文档中应该会有说 S3 协议下 endpoint 怎么填",
   "createdAt": "2024-06-24T06:07:02.000Z",
+  "parentId": "4795f9e8-92aa-4520-a71c-f60bf7a31275",
   "legacy": {
     "source": "https://legacy.xeu.life",
     "feedId": 14,

@@ -4,6 +4,7 @@
   "name": "Xeu",
   "message": "@wrisin 在自己克隆的仓库修改 server/src/utils/webhook.ts 第 16 行的格式就行了",
   "createdAt": "2024-08-24T18:42:22.000Z",
+  "parentId": "4cee8d93-85bc-42d1-b2e9-d4cdbf9aea38",
   "legacy": {
     "source": "https://legacy.xeu.life",
     "feedId": 12,

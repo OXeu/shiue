@@ -9,7 +9,188 @@
     "duplicates": "同文章、同作者、正文经换行/NFC/首尾空白规范化后相同；保留最早 createdAt，同时间保留最小旧编号。登录作者按旧 user.id 区分，游客按昵称区分。",
     "filtering": "逐条人工复核测试、无意义片段/纯问候/签到、无意义重复文字与纯引流推广；保留技术讨论、补充说明、感谢及有效批评。过滤决定绑定原文 SHA-256。",
     "privacy": "只恢复公开昵称、原文、提交时间及来源编号；不导入邮箱、IP、头像、游客网址或账号资料。",
-    "replies": "旧公开接口无父子关系，保留原有平铺评论及正文中的 @昵称，不推测回复对象。"
+    "replies": "旧接口未提供层级；按用户要求根据语义与上下文人工补充 parentId，保留原文中的 @昵称。推断依据见 threading，不视为原站原始关系。"
+  },
+  "threading": {
+    "reviewedAt": "2026-09-18",
+    "method": "根据 @昵称、语义、发言者和时间人工推断；不是旧接口提供的原始回复关系。保留所有评论正文、UUID、来源和时间。",
+    "replyCount": 29,
+    "links": [
+      {
+        "feedId": 14,
+        "commentId": 17,
+        "parentCommentId": 16,
+        "reason": "明确 @sundys，回答备案流程是否麻烦。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 20,
+        "parentCommentId": 19,
+        "reason": "明确 @nimrod1990，回答默认域名在国内无法访问的问题。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 32,
+        "parentCommentId": 31,
+        "reason": "明确 @Jackchen0514，回答 about 页面如何设置。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 34,
+        "parentCommentId": 32,
+        "reason": "同一提问者确认 about 设置成功，并接着问友链设置。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 35,
+        "parentCommentId": 34,
+        "reason": "明确 @Jackchen0514，解释在哪里创建友链。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 36,
+        "parentCommentId": 35,
+        "reason": "同一提问者随后反馈 friends 页面缓冲，是上一操作的后续问题。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 37,
+        "parentCommentId": 36,
+        "reason": "明确 @Jackchen0514，确认 friends 页面问题是待修复的 bug。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 38,
+        "parentCommentId": 37,
+        "reason": "紧接修复答复的“好的，谢谢哈”。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 40,
+        "parentCommentId": 39,
+        "reason": "明确 @Jackchen0514，回应上传图片报错并建议提 issue。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 41,
+        "parentCommentId": 40,
+        "reason": "紧接提 issue 建议的“好的”。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 50,
+        "parentCommentId": 49,
+        "reason": "明确 @onshine，回答 MinIO 的 S3_ENDPOINT 问题。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 69,
+        "parentCommentId": 16,
+        "reason": "补充湖南备案办理经验；挂到同一备案话题起点，不推断具体回应哪位发言者。"
+      },
+      {
+        "feedId": 14,
+        "commentId": 75,
+        "parentCommentId": 49,
+        "reason": "明确 @onshine，补充 MinIO endpoint 的填写方式。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 23,
+        "parentCommentId": 22,
+        "reason": "明确 @jzing，回应其部署成功和致谢。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 26,
+        "parentCommentId": 25,
+        "reason": "明确 @Fletcher Wehner，回应图文部署教程请求。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 29,
+        "parentCommentId": 28,
+        "reason": "明确 @苹果派派，回答 favicon 如何更换。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 44,
+        "parentCommentId": 43,
+        "reason": "明确 @Allen，回答是否支持 RSS 订阅。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 52,
+        "parentCommentId": 51,
+        "reason": "同一作者为自己的 Worker 1101 问题补充“已解决”，说明漏填变量。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 60,
+        "parentCommentId": 59,
+        "reason": "明确 @wrisin，回答长评末尾自定义发布时间的建议。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 61,
+        "parentCommentId": 60,
+        "reason": "明确 @Xeu，在刚收到答复后继续向对方询问 Markdown 编辑器。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 62,
+        "parentCommentId": 61,
+        "reason": "明确 @wrisin，回答是否已有 Markdown 编辑器。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 63,
+        "parentCommentId": 62,
+        "reason": "明确 @Xeu，进一步解释所指的是可视化编辑按钮及换行体验。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 65,
+        "parentCommentId": 64,
+        "reason": "明确 @wrisin，回答 Bark webhook 参数如何修改。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 78,
+        "parentCommentId": 77,
+        "reason": "明确 @ZLY3439569179，回应其排版/XML 问题并引导 GitHub issue。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 79,
+        "parentCommentId": 78,
+        "reason": "原提问者顺着 issue 建议确认仓库链接及入口。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 80,
+        "parentCommentId": 79,
+        "reason": "明确 @ZLY3439569179，用“是的”确认上一条链接问题。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 82,
+        "parentCommentId": 80,
+        "reason": "原提问者在确认后反馈已经创建 issue。"
+      },
+      {
+        "feedId": 12,
+        "commentId": 91,
+        "parentCommentId": 90,
+        "reason": "明确 @BurtSweet，回答登录 state mismatch 的问题。"
+      },
+      {
+        "feedId": 10,
+        "commentId": 27,
+        "parentCommentId": 10,
+        "reason": "针对此前补充说明中的中文搜索缺陷继续讨论；文章正文未提出该搜索问题。"
+      }
+    ]
   },
   "articles": [
     {

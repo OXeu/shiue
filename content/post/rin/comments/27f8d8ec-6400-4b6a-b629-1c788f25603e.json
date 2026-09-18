@@ -4,6 +4,7 @@
   "name": "Xeu",
   "message": "@苹果派派 favicon 不太好从环境变量配置，现在的解决方案是克隆仓库以后手动替换 client/public/favicon.png 文件",
   "createdAt": "2024-06-11T06:10:34.000Z",
+  "parentId": "6659b469-ee21-4718-8a6b-adee7cfb9c52",
   "legacy": {
     "source": "https://legacy.xeu.life",
     "feedId": 12,
