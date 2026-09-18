@@ -10,6 +10,8 @@
     "build": "node scripts/deploy.mjs",
     "deploy": "node scripts/deploy.mjs",
     "dev": "bash scripts/hugo.sh server --disableFastRender",
+    "dev:cloudflare": "npx wrangler pages dev public --compatibility-date=2026-03-01 --compatibility-flags=nodejs_compat --binding=COMMENTS_ENV=development",
+    "deploy:cloudflare": "npx wrangler pages deploy public",
     "post:new": "node scripts/new-post.mjs",
     "friend:add": "node scripts/add-friend.mjs",
     "check:friends": "node scripts/check-friends.mjs",

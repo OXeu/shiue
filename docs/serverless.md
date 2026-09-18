@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | Vercel | `api/submissions.js` | `vercel.json` | 打包 `public/comment-pages.json`，由 Node 文件系统读取 |
 | Netlify | `netlify/functions/submissions.mjs` | `netlify.toml` | `included_files` 随函数打包，由 Node 文件系统读取 |
-| Cloudflare Pages | `functions/api/submissions.js` | `wrangler.jsonc` | 使用当前部署的 `env.ASSETS` 读取静态文件 |
+| Cloudflare Pages | `functions/api/submissions.js` | Cloudflare 控制台 | 使用当前部署的 `env.ASSETS` 读取静态文件 |
 
 共享模块接收标准 `Request` 并返回 `Response`，平台入口注入 `env`、`deployment` 和 `pages()`。核心模块不读取 `process.env` 或文件系统。Node Crypto 用于保持既有签名和邮箱密文兼容，Cloudflare 启用 `nodejs_compat`；新平台需要支持相同的 Crypto API。对邮件与 GitHub 的请求使用 `redirect: manual`，拒绝非成功响应，不携带凭据跟随重定向。
 
@@ -22,7 +22,7 @@
 | --- | --- |
 | Vercel | 平台提供的 `VERCEL_ENV=production`；保留现有 Node 单元测试的无平台配置调用方式 |
 | Netlify | 平台请求上下文 `context.deploy.context=production`；缺失上下文时拒绝 |
-| Cloudflare Pages | Wrangler 的 `env.production.vars.COMMENTS_ENV=production`；默认 development、预览 preview，缺失时拒绝 |
+| Cloudflare Pages | 控制台 Production 设置 `COMMENTS_ENV=production`，Preview 设置 `COMMENTS_ENV=preview`；缺失时拒绝 |
 
 审核页面的 `no-store`、`no-referrer`、`noindex` 和 CSP 在 Vercel 使用 `vercel.json`，Netlify 与 Cloudflare 使用 Hugo 复制到发布目录的 `static/_headers`。API 响应头由共享处理器统一设置。
 
@@ -42,13 +42,40 @@ Netlify 会按 `.node-version` 选择构建 Node 版本；如曾单独覆盖函�
 
 ## Cloudflare Pages
 
-1. 创建 Pages Git 集成项目，将 `wrangler.jsonc` 的 `name` 改为自己的 Pages 项目名。选择构建命令 `npm run deploy`，发布目录 `public`，生产分支与 GitHub 默认分支一致。
-2. 保留 `compatibility_date`、`nodejs_compat` 和生产/预览的 `COMMENTS_ENV` 配置。Pages 会自动编译仓库根目录的 `functions/`。部署环境覆盖规则见 [Pages Wrangler 配置](https://developers.cloudflare.com/pages/functions/wrangler-configuration/)。
-3. 在 Pages 项目生产环境的 Variables and Secrets 中，将 `.env.example` 的配置添加为 Secrets（选择 Encrypt）。`COMMENTS_SITE_URL` 等非敏感项也可写入 `env.production.vars`；使用 Wrangler 后，同名配置字段以文件为准。密钥只能使用 Secrets，预览环境无需生产密钥。[Pages Secrets 配置](https://developers.cloudflare.com/pages/functions/bindings/#secrets)
+本项目不再携带 `wrangler.jsonc`，避免部署时用仓库中的 `vars` 覆盖控制台普通变量。配置、变量和 Secrets 全部由 Pages 控制台管理。删除配置文件后创建一次新部署，Cloudflare 会保留上次部署的配置并恢复控制台编辑；已被此前部署清除的变量需要重新填写一次。[Pages 配置管理规则](https://developers.cloudflare.com/pages/functions/wrangler-configuration/#source-of-truth)
+
+在 **Workers & Pages → 对应的 Pages 项目 → Settings** 设置：
+
+| 设置 | 值 |
+| --- | --- |
+| Framework preset | Hugo（使用下面的自定义构建命令） |
+| Build command | `npm run deploy` |
+| Build output directory | `public` |
+| Root directory | 仓库根目录 |
+| Production branch | 仓库默认分支 |
+| Compatibility date | Production 与 Preview 均设为 `2026-03-01` 或更新版本 |
+| Compatibility flags | Production 与 Preview 均添加 `nodejs_compat` |
+| Production 变量 | `COMMENTS_ENV=production`，以及 `.env.example` 中的业务配置 |
+| Preview 变量 | `COMMENTS_ENV=preview`，不配置生产密钥 |
+
+在 Variables and Secrets 中，网址、仓库名、分支等可使用普通变量；`COMMENTS_SECRET`、`RESEND_API_KEY`、`COMMENTS_GITHUB_TOKEN` 及旧密钥覆盖项使用 Secrets（Encrypt）。这些值只在控制台保存，不再回写 Wrangler 文件。[Pages 变量与 Secrets](https://developers.cloudflare.com/pages/functions/bindings/#secrets)
+
+Pages Git 集成负责发布，并自动编译根目录的 `functions/`，不需要配置 `npx wrangler deploy`。如果当前界面要求填写 **Deploy command** 且默认值为 `npx wrangler deploy`，请确认是否创建成了 Workers Builds 项目：当前入口是 Pages Functions，应使用 Pages 项目；通用 Workers 自动配置不能替代它。
+
+需要从命令行发布到已有 Pages 项目时，先构建，再明确使用 Pages 命令：
+
+```sh
+npm run build
+npm run deploy:cloudflare -- --project-name YOUR_PAGES_PROJECT --branch master
+```
+
+项目名和分支替换为控制台实际值。该命令上传产物，并从已有 Pages 项目读取配置，不生成 Wrangler 配置文件。[Pages 部署命令](https://developers.cloudflare.com/workers/wrangler/commands/pages/#pages-deploy)
+
+根目录 Hugo 配置已从 `config.toml` 改名为 `hugo.toml`，构建脚本同步读取新文件。这消除了自动检测器将同一个 `config.toml` 同时识别为 Hugo 和 Zola 的冲突；Hugo 原生支持新文件名。[Hugo 配置文件](https://gohugo.io/configuration/introduction/#configuration-file)
 
 白名单通过 `env.ASSETS.fetch()` 读取当前部署的 `comment-pages.json`，不访问公开网络、不依赖可写磁盘；文件缺失或损坏时返回 503。[Pages Functions API](https://developers.cloudflare.com/pages/functions/api-reference/#envassetsfetch)
 
-`static/_routes.json` 只让 `/api/submissions` 进入函数，文章、图片及审核 HTML 直接由静态服务提供。本地可先运行 `npm run build -- --offline`（需已有缓存），再使用 `npx wrangler pages dev public` 预览；默认开发绑定会拒绝写入 API。真实提交只在生产配置中启用。
+`static/_routes.json` 只让 `/api/submissions` 进入函数，文章、图片及审核 HTML 直接由静态服务提供。本地可先运行 `npm run build -- --offline`（需已有缓存），再运行 `npm run dev:cloudflare`。该脚本通过命令行传入本地兼容日期、`nodejs_compat` 和 `COMMENTS_ENV=development`，不会改写远端设置；开发环境拒绝写入 API。本地 `.dev.vars` / `.env` 不自动同步到控制台。
 
 Pages 会对零文件变化的推送跳过路径筛选并启动构建，因此现有每日空提交工作流可继续使用。[Pages 构建路径规则](https://developers.cloudflare.com/pages/configuration/build-watch-paths/)
 
