@@ -1,9 +1,11 @@
 ---
+
 title: "为静态博客添加评论功能"
 date: "2026-09-18T08:26:04.024Z"
 description: "评论也能用 SSG 吗？用 Vercel Functions、Resend 和 GitHub Actions 串起邮件审核与静态评论，省去独立数据库，再聊聊我为什么执着于轻量化与长期可用性。"
 slug: "ssg-blog-comment"
 categories:
+
 - 技术文章
 - 随笔
 tags:
@@ -12,8 +14,9 @@ tags:
 - Serverless
 - Vercel
 - Resend
-- GitHub Actions
-draft: true
+- GitHub Actions  
+draft: false
+
 ---
 
 ## 一、评论也能用 SSG 吗？
@@ -164,3 +167,4 @@ flowchart LR
 *谁也说不准明天和意外哪个先到*，但不难想象我在家里的小鸡大概率会随我飞升，云上的小鸡没人续费也活不了几年，但云服务厂商的免费托管，想必应该是其中能活得最久的那个。
 
 ![企鹅灵魂出窍，带着光环飞升](meme-ascension.gif)
+
