@@ -166,7 +166,7 @@ SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mj
 
 ## Serverless 部署
 
-Vercel、Netlify 和 Cloudflare Pages 共用 `/api/submissions`，平台入口只负责运行环境与评论白名单读取。配置文件分别为 `vercel.json`、`netlify.toml`、`wrangler.jsonc`；三者均通过 Git 集成响应评论、友链及每日空提交。环境变量、预览隔离、构建和迁移步骤见 [Serverless 部署](docs/serverless.md)。`npm run check:functions` 验证三个平台入口。
+Vercel、Netlify 和 Cloudflare Pages 共用 `/api/submissions`，平台入口只负责运行环境与评论白名单读取。Vercel、Netlify 分别使用 `vercel.json`、`netlify.toml`，Cloudflare Pages 的变量和运行时配置由控制台管理；三者均通过 Git 集成响应评论、友链及每日空提交。Hugo 根配置使用 `hugo.toml`，避免被自动识别为 Zola。环境变量、预览隔离、构建和迁移步骤见 [Serverless 部署](docs/serverless.md)。`npm run check:functions` 验证三个平台入口。
 
 ### Vercel
 

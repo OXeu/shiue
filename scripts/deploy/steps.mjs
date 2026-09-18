@@ -10,7 +10,7 @@ export function deploymentSteps() {
       id: 'preflight', title: '环境检查',
       async run(context, { log }) {
         if (Number(process.versions.node.split('.')[0]) < 22) throw new Error('部署脚本需要 Node.js 22 或更新版本');
-        for (const file of ['.hugo-version', 'config.toml', 'data/friends.json']) await access(path.join(context.root, file));
+        for (const file of ['.hugo-version', 'hugo.toml', 'data/friends.json']) await access(path.join(context.root, file));
         log(`Node.js ${process.versions.node} · ${process.platform}/${process.arch}`);
         log(`输出目录：${context.destination}`);
         log(context.offline ? '离线构建：复用本机图标并跳过外网友链检测' : '部署构建：在线刷新站点图标与友链状态，不修改 Git 数据');
