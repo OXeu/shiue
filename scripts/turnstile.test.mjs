@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { handleSubmission } from '../server/submissions.js';
 import { digest, validateComment } from '../server/comments/core.js';
+import { validateFriend } from '../server/friends/core.js';
+import { fixtureToken, mockSiteverify } from './fixtures/turnstile.mjs';
 
 const now = Date.parse('2026-09-18T12:00:00.000Z');
 const env = {
@@ -15,6 +17,47 @@ const request = (body = input) => new Request('https://blog.example.org/api/subm
 });
 const options = { env, now, deployment: 'production', pages: async () => [{ path: input.path, title: '文章', directory: 'post/example' }] };
 const valid = () => ({ success: true, hostname: 'blog.example.org', action: 'comment', cdata: digest(validateComment(input)), challenge_ts: new Date(now).toISOString() });
+
+test('challenge renews expired drafts and clock skew before verification, while recent retries remain identical', async () => {
+  for (const type of ['comment', 'friend']) {
+    const form = type === 'comment' ? input : { ...input, type, title: '朋友', website: 'https://friend.example.org/', description: '分享生活', contact: '', icon: '' };
+    const validate = type === 'comment' ? validateComment : validateFriend;
+    for (const [offset, renewed] of [[-3 * 3600000, false], [-86400000 + 300001, false], [-86400000 + 300000, true], [-86400000, true], [-2 * 86400000, true], [300000, false], [300001, true], [86400000, true]]) {
+      const draft = { ...form, createdAt: new Date(now + offset).toISOString() };
+      const challenge = await handleSubmission(request({ ...draft, action: 'challenge' }), { ...options, fetchImpl: async () => assert.fail('challenge must not call external services') });
+      assert.equal(challenge.status, 200);
+      const task = await challenge.json();
+      assert.equal(task.submission.createdAt, renewed ? new Date(now).toISOString() : draft.createdAt);
+      assert.equal(task.submission.id === draft.id, !renewed, 'renew the ID and time together');
+      const refreshed = { ...draft, ...task.submission };
+      assert.equal(task.cData, digest(validate(refreshed)), 'verification binds the renewed metadata');
+      const retry = await handleSubmission(request({ ...refreshed, action: 'challenge' }), options);
+      const retryTask = await retry.json();
+      assert.deepEqual(retryTask.submission, task.submission);
+      assert.equal(retryTask.cData, task.cData);
+      const emails = [];
+      const fetchImpl = mockSiteverify(async (url, init) => {
+        assert.equal(url, 'https://api.resend.com/emails');
+        emails.push(init);
+        return emails.length === 1 ? new Response(null, { status: 503 }) : Response.json({ id: 'mail-receipt' });
+      });
+      for (const status of [502, 202]) {
+        const response = await handleSubmission(request({ ...refreshed, turnstileToken: fixtureToken(task, now) }), { ...options, fetchImpl });
+        assert.equal(response.status, status);
+      }
+      assert.equal(emails[0].body, emails[1].body);
+      assert.equal(emails[0].headers['idempotency-key'], emails[1].headers['idempotency-key']);
+      if (renewed) {
+        const tampered = await handleSubmission(request({ ...refreshed, id: draft.id, turnstileToken: fixtureToken(task, now) }), { ...options, fetchImpl });
+        assert.equal(tampered.status, 403, 'cannot replace the renewed ID after solving verification');
+        assert.equal(emails.length, 2);
+      }
+    }
+    for (const changes of [{ createdAt: 'invalid' }, { id: '../invalid', createdAt: new Date(now - 2 * 86400000).toISOString() }, { consent: false, createdAt: new Date(now - 2 * 86400000).toISOString() }]) {
+      assert.equal((await handleSubmission(request({ ...form, ...changes, action: 'challenge' }), options)).status, 400);
+    }
+  }
+});
 
 test('submission verifies opaque tokens remotely, binds metadata and sends mail only after success', async () => {
   const calls = [];

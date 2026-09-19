@@ -83,10 +83,12 @@ test('validation rejects invalid URLs, times, lengths, consent and honeypot', as
   for (const changes of [
     { title: '' }, { title: 'x'.repeat(81) }, { description: 'x'.repeat(201) }, { description: '' },
     { title: 'header\r\ninjection' }, { createdAt: 'yesterday' }, { id: '../path' },
-    { createdAt: new Date(now - 86400001).toISOString() }, { createdAt: new Date(now + 300001).toISOString() },
     { consent: false }, { contact: 'bot' },
     ...['javascript:alert(1)', 'data:text/plain,test', 'file:///tmp/a', 'https://user:pass@example.org/', 'https://example.org:8443/', 'https://127.0.0.1/', 'http://2130706433', 'http://[::1]/', 'http://service.local/', 'http://localhost/'].flatMap(url => [{ website: url }, { icon: url }]),
   ]) assert.equal((await handleSubmission(challengeRequest({ ...input, ...changes }), deps())).status, 400, JSON.stringify(changes));
+  for (const createdAt of [new Date(now - 86400001).toISOString(), new Date(now + 300001).toISOString()]) {
+    assert.equal((await handleSubmission(request({ ...input, createdAt }), deps())).status, 400, 'submit still rejects stale times without a renewed challenge');
+  }
   assert.equal(validateFriend({ ...input, website: 'https://朋友.com/#fragment' }).website, 'https://xn--iorv16b.com/');
   assert.equal((await handleSubmission(challengeRequest({ ...input, description: 'x'.repeat(27000) }), deps())).status, 413);
 });

@@ -1,9 +1,10 @@
-import { CommentError, commentSecret, digest, moderationEmail, readApproval, sign, validateCommentDirectory, validateCommentPage } from './comments/core.js';
+import { randomUUID } from 'node:crypto';
+import { CommentError, commentSecret, digest, moderationEmail, readApproval, sign, validateComment, validateCommentDirectory, validateCommentPage } from './comments/core.js';
 import { checkRequest, failure, json, readJSON, validateSubmission } from './comments/http.js';
-import { turnstileChallenge, verifyTurnstile } from './turnstile.js';
+import { TURNSTILE_TTL, turnstileChallenge, verifyTurnstile } from './turnstile.js';
 import { sealComment } from './comments/email.js';
 import { notifyComment, retryCommentNotifications } from './comments/approval.js';
-import { APPROVAL_PURPOSE, friendEmail, PUBLISH_PURPOSE, readFriendApproval } from './friends/core.js';
+import { APPROVAL_PURPOSE, friendEmail, PUBLISH_PURPOSE, readFriendApproval, validateFriend } from './friends/core.js';
 import { friendFailure, validateFriendSubmission } from './friends/http.js';
 
 export async function handleSubmission(request, { env = {}, fetchImpl = fetch, pages, deployment = 'development', now = Date.now() } = {}) {
@@ -17,10 +18,23 @@ export async function handleSubmission(request, { env = {}, fetchImpl = fetch, p
     if (!['challenge', 'submit', 'preview', 'approve', ...(friend ? [] : ['notify'])].includes(input.action)) throw new CommentError(400, '未知提交操作。');
 
     if (input.action === 'challenge' || input.action === 'submit') {
+      if (input.action === 'challenge') {
+        const content = (friend ? validateFriend : validateComment)(input);
+        const createdAt = Date.parse(content.createdAt);
+        // Keep recent retries identical. Renew old attempts before binding the
+        // challenge, leaving enough time for verification at the 24-hour edge.
+        if (createdAt <= now - 24 * 60 * 60 * 1000 + TURNSTILE_TTL || createdAt > now + 5 * 60 * 1000) {
+          input.id = randomUUID();
+          input.createdAt = new Date(now).toISOString();
+        }
+      }
       const claim = friend ? validateFriendSubmission(input, site, now) : await validateSubmission(input, site, now, pages);
       const content = friend ? claim.friend : claim.comment;
       if (!friend && content.email) commentSecret(env, 'email');
-      if (input.action === 'challenge') return json(200, turnstileChallenge(content, input.type, env));
+      if (input.action === 'challenge') return json(200, {
+        ...turnstileChallenge(content, input.type, env),
+        submission: { id: content.id, createdAt: content.createdAt },
+      });
 
       const approvalSecret = commentSecret(env, 'approval');
       if (!env.RESEND_API_KEY || !env.COMMENTS_EMAIL_FROM || !env.COMMENTS_EMAIL_TO) throw new CommentError(503, '评论服务尚未配置完成。');

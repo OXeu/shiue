@@ -35,6 +35,11 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
       if (!editor.pending || editor.pending.fingerprint !== fingerprint) editor.pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
       const input = { ...values, id: editor.pending.id, createdAt: editor.pending.createdAt, type: 'comment' };
       const task = await post(form.dataset.endpoint, { ...input, action: 'challenge' }, controller.signal);
+      if (task.submission) {
+        input.id = task.submission.id;
+        input.createdAt = task.submission.createdAt;
+        editor.pending = { fingerprint, id: input.id, createdAt: input.createdAt };
+      }
       status.textContent = '验证完成后会自动提交，请稍候。';
       const turnstileToken = await solveTurnstile(form.querySelector('[data-turnstile]'), task, { signal: controller.signal });
       // Once sending begins, cancellation cannot guarantee an email was not sent.

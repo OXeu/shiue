@@ -21,6 +21,7 @@ export function setupCommentEditor(form) {
   let busy = false;
   let state = 'editing';
   let pending;
+  let savedDraft;
   let frame;
   const key = () => `xeu-comment-draft:v1:${encodeURIComponent(form.dataset.path)}:${parent.value || 'root'}`;
   const storageFailed = () => {
@@ -30,26 +31,43 @@ export function setupCommentEditor(form) {
     drafts.delete(key());
     try { localStorage.removeItem(key()); } catch { storageFailed(); }
   };
-  const saveDraft = () => {
-    if (!trigger) return;
+  const currentDraft = () => {
     const draft = { pending };
     for (const name of ['name', 'email', 'message']) draft[name] = form.elements.namedItem(name).value;
     draft.consent = form.elements.namedItem('consent').checked;
+    return draft;
+  };
+  const saveDraft = () => {
+    if (!trigger) return;
+    const draft = currentDraft();
+    const serialized = JSON.stringify(draft);
+    // Closing, backgrounding or leaving an unchanged page must not resurrect
+    // a draft deleted by another tab, or overwrite that tab's newer edits.
+    if (serialized === savedDraft) return;
+    savedDraft = serialized;
     if (!draft.name && !draft.email && !draft.message && !draft.consent) { removeDraft(); return; }
     drafts.set(key(), draft);
-    try { localStorage.setItem(key(), JSON.stringify(draft)); } catch { storageFailed(); }
+    try { localStorage.setItem(key(), serialized); } catch { storageFailed(); }
+  };
+  const readDraft = () => {
+    let draft = drafts.get(key());
+    try { draft = JSON.parse(localStorage.getItem(key())); } catch { storageFailed(); }
+    return draft;
   };
   const loadDraft = () => {
-    let draft = drafts.get(key());
-    if (!draft) {
-      try { draft = JSON.parse(localStorage.getItem(key())); } catch { storageFailed(); }
-    }
+    const draft = readDraft();
+    if (draft) drafts.set(key(), draft);
+    else drafts.delete(key());
     for (const name of ['name', 'email', 'message']) {
       form.elements.namedItem(name).value = typeof draft?.[name] === 'string' ? draft[name] : '';
     }
     form.elements.namedItem('consent').checked = draft?.consent === true;
     form.elements.namedItem('website').value = '';
     pending = draft?.pending;
+    savedDraft = JSON.stringify(currentDraft());
+  };
+  const syncDraft = () => {
+    if (trigger && !busy && state !== 'success') { loadDraft(); reposition(); }
   };
   const position = () => {
     if (!open) return;
@@ -130,8 +148,8 @@ export function setupCommentEditor(form) {
         if (parent.value) replyTarget.href = `#comment-${parent.value}`;
         else replyTarget.removeAttribute('href');
         showState('editing');
-        loadDraft();
       }
+      if (!busy && state !== 'success') loadDraft();
       open = true;
       button.setAttribute('aria-expanded', 'true');
       if (nativePopover) popover.showPopover({ source: button });
@@ -151,7 +169,12 @@ export function setupCommentEditor(form) {
   form.addEventListener('input', saveDraft);
   form.addEventListener('change', saveDraft);
   window.addEventListener('pagehide', saveDraft);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) saveDraft(); });
+  window.addEventListener('pageshow', syncDraft);
+  window.addEventListener('focus', syncDraft);
+  window.addEventListener('storage', event => {
+    if (event.key === null || event.key === key()) syncDraft();
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveDraft(); else syncDraft(); });
   window.addEventListener('resize', reposition);
   window.addEventListener('scroll', event => { if (!popover.contains(event.target)) reposition(); }, true);
   window.visualViewport?.addEventListener('resize', reposition);
@@ -159,18 +182,29 @@ export function setupCommentEditor(form) {
   new ResizeObserver(reposition).observe(popover);
   return {
     get pending() { return pending; },
-    set pending(value) { pending = value; saveDraft(); },
+    set pending(value) {
+      // Challenge renewal is asynchronous; another tab may have saved new
+      // content meanwhile. Update this request without replacing that draft.
+      const unchanged = JSON.stringify(readDraft()) === savedDraft;
+      pending = value;
+      if (unchanged) saveDraft();
+      else savedDraft = JSON.stringify(currentDraft());
+    },
     saveDraft,
     showState,
     clearDraft() {
-      removeDraft();
+      // A different tab may have edited this draft while the request was in
+      // flight. Only remove the exact version that this tab submitted.
+      if (JSON.stringify(readDraft()) === savedDraft) removeDraft();
       pending = undefined;
       const parentId = parent.value;
       form.reset();
       parent.value = parentId;
+      savedDraft = JSON.stringify(currentDraft());
     },
     setBusy(value) {
       busy = value;
+      if (!busy) syncDraft();
       for (const button of triggers) button.disabled = busy && button !== trigger;
       reposition();
     },

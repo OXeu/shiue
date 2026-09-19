@@ -29,6 +29,11 @@ for (const form of document.querySelectorAll('[data-friend-form]')) {
       if (!pending || pending.fingerprint !== fingerprint) pending = { fingerprint, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
       const input = { ...values, id: pending.id, createdAt: pending.createdAt, type: 'friend' };
       const task = await post(form.dataset.endpoint, { ...input, action: 'challenge' }, controller.signal);
+      if (task.submission) {
+        input.id = task.submission.id;
+        input.createdAt = task.submission.createdAt;
+        pending = { fingerprint, id: input.id, createdAt: input.createdAt };
+      }
       status.textContent = '正在进行浏览器验证，请稍候…';
       const turnstileToken = await solveTurnstile(form.querySelector('[data-turnstile]'), task, { signal: controller.signal });
       cancel.hidden = true;
