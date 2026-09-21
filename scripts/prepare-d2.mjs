@@ -8,7 +8,7 @@ import { loadNotoSansSCBold, loadNotoSansSCRegular } from '@reogrid/font-sc';
 import { optimize } from 'svgo';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const recipe = 'd2-ssg-v6-d2js-0.1.34-noto-sc-2.0.0';
+const recipe = 'd2-ssg-v7-d2js-0.1.34-noto-sc-2.0.0';
 const modes = {
   light: { themeID: 0 },
   dark: { themeID: 200 },
@@ -85,7 +85,7 @@ function minifySVG(input, id, fingerprint, mode) {
   // does not decode those entities, so restore them before inlining the SVG.
   svg = svg.replaceAll(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,
     (_match, opening, css, closing) => `${opening}${css.replaceAll('&quot;', '"')}${closing}`);
-  svg = svg.replace('<svg ', `<svg id="${prefix}" data-d2-render-theme="${mode}" `);
+  svg = svg.replace('<svg ', `<svg id="${prefix}-root" data-d2-render-theme="${mode}" `);
   if (!/\saria-(?:label|labelledby)=/.test(svg.slice(0, svg.indexOf('>')))) {
     svg = svg.replace('<svg ', '<svg role="img" aria-label="D2 图表" ');
   }

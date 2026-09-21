@@ -14,6 +14,8 @@ import { openCommentEmail, sealComment } from '../server/comments/email.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 assert.deepEqual(extractD2('````markdown\n```d2\nA -> B\n```\n````\n~~~d2\nC -> D\n~~~'), ['C -> D'], '文档示例中的嵌套围栏不能误触发预渲染');
+assert.throws(() => extractD2('```d2\nA -> B'), /缺少结束围栏/);
+assert.throws(() => extractD2('```d2\n```'), /不能为空/);
 for (const relative of ['hugo.toml', 'config/_default/config.toml']) {
   assert.match(readFileSync(path.join(root, relative), 'utf8'), /^baseURL\s*=\s*["']https:\/\/xeu\.life\/["']/m, `${relative} 必须声明正式站点绝对地址`);
 }
@@ -136,6 +138,8 @@ assert.equal($d2('[data-d2-output] > svg').length, 4, '每个图表应内联已�
 assert.equal($d2('[data-d2-render-theme="light"]').length, 2);
 assert.equal($d2('[data-d2-render-theme="dark"]').length, 2);
 assert.equal(new Set($d2('[data-d2-output] > svg').map((_, svg) => $d2(svg).attr('id')).get()).size, 4, '同页重复源码和浅深主题的 SVG ID 必须隔离');
+const d2IDs = $d2('[data-d2-output] [id]').map((_, element) => $d2(element).attr('id')).get();
+assert.equal(new Set(d2IDs).size, d2IDs.length, 'D2 内部 marker、mask 和滤镜 ID 必须按图表实例隔离');
 assert.equal($d2('[data-d2-output] script, [data-d2-output] [onerror]').length, 0, '静态 SVG 不能包含可执行内容');
 assert.doesNotMatch($d2.html(), /@font-face|data:application\/font-woff/, '静态 SVG 不应重复内嵌字体');
 assert.match($d2.html(), /font-family:var\(--font-body\)/, '静态 SVG 应继承站点中文字体栈');
