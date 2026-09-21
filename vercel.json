@@ -9,6 +9,18 @@
   },
   "headers": [
     {
+      "source": "/(css|js|xeu-images|site-identity|images|friends)/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/fonts/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800" }
+      ]
+    },
+    {
       "source": "/(comment-review|friend-review)/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },

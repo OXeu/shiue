@@ -183,6 +183,19 @@ test('deploy CLI and registered steps have a single entry and an explicit offlin
   assert.equal(pkg.scripts.build, pkg.scripts.deploy);
   assert.equal(config.crons, undefined);
   assert.equal(config.functions['api/daily-deploy.js'], undefined);
+  const immutable = 'public, max-age=31536000, immutable';
+  const vercelImmutable = config.headers.find(rule => rule.source === '/(css|js|xeu-images|site-identity|images|friends)/(.*)');
+  assert.equal(vercelImmutable?.headers.find(header => header.key === 'Cache-Control')?.value, immutable);
+  const vercelFonts = config.headers.find(rule => rule.source === '/fonts/(.*)');
+  assert.equal(vercelFonts?.headers.find(header => header.key === 'Cache-Control')?.value, 'public, max-age=604800');
+  const staticHeaders = await readFile(new URL('../static/_headers', import.meta.url), 'utf8');
+  for (const directory of ['css', 'js', 'xeu-images', 'site-identity', 'images', 'friends']) {
+    assert.match(staticHeaders, new RegExp(`/${directory}/\\*\\n  Cache-Control: ${immutable}`));
+  }
+  assert.match(staticHeaders, /\/fonts\/\*\n  Cache-Control: public, max-age=604800/);
+  for (const route of ['comment-review', 'friend-review']) {
+    assert.match(staticHeaders, new RegExp(`/${route}/\\*[\\s\\S]*?Cache-Control: no-store`));
+  }
   const ci = await readFile(new URL('../.github/workflows/build.yml', import.meta.url), 'utf8');
   assert.doesNotMatch(ci, /npm run (deploy|check:friends|check:deploy)|schedule:/, 'CI 不执行友链检测或每日更新');
 });

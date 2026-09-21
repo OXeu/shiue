@@ -26,7 +26,7 @@ Turnstile 在上述所有平台上都可使用，无需 Cloudflare DNS/CDN。在
 | Netlify | 平台请求上下文 `context.deploy.context=production`；缺失上下文时拒绝 |
 | Cloudflare Workers | 控制台设置 `COMMENTS_ENV=production`，且请求地址的 origin 必须与 `COMMENTS_SITE_URL` 相同；版本预览地址即使继承生产变量也拒绝 |
 
-审核页面的 `no-store`、`no-referrer`、`noindex` 和 CSP 在 Vercel 使用 `vercel.json`，Netlify 与 Cloudflare 使用 Hugo 复制到发布目录的 `static/_headers`。API 响应头由共享处理器统一设置。
+审核页面的 `no-store`、`no-referrer`、`noindex` 和 CSP 在 Vercel 使用 `vercel.json`，Netlify 与 Cloudflare 使用 Hugo 复制到发布目录的 `static/_headers`。同一配置将带内容指纹的 CSS、JavaScript、派生图、站点身份资源、原图和友链图标缓存一年并标记为 `immutable`；固定 URL 的字体缓存 7 天。HTML、RSS、搜索索引和兼容图标别名仍由平台按 `ETag` 每次验证，避免部署后继续显示旧内容。API 响应头由共享处理器统一设置。
 
 ## Vercel
 
