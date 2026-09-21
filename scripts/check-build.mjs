@@ -203,6 +203,7 @@ const $friendReview = load(read('friend-review/index.html'));
 assert.equal($friendReview('[data-friend-review]').attr('data-endpoint'), '/api/submissions');
 assert.match($friendReview('meta[name="robots"]').attr('content'), /noindex/);
 assert.equal($friendReview('[data-review-content][hidden]').length, 1);
+assert.equal($friendReview('script:not([src])').length, 0, '友链审核页不能包含 CSP 会阻止的内联脚本');
 assert.doesNotMatch(read('sitemap.xml'), /friend-review/);
 assert.equal((friendHTML.match(/class=["']?friend-card(?:\s|>|["'])/g) || []).length, friends.length, '友链页条目数与数据不一致');
 const friendIcons = [...friendHTML.matchAll(/<img\b[^>]*\bsrc=(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)]
@@ -265,6 +266,7 @@ const $review = load(read('comment-review/index.html'));
 assert.match($review('meta[name="robots"]').attr('content'), /noindex/);
 assert.equal($review('[data-comment-form]').length, 0);
 assert.equal($review('[data-comment-review]').attr('data-endpoint'), '/api/submissions');
+assert.equal($review('script:not([src])').length, 0, '评论审核页不能包含 CSP 会阻止的内联脚本');
 assert.ok(Array.isArray(search) && search.length > 0, '搜索索引为空');
 for (const article of search) {
   const url = new URL(article.permalink, baseURL);

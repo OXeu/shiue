@@ -7,6 +7,15 @@ import { notifyComment, retryCommentNotifications } from './comments/approval.js
 import { APPROVAL_PURPOSE, friendEmail, PUBLISH_PURPOSE, readFriendApproval, validateFriend } from './friends/core.js';
 import { friendFailure, validateFriendSubmission } from './friends/http.js';
 
+function githubDispatchFailure(status) {
+  if (status === 401) return 'GitHub 发布凭据已失效，请更新函数环境中的凭据后重试。';
+  if (status === 403) return 'GitHub 发布凭据没有 Actions 写入权限，或请求被仓库策略拒绝。';
+  if (status === 404) return 'GitHub 仓库或发布工作流不可访问，请检查发布凭据和仓库配置。';
+  if (status === 422) return 'GitHub 发布分支无效，或发布工作流不接受当前请求。';
+  if (status === 429) return 'GitHub 发布接口暂时限流，请稍后重新确认。';
+  return '发布任务未被接受，请稍后重新确认。';
+}
+
 export async function handleSubmission(request, { env = {}, fetchImpl = fetch, pages, deployment = 'development', now = Date.now() } = {}) {
   let respondToError = failure;
   try {
@@ -79,7 +88,7 @@ export async function handleSubmission(request, { env = {}, fetchImpl = fetch, p
       body: JSON.stringify({ ref: branch, inputs: { envelope } }),
     });
     await response.body?.cancel();
-    if (!response.ok) throw new CommentError(502, '发布任务未被接受，请稍后重新确认。');
+    if (!response.ok) throw new CommentError(502, githubDispatchFailure(response.status));
     if (friend) return json(202, { message: '已提交发布任务，友链将在图标导入、构建和部署成功后显示。', actionsURL: `https://github.com/${repository}/actions/workflows/${workflow}` });
     return await notifyComment(claim, { v: 1, claimDigest: digest(claim), repository, parent, types: ['approval', 'reply'], expiresAt: Math.min(claim.expiresAt, now + 24 * 60 * 60 * 1000) }, env, fetchImpl);
   } catch (error) { return respondToError(error); }

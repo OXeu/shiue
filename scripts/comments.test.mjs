@@ -279,14 +279,25 @@ test('GET / preview cannot publish; confirmation dispatches a separately signed 
   assert.throws(() => verify(dispatched.inputs.envelope, env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1'));
 });
 
-test('tampered, expired and cross-site approvals cannot dispatch; GitHub errors stay recoverable', async () => {
+test('tampered, expired and cross-site approvals cannot dispatch; GitHub errors stay recoverable and actionable', async () => {
   const noDispatch = async () => assert.fail();
   for (const token of ['not-a-token', `${approval().slice(0, 8)}X${approval().slice(9)}`, envelope()]) {
     assert.equal((await handleSubmission(request({ action: 'approve', token }), deps({ fetchImpl: noDispatch }))).status, 400);
   }
   assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ now: now + APPROVAL_TTL, fetchImpl: noDispatch }))).status, 410);
   assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }, { origin: 'https://evil.example' }), deps({ fetchImpl: noDispatch }))).status, 403);
-  assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ fetchImpl: async () => new Response('', { status: 401 }) }))).status, 502);
+  for (const [status, message] of [
+    [401, 'GitHub 发布凭据已失效，请更新函数环境中的凭据后重试。'],
+    [403, 'GitHub 发布凭据没有 Actions 写入权限，或请求被仓库策略拒绝。'],
+    [404, 'GitHub 仓库或发布工作流不可访问，请检查发布凭据和仓库配置。'],
+    [422, 'GitHub 发布分支无效，或发布工作流不接受当前请求。'],
+    [429, 'GitHub 发布接口暂时限流，请稍后重新确认。'],
+    [500, '发布任务未被接受，请稍后重新确认。'],
+  ]) {
+    const response = await handleSubmission(request({ action: 'approve', token: approval() }), deps({ fetchImpl: async () => new Response('upstream secret', { status }) }));
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), { error: message });
+  }
 });
 
 test('approved comments use exclusive UUID files, reject overwrites, preserve text, and require workflow signature', async () => {
