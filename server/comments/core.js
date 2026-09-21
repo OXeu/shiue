@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 export const APPROVAL_TTL = 7 * 24 * 60 * 60 * 1000;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export class CommentError extends Error {
-  constructor(status, message) { super(message); this.status = status; }
+  constructor(status, message, details) { super(message); this.status = status; this.details = details; }
 }
 export function requireSecret(secret) {
   if (typeof secret !== 'string' || secret.length < 32) throw new CommentError(503, '评论服务尚未配置完成。');

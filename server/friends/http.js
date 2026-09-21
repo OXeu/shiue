@@ -3,7 +3,7 @@ import { failure } from '../comments/http.js';
 import { friendClaim } from './core.js';
 
 export function friendFailure(error) {
-  return failure(error instanceof CommentError ? new CommentError(error.status, error.message.replaceAll('评论', '友链申请')) : new CommentError(503, '友链申请服务暂时不可用，请稍后重试。'));
+  return failure(error instanceof CommentError ? new CommentError(error.status, error.message.replaceAll('评论', '友链申请'), error.details) : new CommentError(503, '友链申请服务暂时不可用，请稍后重试。'));
 }
 
 export function validateFriendSubmission(input, site, now) {

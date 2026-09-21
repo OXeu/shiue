@@ -7,13 +7,21 @@ import { notifyComment, retryCommentNotifications } from './comments/approval.js
 import { APPROVAL_PURPOSE, friendEmail, PUBLISH_PURPOSE, readFriendApproval, validateFriend } from './friends/core.js';
 import { friendFailure, validateFriendSubmission } from './friends/http.js';
 
-function githubDispatchFailure(status) {
-  if (status === 401) return 'GitHub 发布凭据已失效，请更新函数环境中的凭据后重试。';
-  if (status === 403) return 'GitHub 发布凭据没有 Actions 写入权限，或请求被仓库策略拒绝。';
-  if (status === 404) return 'GitHub 仓库或发布工作流不可访问，请检查发布凭据和仓库配置。';
-  if (status === 422) return 'GitHub 发布分支无效，或发布工作流不接受当前请求。';
-  if (status === 429) return 'GitHub 发布接口暂时限流，请稍后重新确认。';
-  return '发布任务未被接受，请稍后重新确认。';
+const GITHUB_USER_AGENT = 'OXeu-shiue-comment-publisher';
+
+async function githubDispatchFailure(response) {
+  let body;
+  if (response.headers.get('content-type')?.toLowerCase().includes('application/json')) {
+    try {
+      const text = await response.text();
+      if (text.length <= 8192) {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed;
+      }
+    } catch { /* Fall through to the status-only diagnostic. */ }
+  } else await response.body?.cancel();
+  const message = typeof body?.message === 'string' && body.message ? body.message : `GitHub API 请求失败（HTTP ${response.status}）。`;
+  return new CommentError(502, message, { upstream: { service: 'github', httpStatus: response.status, ...(body ? { body } : {}) } });
 }
 
 export async function handleSubmission(request, { env = {}, fetchImpl = fetch, pages, deployment = 'development', now = Date.now() } = {}) {
@@ -84,11 +92,11 @@ export async function handleSubmission(request, { env = {}, fetchImpl = fetch, p
     const workflow = friend ? 'publish-friend.yml' : 'publish-comment.yml';
     const response = await fetchImpl(`https://api.github.com/repos/${repository}/actions/workflows/${workflow}/dispatches`, {
       method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(12000),
-      headers: { authorization: `Bearer ${env.COMMENTS_GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'content-type': 'application/json', 'x-github-api-version': '2026-03-10' },
+      headers: { authorization: `Bearer ${env.COMMENTS_GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'content-type': 'application/json', 'user-agent': GITHUB_USER_AGENT, 'x-github-api-version': '2026-03-10' },
       body: JSON.stringify({ ref: branch, inputs: { envelope } }),
     });
+    if (!response.ok) throw await githubDispatchFailure(response);
     await response.body?.cancel();
-    if (!response.ok) throw new CommentError(502, githubDispatchFailure(response.status) + `len: ${env.COMMENTS_GITHUB_TOKEN.length}, subffix: ${env.COMMENTS_GITHUB_TOKEN.substring(env.COMMENTS_GITHUB_TOKEN.length - 5)}`);
     if (friend) return json(202, { message: '已提交发布任务，友链将在图标导入、构建和部署成功后显示。', actionsURL: `https://github.com/${repository}/actions/workflows/${workflow}` });
     return await notifyComment(claim, { v: 1, claimDigest: digest(claim), repository, parent, types: ['approval', 'reply'], expiresAt: Math.min(claim.expiresAt, now + 24 * 60 * 60 * 1000) }, env, fetchImpl);
   } catch (error) { return respondToError(error); }

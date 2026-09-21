@@ -267,6 +267,7 @@ test('GET / preview cannot publish; confirmation dispatches a separately signed 
   let dispatched;
   const response = await handleSubmission(request({ action: 'approve', token: approval(), repository: 'attacker/repo' }), deps({ fetchImpl: async (url, init) => {
     assert.equal(url, 'https://api.github.com/repos/owner/blog/actions/workflows/publish-comment.yml/dispatches');
+    assert.equal(init.headers['user-agent'], 'OXeu-shiue-comment-publisher');
     dispatched = JSON.parse(init.body);
     return new Response(null, { status: 204 });
   } }));
@@ -279,25 +280,34 @@ test('GET / preview cannot publish; confirmation dispatches a separately signed 
   assert.throws(() => verify(dispatched.inputs.envelope, env.COMMENTS_APPROVAL_SECRET, 'comment-approval-v1'));
 });
 
-test('tampered, expired and cross-site approvals cannot dispatch; GitHub errors stay recoverable and actionable', async () => {
+test('tampered, expired and cross-site approvals cannot dispatch; GitHub errors are returned without request secrets', async () => {
   const noDispatch = async () => assert.fail();
   for (const token of ['not-a-token', `${approval().slice(0, 8)}X${approval().slice(9)}`, envelope()]) {
     assert.equal((await handleSubmission(request({ action: 'approve', token }), deps({ fetchImpl: noDispatch }))).status, 400);
   }
   assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }), deps({ now: now + APPROVAL_TTL, fetchImpl: noDispatch }))).status, 410);
   assert.equal((await handleSubmission(request({ action: 'approve', token: approval() }, { origin: 'https://evil.example' }), deps({ fetchImpl: noDispatch }))).status, 403);
-  for (const [status, message] of [
-    [401, 'GitHub 发布凭据已失效，请更新函数环境中的凭据后重试。'],
-    [403, 'GitHub 发布凭据没有 Actions 写入权限，或请求被仓库策略拒绝。'],
-    [404, 'GitHub 仓库或发布工作流不可访问，请检查发布凭据和仓库配置。'],
-    [422, 'GitHub 发布分支无效，或发布工作流不接受当前请求。'],
-    [429, 'GitHub 发布接口暂时限流，请稍后重新确认。'],
-    [500, '发布任务未被接受，请稍后重新确认。'],
-  ]) {
-    const response = await handleSubmission(request({ action: 'approve', token: approval() }), deps({ fetchImpl: async () => new Response('upstream secret', { status }) }));
-    assert.equal(response.status, 502);
-    assert.deepEqual(await response.json(), { error: message });
-  }
+  const githubBody = {
+    message: 'User-Agent Required. Please make sure your request has a User-Agent header.',
+    errors: [{ resource: 'WorkflowDispatch', code: 'custom', field: 'headers' }],
+    documentation_url: 'https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#user-agent',
+    status: '403',
+  };
+  const githubResponse = await handleSubmission(request({ action: 'approve', token: approval() }), deps({
+    fetchImpl: async () => Response.json(githubBody, { status: 403 }),
+  }));
+  assert.equal(githubResponse.status, 502);
+  assert.deepEqual(await githubResponse.json(), {
+    error: githubBody.message,
+    upstream: { service: 'github', httpStatus: 403, body: githubBody },
+  });
+  const nonJSON = await handleSubmission(request({ action: 'approve', token: approval() }), deps({
+    fetchImpl: async () => new Response(`upstream ${env.COMMENTS_GITHUB_TOKEN}`, { status: 500 }),
+  }));
+  assert.deepEqual(await nonJSON.json(), {
+    error: 'GitHub API 请求失败（HTTP 500）。',
+    upstream: { service: 'github', httpStatus: 500 },
+  });
 });
 
 test('approved comments use exclusive UUID files, reject overwrites, preserve text, and require workflow signature', async () => {

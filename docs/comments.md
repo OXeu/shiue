@@ -119,7 +119,7 @@ COMMENTS_GITHUB_BRANCH=master
 
 必须先把工作流文件部署到默认分支，GitHub 才能接受 dispatch。函数平台的环境变量不会自动同步成 GitHub Secrets，`COMMENTS_SECRET` 两边要分别设置成相同值。工作流保留对旧 `COMMENTS_WORKFLOW_SECRET` 的兼容，新安装无需配置它。评论工作流只做 checkout、准备 Node、验签写文件、提交推送；两个发布脚本只用 Node 内置模块，不安装 npm 依赖，不运行测试或 Hugo 构建，也不调用 Deploy Hook。代码回归测试仍留在普通构建 CI 中。
 
-审批页会按 GitHub 返回状态区分发布配置故障：401 表示函数环境中的 PAT 已失效，403 表示缺少 Actions 写权限或被仓库策略拒绝，404 表示该凭据无法访问仓库或工作流，422 表示分支或 workflow dispatch 输入无效。更新 `COMMENTS_GITHUB_TOKEN` 后需要重新部署函数；不要把 GitHub 的原始响应或令牌复制到页面、日志或工单中。
+GitHub 拒绝 workflow dispatch 时，审批接口保留本站的 502 网关状态，并返回 GitHub 原始 JSON 错误对象中的 `message`、`errors`、`documentation_url`、`status` 等字段及真实 HTTP 状态，避免按状态码猜测原因。只有不超过 8 KiB 的 JSON 对象会透传；鉴权头、发布 envelope、环境变量及非 JSON 响应不会返回页面。更新 `COMMENTS_GITHUB_TOKEN` 后需要重新部署函数。
 
 推送后由已连接本仓库的 托管平台的 Git 集成自动构建部署。请保持 托管平台的生产分支 与仓库默认分支一致，并启用 Git 自动部署；若有 Ignored Build Step，不要忽略 `content/post/**/comments/` 的修改。CI 成功仅表示评论已推送，最终发布结果以托管平台 为准。[Vercel Git 部署说明](https://vercel.com/docs/git/vercel-for-github)
 

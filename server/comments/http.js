@@ -5,8 +5,11 @@ export function json(status, body) {
   return Response.json(body, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
 }
 export function failure(error) {
-  // 不将上游响应、令牌、邮件正文或环境变量写入日志 / 返回给访客。
-  return json(error instanceof CommentError ? error.status : 503, { error: error instanceof CommentError ? error.message : '评论服务暂时不可用，请稍后重试。' });
+  // 仅显式附加经过调用方筛选的诊断字段；令牌、请求正文、邮件和环境变量不得放入 details。
+  return json(error instanceof CommentError ? error.status : 503, {
+    error: error instanceof CommentError ? error.message : '评论服务暂时不可用，请稍后重试。',
+    ...(error instanceof CommentError && error.details ? error.details : {}),
+  });
 }
 export function checkRequest(request, env, deployment) {
   if (request.method !== 'POST') throw new CommentError(405, '仅支持 POST 请求。');
