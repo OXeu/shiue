@@ -14,8 +14,8 @@ node_modules/
 data/friends.json.lock
 data/friends.json.*.tmp
 .cache/deploy/
-.cache/cloudflare-build-probe-*.json
 .cache/xeu-images/
+.cache/xeu-mermaid/
 
 # Generated image manifests, site identity and friend-health snapshots.
 /data/xeu/

@@ -10,7 +10,7 @@ export function deploymentSteps() {
       id: 'preflight', title: '环境检查',
       async run(context, { log }) {
         const [major, minor] = process.versions.node.split('.').map(Number);
-        if (major < 22 || (major === 22 && minor < 9)) throw new Error('部署脚本需要 Node.js 22.9 或更新版本');
+        if (major < 22 || (major === 22 && minor < 12)) throw new Error('部署脚本需要 Node.js 22.12 或更新版本');
         for (const file of ['.hugo-version', 'hugo.toml', 'data/friends.json']) await access(path.join(context.root, file));
         log(`Node.js ${process.versions.node} · ${process.platform}/${process.arch}`);
         log(`输出目录：${context.destination}`);
@@ -51,6 +51,14 @@ export function deploymentSteps() {
           },
         });
         return { images: Object.keys(manifest).length };
+      },
+    },
+    {
+      id: 'mermaid', title: '预渲染并压缩 Mermaid 图表',
+      async run(context, io) {
+        const { prepareMermaid } = await import('../prepare-mermaid.mjs');
+        const manifest = await prepareMermaid(context.root, { log: io.log, signal: io.signal });
+        return { diagrams: Object.keys(manifest).length };
       },
     },
     {

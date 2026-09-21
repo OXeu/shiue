@@ -3,12 +3,14 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.9"
+    "node": ">=22.12"
   },
   "scripts": {
     "images": "node scripts/prepare-images.mjs",
+    "mermaid": "node scripts/prepare-mermaid.mjs",
     "identity": "node scripts/deploy/identity.mjs",
     "images:watch": "node scripts/prepare-images.mjs --watch",
+    "mermaid:watch": "node scripts/prepare-mermaid.mjs --watch",
     "build": "node scripts/deploy.mjs",
     "deploy": "node scripts/deploy.mjs",
     "dev": "bash scripts/hugo.sh server --disableFastRender",
@@ -24,9 +26,12 @@
     "check": "npm run check:deploy && npm run check:comments && npm run check:friend-applications && npm run check:functions && node scripts/check-friends.mjs && node scripts/check-images.mjs && node scripts/check-build.mjs"
   },
   "dependencies": {
+    "@mermaid-js/mermaid-cli": "11.17.0",
     "blurhash": "2.0.5",
     "cheerio": "1.2.0",
-    "mermaid": "11.15.0",
-    "sharp": "0.35.4"
+    "mermaid": "11.17.2",
+    "puppeteer": "25.11.0",
+    "sharp": "0.35.4",
+    "svgo": "4.1.0"
   }
 }

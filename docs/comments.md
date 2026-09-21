@@ -50,7 +50,7 @@
 
 | 变量 | 含义 |
 | --- | --- |
-| `COMMENTS_SITE_URL` | 正式博客地址，HTTPS、末尾 `/`；例如 `https://blog.lab.xeu.life/`。用于校验 Origin、生成原文/审批链接 |
+| `COMMENTS_SITE_URL` | 正式博客地址，HTTPS、末尾 `/`；当前为 `https://xeu.life/`。用于校验 Origin、生成原文/审批链接 |
 | `RESEND_API_KEY` | Resend 发送权限密钥 |
 | `COMMENTS_EMAIL_FROM` | 已验证发件地址，例如 `Xeu Blog <comments@xeu.life>` |
 | `COMMENTS_EMAIL_TO` | 接收审核邮件的本人邮箱，不会打包进前端或评论文件 |
@@ -74,7 +74,7 @@
 
 评论和友链使用 Cloudflare Turnstile，已移除浏览器 SHA-256 PoW Worker。Vercel、Netlify、Cloudflare Workers 共用同一个服务端验证器；无需迁移托管平台、DNS 或开启 Cloudflare CDN。
 
-1. 在 Cloudflare 控制台的 **Turnstile → Add widget** 创建组件，选择 **Managed**，添加实际生产域名，例如 `blog.lab.xeu.life`，不填写协议或路径。
+1. 在 Cloudflare 控制台的 **Turnstile → Add widget** 创建组件，选择 **Managed**，添加实际生产域名 `xeu.life`，不填写协议或路径。
 2. 将同一组件的 **Site Key** 和 **Secret Key** 分别保存为生产函数环境变量 `TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET_KEY`。Netlify 的作用域需包含 Functions；Cloudflare 将 Secret Key 设为 Secret。两项均在运行时读取，不需要加入 Hugo 配置或 GitHub Actions。
 3. 保持 `COMMENTS_SITE_URL` 指向正式域名。服务端要求 Siteverify 返回的 hostname 与该地址的 hostname 精确一致；别名域名应先重定向到正式域名。预览和开发环境仍禁止提交、发信和发布。
 4. 配置环境变量后重新部署函数和页面，再在真实域名测试评论及友链提交。缺少配置会返回 503，不会退回 PoW 或跳过验证。打开旧页面的用户需要刷新。

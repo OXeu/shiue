@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepareImages } from './prepare-images.mjs';
+import { prepareMermaid } from './prepare-mermaid.mjs';
 import { isBlurhashValid } from 'blurhash';
 import sharp from 'sharp';
 import { load } from 'cheerio';
@@ -12,6 +13,9 @@ import { prepareIdentity, readIdentity, identityAssets } from './deploy/identity
 import { openCommentEmail, sealComment } from '../server/comments/email.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+for (const relative of ['hugo.toml', 'config/_default/config.toml']) {
+  assert.match(readFileSync(path.join(root, relative), 'utf8'), /^baseURL\s*=\s*["']https:\/\/xeu\.life\/["']/m, `${relative} 必须声明正式站点绝对地址`);
+}
 // Build verification can reuse validated generated files; a clean checkout
 // needs one download. Production deployments always refresh in the identity step.
 let identity;
@@ -43,6 +47,7 @@ writeFileSync(path.join(mermaidDirectory, 'index.md'), [
   '```mermaid', mermaidSource, '```', '',
   '```javascript', 'console.log("普通代码块仍可高亮和复制");', '```', '',
 ].join('\n'));
+await prepareMermaid(root, { contentDirectory: testContent, log: () => {} });
 const commentDirectory = path.join(testContent, 'post/ai-random-thoughts/comments');
 mkdirSync(commentDirectory, { recursive: true });
 const fixtureComment = { id: 'e2ae8335-89b2-4f10-97db-cdb4603d23f4', path: new URL('p/ai-random-thoughts/', baseURL).pathname, name: '<img src=x onerror=alert(1)>', message: '<script>alert(1)</script>\n纯文本评论', createdAt: '2026-09-17T20:00:00.000Z' };
@@ -103,6 +108,10 @@ assert.equal(homeScripts.length, 2, '首页只应加载跨页过渡与文章列�
 assert.ok(homeScripts.some(src => /\/js\/article-transition\.min\.[a-f0-9]+\.js$/.test(src)));
 const feedScript = homeScripts.find(src => /\/js\/feed\.[a-f0-9]+\.js$/.test(src));
 assert.ok(feedScript, '首页缺少按页面裁剪的文章列表脚本');
+const feedPreload = $home('link[rel="preload"][as="script"]');
+assert.equal(feedPreload.length, 1, '首页应预加载文章列表脚本');
+assert.equal(feedPreload.attr('href'), feedScript, 'preload 必须与实际执行的首页脚本使用同一指纹地址');
+assert.equal(feedPreload.attr('integrity'), $home(`script[src="${feedScript}"]`).attr('integrity'));
 const colorMode = $home('head script:not([src])');
 assert.equal(colorMode.length, 1, '颜色模式初始化应直接内联，避免额外阻塞请求');
 assert.match(colorMode.text(), /xeu-color-mode/);
@@ -117,9 +126,15 @@ for (const unusedFeature of ['data-search', 'data-comment-form', 'data-friend-fo
 assert.equal($home('[data-mermaid-script]').length, 0, '没有图表的首页不得加载 Mermaid');
 const $mermaid = load(read('p/mermaid-render-check/index.html'));
 assert.equal($mermaid('[data-mermaid]').length, 1);
-assert.equal($mermaid('.mermaid-source[open] code').text().trim(), mermaidSource, '图表源码应逐字保留并默认可读');
+assert.equal($mermaid('.mermaid-source code').text().trim(), mermaidSource, '图表源码应逐字保留');
+assert.equal($mermaid('.mermaid-source[open]').length, 0, 'SSG 图表成功时默认收起源码');
 assert.equal($mermaid('.mermaid-source img, .mermaid-source script').length, 0, '图表源码必须转义');
-assert.equal($mermaid('[data-mermaid-output][hidden]').length, 1);
+assert.equal($mermaid('[data-mermaid-output][hidden]').length, 0, 'SSG 图表无需等待 JavaScript 即可显示');
+assert.equal($mermaid('[data-mermaid-output] > svg').length, 2, '应内联已压缩的浅色和深色 SVG');
+assert.equal($mermaid('[data-mermaid-render-theme="light"]').length, 1);
+assert.equal($mermaid('[data-mermaid-render-theme="dark"]').length, 1);
+assert.equal(new Set($mermaid('[data-mermaid-output] > svg').map((_, svg) => $mermaid(svg).attr('id')).get()).size, 2, '浅深色 SVG ID 必须隔离');
+assert.equal($mermaid('[data-mermaid-output] script, [data-mermaid-output] [onerror]').length, 0, '静态 SVG 不能包含可执行内容');
 assert.equal($mermaid('[data-mermaid-controls][hidden]').length, 1, '缩放控件只在图表可交互时显示');
 assert.equal($mermaid('[data-mermaid-controls] button[type="button"][aria-label]').length, 2);
 assert.equal($mermaid('[data-mermaid-action="fit"]').length, 1);
@@ -129,16 +144,15 @@ const mermaidScript = $mermaid('script[data-mermaid-script][type="module"]');
 assert.equal(mermaidScript.length, 1);
 localAsset(mermaidScript.attr('src'));
 const loader = readFileSync(outputPath(mermaidScript.attr('src')), 'utf8');
-const engineURL = loader.match(/[^"'\s]*\/js\/mermaid-engine\.[a-f0-9]+\.js/)?.[0];
-assert.ok(engineURL, '加载器必须引用带内容指纹的本地 Mermaid 引擎');
-localAsset(engineURL);
-assert.ok(loader.includes('import('), '引擎应动态加载');
+assert.ok(Buffer.byteLength(loader) < 8_000, 'Mermaid 客户端只能保留轻量缩放增强');
+assert.doesNotMatch(loader, /mermaid-engine|platform\.twitter|import\(/, '客户端不得再下载 Mermaid 引擎或 X 组件');
 const $rssMermaid = load(read('index.xml'), { xmlMode: true });
 const mermaidItem = $rssMermaid('item').filter((_, item) => $rssMermaid(item).find('link').text().endsWith('/p/mermaid-render-check/'));
 assert.equal(mermaidItem.length, 1);
 const rssDiagram = load(mermaidItem.find('description').text());
 const rssLines = text => text.trim().split('\n').map(line => line.trimStart());
 assert.deepEqual(rssLines(rssDiagram('.language-mermaid').text()), rssLines(mermaidSource), 'RSS 应保留可读的图表语句');
+assert.equal(rssDiagram('[data-mermaid-render-theme]').length, 0, 'RSS 不应重复内联双主题 SVG');
 assert.equal(rssDiagram('script').length, 0, 'RSS 不加载图表脚本');
 const authorLink = $home('.site-footer > p > a').first();
 assert.equal(authorLink.text(), 'Xeu', '版权信息中的作者名称应保留');
@@ -267,6 +281,15 @@ for (const file of ['comment-pages.json', 'index.xml', 'search/index.json']) ass
 for (const comment of fixtureComments) assert.ok(fixturePage.commentIds.includes(comment.id));
 assert.ok(!commentPages.some(page => page.path.includes('comment-review')), '审批页不能开放评论');
 const $commentsArticle = load(read('p/ai-random-thoughts/index.html'));
+assert.equal($commentsArticle('[data-x-static]').length, 1, 'X 帖子应在 SSG 阶段生成静态引用卡片');
+assert.equal($commentsArticle('[data-x-embed], .x-embed iframe').length, 0, 'X 帖子不得保留动态组件或 iframe');
+assert.match($commentsArticle('.x-embed-content').text(), /world’s first Fly Language Model/);
+assert.equal($commentsArticle('.x-embed-source a').attr('href'), 'https://x.com/nftechie_/status/2098532090874560815');
+const postScript = $commentsArticle('script[src]').map((_, script) => $commentsArticle(script).attr('src')).get()
+  .find(src => /\/js\/post\.[a-f0-9]+\.js$/.test(src));
+assert.ok(postScript, '文章页缺少按页面裁剪的脚本');
+const postBundle = readFileSync(outputPath(postScript), 'utf8');
+assert.doesNotMatch(postBundle, /platform\.twitter|data-x-embed|createTweet/, '文章脚本不得包含 X 动态组件');
 assert.equal($commentsArticle('[name="email"][type="email"]').length, 1);
 assert.equal($commentsArticle('[name="email"][required]').length, 0, '邮箱必须可不填');
 assert.equal($commentsArticle('.comment-heading-actions > [data-new-comment]').length, 1);
@@ -344,7 +367,10 @@ for (const relative of htmlFiles) {
   assert.ok(!html.includes(fixtureEmail), '明文邮箱不能进入公开页面');
   const $ = load(html);
   for (const link of $('link[rel="canonical"], meta[property="og:url"]').toArray()) {
-    outputPath($(link).attr('href') || $(link).attr('content'));
+    const url = $(link).attr('href') || $(link).attr('content');
+    assert.match(url, /^https?:\/\//, `${relative} 的 canonical/og:url 必须是绝对网址`);
+    assert.equal(new URL(url).origin, new URL(baseURL).origin, `${relative} 的 canonical/og:url 域名错误`);
+    outputPath(url);
   }
   for (const comments of $('[data-comments]').toArray()) {
     assert.equal($(comments).find('[data-comment-form]').attr('data-endpoint'), '/api/submissions', `${relative} 应使用本站评论接口`);

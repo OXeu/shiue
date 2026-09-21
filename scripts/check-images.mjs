@@ -130,6 +130,29 @@ for (const stale of [{ ...small, fingerprint: 'old-recipe' }, { ...small, varian
 for (const file of ['data/xeu/images.json', `${cacheRelative}/images.json`]) await writeFile(path.join(deployed, file), '{invalid');
 assert.deepEqual(await prepareImages(deployed), renamed);
 
+// 复杂横向封面按像素预算自适应降质，简单图片仍保留默认质量。
+const adaptiveRoot = await mkdtemp(path.join(tmpdir(), 'xeu-images-adaptive-'));
+await mkdir(path.join(adaptiveRoot, 'static/images'), { recursive: true });
+const shapes = Array.from({ length: 300 }, (_, index) => {
+  const x = (index * 73) % 1600;
+  const y = (index * 151) % 1000;
+  return `<circle cx="${x}" cy="${y}" r="${2 + index % 23}" fill="hsl(${index * 47 % 360} 80% 55%)" opacity=".72"/>`;
+}).join('');
+const lines = Array.from({ length: 80 }, (_, index) =>
+  `<path d="M0 ${index * 37 % 1000} Q800 ${index * 83 % 1000} 1600 ${index * 131 % 1000}" fill="none" stroke="hsl(${index * 29 % 360} 70% 40%)" stroke-width="${1 + index % 5}" opacity=".45"/>`).join('');
+const complexSource = path.join(adaptiveRoot, 'static/images/complex.png');
+await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="100%" height="100%" fill="#09bddd"/>${shapes}${lines}</svg>`))
+  .png().toFile(complexSource);
+const complexManifest = await prepareImages(adaptiveRoot, { log: () => {} });
+const complexThumbnail = complexManifest['static/images/complex.png'].variants.find(item => item.role === 'thumbnail');
+const complexFile = path.join(adaptiveRoot, 'static', complexThumbnail.src);
+const complexInfo = await sharp(complexFile).metadata();
+const complexBytes = (await stat(complexFile)).size;
+assert.ok(complexBytes <= Math.ceil(complexInfo.width * complexInfo.height * 1.25 / 8), '复杂缩略图应满足每像素体积预算');
+const defaultComplex = await sharp(complexSource).resize({ width: 640, withoutEnlargement: true })
+  .webp({ quality: 76, effort: 6, smartSubsample: true }).toBuffer();
+assert.ok(defaultComplex.length - complexBytes > 5 * 1024, '自适应压缩应对复杂封面产生实际收益');
+
 // 删除原图后清理失效缓存，同时保留缓存目录中的其他文件。
 await writeFile(path.join(cache, 'files/keep.txt'), 'unrelated');
 await unlink(path.join(deployed, 'static/images/renamed.png'));

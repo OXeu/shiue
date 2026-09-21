@@ -11,10 +11,14 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 // 只生成两个派生文件；未经改写的源文件就是第三档“原图”。
 // 640px 覆盖列表卡片和小屏预览，1600px 覆盖 760px 正文在 2x 屏上的显示需求。
 const renditions = [
-  { role: 'thumbnail', width: 640, webp: { quality: 76, effort: 4, smartSubsample: true } },
-  { role: 'medium', width: 1600, webp: { quality: 82, effort: 4, smartSubsample: true } },
+  {
+    role: 'thumbnail', width: 640,
+    webp: { quality: 76, effort: 6, smartSubsample: true },
+    adaptive: { maxBitsPerPixel: 1.25, minQuality: 62 },
+  },
+  { role: 'medium', width: 1600, webp: { quality: 82, effort: 6, smartSubsample: true } },
 ];
-const recipe = JSON.stringify({ version: 3, renditions, blurhash: [4, 3] });
+const recipe = JSON.stringify({ version: 4, renditions, blurhash: [4, 3] });
 const legacyPublicCacheFiles = ['image-cache-v3.json', 'image-cache-v3.bin'];
 const isCandidate = name => /\.(avif|gif|jpe?g|png|webp|tiff?)$/i.test(name) || !path.extname(name);
 const exists = file => access(file).then(() => true, () => false);
@@ -78,10 +82,30 @@ async function copyImage(source, target) {
   }
 }
 
-async function renderWebp(pipeline, target, width, options) {
+async function renderWebp(pipeline, target, { width, webp, adaptive }) {
   const temp = `${target}.${randomUUID()}.tmp`;
   try {
-    await pipeline.clone().resize({ width, withoutEnlargement: true }).webp(options).toFile(temp);
+    const resized = pipeline.clone().resize({ width, withoutEnlargement: true });
+    const encode = quality => resized.clone().webp({ ...webp, quality }).toBuffer({ resolveWithObject: true });
+    let output = await encode(webp.quality);
+    if (adaptive) {
+      const maxBytes = Math.ceil(output.info.width * output.info.height * adaptive.maxBitsPerPixel / 8);
+      if (output.data.length > maxBytes) {
+        let low = adaptive.minQuality;
+        let high = webp.quality - 1;
+        let selected = await encode(low);
+        while (low <= high) {
+          const quality = Math.floor((low + high) / 2);
+          const candidate = await encode(quality);
+          if (candidate.data.length <= maxBytes) {
+            selected = candidate;
+            low = quality + 1;
+          } else high = quality - 1;
+        }
+        output = selected;
+      }
+    }
+    await writeFile(temp, output.data, { flag: 'wx' });
     await rename(temp, target);
   } finally {
     await rm(temp, { force: true });
@@ -199,7 +223,7 @@ export async function prepareImages(root = projectRoot, {
     for (const rendition of renditions) {
       const outputWidth = Math.min(rendition.width, width);
       // 两个角色在小原图上可能共用一个文件，采用正文档更高的质量配置。
-      outputs.set(outputWidth, { width: outputWidth, options: rendition.webp });
+      outputs.set(outputWidth, { width: outputWidth, webp: rendition.webp, adaptive: rendition.adaptive });
     }
     const pipeline = sharp(input, { animated: true }).rotate();
     const blurhashPromise = sharp(input, { page: 0, pages: 1 }).rotate()
@@ -207,7 +231,7 @@ export async function prepareImages(root = projectRoot, {
       .toBuffer({ resolveWithObject: true });
     await Promise.all([...outputs.values()].map(async output => {
       const target = path.join(destination, `${fingerprint}-${output.width}.webp`);
-      if (!await hasImage(target)) await renderWebp(pipeline, target, output.width, output.options);
+      if (!await hasImage(target)) await renderWebp(pipeline, target, output);
     }));
     const { data, info } = await blurhashPromise;
     const entry = {

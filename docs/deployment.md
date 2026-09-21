@@ -75,13 +75,9 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 ## 图片构建缓存
 
-图片构建缓存只使用 `$PWD/.cache/xeu-images/`：`images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，`files/` 保存 WebP 小图与中图。Cloudflare Workers Builds 的 [Build cache](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/) 需在项目 **Settings → Build → Build cache** 启用；连续两次真实构建中，第二次构建前恢复了第一次构建后写入 `$PWD/.cache` 的同一 UUID 探针，证明该目录会跨构建保存。
+图片构建缓存只使用 `$PWD/.cache/xeu-images/`：`images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，`files/` 保存 WebP 小图与中图。Cloudflare Workers Builds 的 [Build cache](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/) 需在项目 **Settings → Build → Build cache** 启用。
 
 `node_modules/.cache` 会在平台恢复缓存后被 `npm clean-install` 清空，因此不再用于图片缓存；npm `_cacache`、上一版线上 Static Assets、Vercel 安装期搬运等路径也全部取消。缓存不存在、配方不一致、索引损坏或派生文件缺失时直接重新生成，不访问其他缓存来源。旧的公开 `image-cache-v3.json` 与 `image-cache-v3.bin` 会从静态源目录和恢复的 `public/` 中删除，不再上传。
-
-为确认平台实际恢复与保存的目录，`WORKERS_CI=1` 时部署脚本会在完整构建前后分别打印 Cloudflare 文档中与本仓库有关的 npm 全局缓存，以及全部框架缓存候选目录。每项包含递归文件数、目录数、逻辑大小和首层条目，并在末尾汇总前后增量；不存在或无权读取的目录也会明确显示。首层超过 200 项时只展开前 200 项。符号链接只计数，不跟随目标。
-
-构建前快照完成后，脚本会删除旧探针并在 `$PWD/.cache/` 直接写入唯一的 `cloudflare-build-probe-<UUID>.json`，日志同时打印完整路径和 UUID。Cloudflare 在构建命令退出后保存缓存，所以应比较“本次构建后”与“下一次构建前”的探针文件名：完全相同才表示 `$PWD/.cache` 被跨构建恢复；下一次脚本随后换成新的 UUID，目录中始终只保留一个探针。可在本地用 `SHIUE_CACHE_PROBE=1 npm run build -- --offline` 复现，或用 `SHIUE_CACHE_PROBE=0` 暂时关闭线上探测日志。
 
 图片预处理先计算源文件内容与处理配置的指纹，再把重复内容合并为一组：每份唯一内容只解码一次，并行生成 640px 小图和 1600px 中图；原图不进入图片缓存，也不会被改写。不同图片组按可用 CPU 并发处理，默认最多 6 组，可用 `SHIUE_IMAGE_CONCURRENCY` 调整。命中完整清单与派生文件时直接恢复到 `data/xeu/images.json` 和 `static/xeu-images/`，不重新压缩或计算 BlurHash；原图重命名也可按内容复用。新增图片、内容变更、处理配置变化或缓存不完整时补算，损坏的 JSON 清单按未命中处理。保存缓存与发布产物时移除不再引用的旧档位。
 

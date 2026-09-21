@@ -48,6 +48,10 @@ export function revealCards(cards) {
     if (revealed.has(card)) continue;
     revealed.add(card);
     if (!observer || !canAnimate()) continue;
+    // 首屏内容已经随 HTML 出现；再次把它设为透明会把入场动画计入 LCP。
+    // 只为尚未进入视口的卡片保留滚动揭示效果。
+    const bounds = card.getBoundingClientRect();
+    if (bounds.top < innerHeight && bounds.bottom > 0) continue;
     pending.add(card);
     card.classList.add('reveal-pending');
     observer.observe(card);

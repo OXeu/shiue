@@ -157,6 +157,15 @@ try {
   const slowCovers = async route => { await coverGate; await route.continue().catch(() => {}); };
   await page.route('**/xeu-images/*.webp', slowCovers);
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('[data-masonry]')?.classList.contains('is-masonry'));
+  const initialCards = await page.locator('.post-card').evaluateAll(cards => cards
+    .filter(card => {
+      const bounds = card.getBoundingClientRect();
+      return bounds.top < innerHeight && bounds.bottom > 0;
+    })
+    .map(card => ({ pending: card.classList.contains('reveal-pending'), animations: card.getAnimations().length })));
+  assert.ok(initialCards.length > 0, '测试视口内应存在文章卡片');
+  assert.ok(initialCards.every(card => !card.pending && card.animations === 0), '首屏卡片不得以透明入场动画延迟 LCP');
   const cover = page.locator('.card-cover').first();
   await cover.locator('canvas').waitFor();
   await page.mouse.move(0, 0);

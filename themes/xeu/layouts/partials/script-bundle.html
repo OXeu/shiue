@@ -1,0 +1,14 @@
+{{- $bundle := "site-page" -}}
+{{- if eq .Params.layout "search" -}}
+  {{- $bundle = "search-page" -}}
+{{- else if or .IsHome .IsSection (eq .Kind "term") -}}
+  {{- $bundle = "feed" -}}
+{{- else if and .IsPage (eq .Section "post") -}}
+  {{- $bundle = "post" -}}
+{{- else if or (eq .Params.layout "friends") (eq .Params.layout "friend-review") -}}
+  {{- $bundle = "friends-page" -}}
+{{- else if eq .Params.layout "comment-review" -}}
+  {{- $bundle = "comment-review-page" -}}
+{{- end -}}
+{{- $path := printf "js/%s.js" $bundle -}}
+{{- return (resources.Get $path | js.Build (dict "targetPath" $path "minify" true "target" "es2020") | fingerprint) -}}

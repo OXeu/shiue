@@ -1,4 +1,4 @@
-baseURL = ""
+baseURL = "https://xeu.life/"
 locale = "zh-CN"
 title = "Xeu's world"
 defaultContentLanguage = "zh-cn"
