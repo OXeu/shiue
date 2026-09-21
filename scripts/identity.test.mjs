@@ -28,6 +28,10 @@ test('identity fetches on every invocation, generates exact sizes, and never sto
   };
   const first = await prepareIdentity({ root, fetchImpl, log });
   assert.deepEqual(first.avatars.map(avatar => avatar.size), AVATAR_SIZES);
+  assert.ok(first.favicons.every(asset => asset.src.endsWith('.webp')), '浏览器 favicon 应使用 WebP');
+  assert.ok(first.touchIcon.src.endsWith('.webp'), '192px 浏览器图标应使用 WebP');
+  assert.ok(first.appleTouchIcon.src.endsWith('.png'), 'Apple Touch Icon 应保留 PNG');
+  assert.ok(first.socialImage.src.endsWith('.png'), '默认分享图应保留 PNG');
   for (const asset of identityAssets(first).filter(asset => asset.size)) {
     const bytes = await readFile(path.join(root, 'static', asset.src));
     const metadata = await sharp(bytes).metadata();

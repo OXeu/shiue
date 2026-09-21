@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, copyFile, cp, stat, unlink, readdir, rename } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, copyFile, cp, stat, unlink, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
 import { isBlurhashValid } from 'blurhash';
 import { prepareImages } from './prepare-images.mjs';
-import { installDependencies } from './vercel-install.mjs';
 
 const root = await mkdtemp(path.join(tmpdir(), 'xeu-images-test-'));
 await mkdir(path.join(root, 'content/post/example'), { recursive: true });
@@ -79,65 +78,24 @@ for (const format of ['gif', 'webp']) {
   assert.deepEqual(metadata.delay, [100, 200], '压缩不能改变动画速度');
 }
 
-// Workers Builds 不依赖平台是否保存自定义 npm 内容；全新工作区从上一版公开的不可变资源恢复。
-const publicIndex = JSON.parse(await readFile(path.join(root, 'static/xeu-images/image-cache-v3.json'), 'utf8'));
-assert.equal(publicIndex.schemaVersion, 1);
-const uniqueFormatCount = new Set(Object.values(formats).map(entry => entry.fingerprint)).size;
-assert.equal(Object.keys(publicIndex.entries).length, uniqueFormatCount, '公开索引应按唯一内容保存');
-assert.equal(publicIndex.bundle.src, 'xeu-images/image-cache-v3.bin');
-assert.equal((await stat(path.join(root, 'static', publicIndex.bundle.src))).size, publicIndex.bundle.size);
-const remoteOrigin = 'https://image-cache.example/';
-const remoteRequests = [];
-const remoteFetch = async input => {
-  const url = new URL(input);
-  remoteRequests.push(url.pathname);
-  if (url.origin !== new URL(remoteOrigin).origin) return new Response('', { status: 404 });
-  try {
-    const data = await readFile(path.join(root, 'static', decodeURIComponent(url.pathname).replace(/^\//, '')));
-    return new Response(data, { status: 200, headers: { 'content-length': String(data.length) } });
-  } catch (error) {
-    if (error.code === 'ENOENT') return new Response('', { status: 404 });
-    throw error;
-  }
-};
-const workerDeploy = await mkdtemp(path.join(tmpdir(), 'xeu-images-worker-deploy-'));
-await cp(path.join(root, 'content'), path.join(workerDeploy, 'content'), { recursive: true });
-await cp(path.join(root, 'static/images'), path.join(workerDeploy, 'static/images'), { recursive: true });
-const workerLogs = [];
-assert.deepEqual(await prepareImages(workerDeploy, {
-  buildEnv: { WORKERS_CI: '1' },
-  cacheOrigin: remoteOrigin,
-  fetchImpl: remoteFetch,
-  log: line => workerLogs.push(line),
-}), formats);
-assert.match(workerLogs.at(-1), new RegExp(`缓存复用 6 张.*从构建缓存恢复 6 张.*0 张新生成.*已部署资源缓存索引 ${uniqueFormatCount} 份，远端恢复 6 张`));
-assert.ok(remoteRequests.includes('/xeu-images/image-cache-v3.json'));
-assert.ok(remoteRequests.includes('/xeu-images/image-cache-v3.bin'));
-assert.equal(remoteRequests.length, 2, '远端恢复应只请求索引和单个 bundle');
-for (const entry of Object.values(formats)) for (const variant of entry.variants) {
-  assert.deepEqual(await readFile(path.join(workerDeploy, 'static', variant.src)), await readFile(path.join(root, 'static', variant.src)), '线上资源恢复的派生图必须逐字节一致');
+// 旧的远端缓存索引和 bundle 必须停止发布。
+for (const name of ['image-cache-v3.json', 'image-cache-v3.bin']) {
+  const legacy = path.join(root, 'static/xeu-images', name);
+  await writeFile(legacy, 'legacy');
+  await prepareImages(root);
+  await assert.rejects(stat(legacy), { code: 'ENOENT' });
 }
 
-// 模拟新部署：只有 Git 原图与 Vercel 保存的 node_modules 缓存，没有上次的发布产物。
+// 模拟 Workers Builds 新工作区：只有 Git 原图与平台恢复的 $PWD/.cache/xeu-images。
 const deployed = await mkdtemp(path.join(tmpdir(), 'xeu-images-deploy-'));
-const cacheRelative = 'node_modules/.cache/xeu-images';
+const cacheRelative = '.cache/xeu-images';
 const cache = path.join(deployed, cacheRelative);
 await cp(path.join(root, 'content'), path.join(deployed, 'content'), { recursive: true });
 await cp(path.join(root, 'static/images'), path.join(deployed, 'static/images'), { recursive: true });
 await cp(path.join(root, cacheRelative), cache, { recursive: true });
-await writeFile(path.join(deployed, 'package.json'), JSON.stringify({ name: 'image-cache-fixture', version: '1.0.0', private: true }));
-await writeFile(path.join(deployed, 'package-lock.json'), JSON.stringify({
-  name: 'image-cache-fixture', version: '1.0.0', lockfileVersion: 3, packages: { '': { name: 'image-cache-fixture', version: '1.0.0' } },
-}));
-await writeFile(path.join(deployed, '.npmrc'), 'audit=false\nfund=false\noffline=true\n');
-const savedManifest = await readFile(path.join(cache, 'images.json'), 'utf8');
-await writeFile(path.join(deployed, 'node_modules/discard-me'), 'npm ci should remove this');
-await installDependencies(deployed);
-assert.equal(await readFile(path.join(cache, 'images.json'), 'utf8'), savedManifest, 'npm ci 不能清空构建缓存');
-await assert.rejects(stat(path.join(deployed, 'node_modules/discard-me')), { code: 'ENOENT' }, '必须实际执行 npm ci');
 const restoredLogs = [];
-assert.deepEqual(await prepareImages(deployed, { log: line => restoredLogs.push(line) }), formats);
-assert.match(restoredLogs.at(-1), /缓存复用 6 张.*从构建缓存恢复 [1-6] 张.*，0 张新生成/);
+assert.deepEqual(await prepareImages(deployed, { buildEnv: { WORKERS_CI: '1' }, log: line => restoredLogs.push(line) }), formats);
+assert.match(restoredLogs.at(-1), /缓存复用 6 张.*从构建缓存恢复 6 张.*，0 张新生成/);
 for (const entry of Object.values(formats)) {
   for (const variant of entry.variants) {
     assert.deepEqual(await readFile(path.join(deployed, 'static', variant.src)), await readFile(path.join(root, 'static', variant.src)), '恢复的缩略图必须逐字节一致');
@@ -172,24 +130,11 @@ for (const stale of [{ ...small, fingerprint: 'old-recipe' }, { ...small, varian
 for (const file of ['data/xeu/images.json', `${cacheRelative}/images.json`]) await writeFile(path.join(deployed, file), '{invalid');
 assert.deepEqual(await prepareImages(deployed), renamed);
 
-// 删除原图后清理失效缓存，保留其他文件；安装失败也不能丢失上次成功构建的缓存。
+// 删除原图后清理失效缓存，同时保留缓存目录中的其他文件。
 await writeFile(path.join(cache, 'files/keep.txt'), 'unrelated');
 await unlink(path.join(deployed, 'static/images/renamed.png'));
 const removed = await prepareImages(deployed);
 assert.equal(removed['static/images/renamed.png'], undefined);
 await assert.rejects(stat(smallCache), { code: 'ENOENT' });
 assert.equal(await readFile(path.join(cache, 'files/keep.txt'), 'utf8'), 'unrelated');
-const beforeFailure = await readFile(path.join(cache, 'images.json'), 'utf8');
-await writeFile(path.join(deployed, 'package.json'), JSON.stringify({
-  name: 'image-cache-fixture', version: '1.0.0', scripts: { preinstall: 'node -e "process.exit(7)"' },
-}));
-await assert.rejects(installDependencies(deployed, { log: () => {} }), /执行失败/);
-assert.equal(await readFile(path.join(cache, 'images.json'), 'utf8'), beforeFailure);
-assert.deepEqual(await readdir(path.join(deployed, '.cache/deploy')), [], '安装暂存目录必须清理');
-const coldInstall = await mkdtemp(path.join(tmpdir(), 'xeu-images-install-'));
-await writeFile(path.join(coldInstall, 'package.json'), JSON.stringify({ name: 'image-cache-fixture', version: '1.0.0' }));
-await copyFile(path.join(deployed, 'package-lock.json'), path.join(coldInstall, 'package-lock.json'));
-await copyFile(path.join(deployed, '.npmrc'), path.join(coldInstall, '.npmrc'));
-await installDependencies(coldInstall, { log: () => {} });
-assert.deepEqual(await readdir(path.join(coldInstall, '.cache/deploy')), [], '首次无缓存安装必须成功');
-console.log(`图片流水线检查通过：小图/中图/原图三档、比例、旋转、动图、无扩展名、同内容复用、线上已部署资源恢复、Vercel 跨构建缓存、npm ci 保留/失败恢复、缓存修复/清理及内容更新。产物：${root}；模拟部署：${deployed}`);
+console.log(`图片流水线检查通过：小图/中图/原图三档、比例、旋转、动图、无扩展名、同内容复用、Workers .cache 跨构建恢复、缓存修复/清理及内容更新。产物：${root}；模拟部署：${deployed}`);

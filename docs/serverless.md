@@ -30,7 +30,7 @@ Turnstile 在上述所有平台上都可使用，无需 Cloudflare DNS/CDN。在
 
 ## Vercel
 
-继续使用现有 Git 集成和 `vercel.json`，保留已有生产变量，并添加上述 Turnstile 两项配置。`public/comment-pages.json` 保持在函数的 `includeFiles` 中。安装阶段仍通过 `scripts/vercel-install.mjs` 保留图片缓存。
+继续使用现有 Git 集成和 `vercel.json`，保留已有生产变量，并添加上述 Turnstile 两项配置。`public/comment-pages.json` 保持在函数的 `includeFiles` 中。安装阶段直接执行 `npm ci`；图片缓存只使用项目 `.cache/xeu-images`，平台未恢复该目录时会重新生成。
 
 ## Netlify
 

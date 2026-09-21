@@ -50,7 +50,9 @@ const fixtureComments = [fixtureComment];
 for (let depth = 1; depth <= 6; depth++) {
   fixtureComments.push({ ...fixtureComment, id: `e2ae8335-89b2-4f10-97db-${String(depth).padStart(12, '0')}`, parentId: fixtureComments.at(-1).id, name: `第 ${depth} 层读者`, message: `第 ${depth} 层回复\n${'很长的纯文本留言'.repeat(20)}`, createdAt: `2026-09-17T20:00:0${depth}.000Z` });
 }
-const orphan = { ...fixtureComment, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321', parentId: 'fe251682-6cc0-40df-bf31-6d48c12a985c', name: '保留的回复', message: '父留言删除后仍可阅读' };
+const siblingReply = { ...fixtureComment, id: 'e2ae8335-89b2-4f10-97db-999999999999', parentId: fixtureComment.id, name: '最新的同级回复', message: '同级回复应按时间倒序显示', createdAt: '2026-09-17T20:00:09.000Z' };
+fixtureComments.push(siblingReply);
+const orphan = { ...fixtureComment, id: 'a380e8f6-0f53-4d32-a0a4-a48e4d2bc321', parentId: 'fe251682-6cc0-40df-bf31-6d48c12a985c', name: '保留的回复', message: '父留言删除后仍可阅读', createdAt: '2026-09-17T20:00:10.000Z' };
 fixtureComments.push(orphan);
 const fixtureEmail = 'build-private-reader@example.org';
 const fixtureEmailSecret = 'build-email-test-key'.repeat(3);
@@ -127,12 +129,17 @@ assert.equal(authorLink.text(), 'Xeu', '版权信息中的作者名称应保留'
 assert.equal(authorLink.attr('href'), 'https://github.com/OXeu', '版权信息中的作者应链接至 GitHub 主页');
 assert.match(authorLink.attr('rel'), /\bnoopener\b/);
 assert.equal($home('link[rel="icon"]').length, 5, '缺少多尺寸 favicon');
+assert.equal($home('link[rel="icon"][type="image/webp"]').length, 4, '浏览器图标应使用 WebP');
 for (const element of $home('link[rel="icon"], link[rel="apple-touch-icon"]').toArray()) {
   const src = $home(element).attr('href');
   assert.ok(src.includes(`/site-identity/${identity.fingerprint}/`), '站点图标必须使用当次头像指纹');
   localAsset(src);
 }
 assert.equal($home('link[rel="apple-touch-icon"]').attr('sizes'), '180x180');
+assert.ok(identity.favicons.every(asset => asset.src.endsWith('.webp')));
+assert.ok(identity.touchIcon.src.endsWith('.webp'));
+assert.ok(identity.appleTouchIcon.src.endsWith('.png'));
+assert.ok(identity.socialImage.src.endsWith('.png'));
 assert.equal($home('meta[property="og:image"]').attr('content'), new URL(identity.socialImage.src, baseURL).href);
 for (const asset of identityAssets(identity)) {
   localAsset(new URL(asset.src, baseURL).href);
@@ -252,6 +259,16 @@ const renderedComment = $commentsArticle(`#comment-${fixtureComment.id}`);
 assert.equal(renderedComment.children('.comment-message').text(), fixtureComment.message);
 assert.equal(renderedComment.children('.comment-byline').find('strong').text(), fixtureComment.name);
 assert.equal(renderedComment.find('script, img').length, 0, '评论必须作为纯文本转义，不能运行 HTML');
+assert.deepEqual(
+  $commentsArticle('.comments > .comment-list > .comment-item').map((_, item) => item.attribs.id).get(),
+  [`comment-${orphan.id}`, `comment-${fixtureComment.id}`],
+  '顶层评论应按时间倒序显示',
+);
+assert.deepEqual(
+  renderedComment.children('.comment-replies').children('.comment-item').map((_, item) => item.attribs.id).get(),
+  [`comment-${siblingReply.id}`, `comment-${fixtureComments[1].id}`],
+  '同一父评论下的回复应按时间倒序显示',
+);
 for (const comment of fixtureComments.slice(1, -1)) {
   const node = $commentsArticle(`#comment-${comment.id}`);
   assert.equal(node.parent().parent().attr('id'), `comment-${comment.parentId}`, '回复必须挂在直接父留言下');

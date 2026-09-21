@@ -15,10 +15,7 @@ const renditions = [
   { role: 'medium', width: 1600, webp: { quality: 82, effort: 4, smartSubsample: true } },
 ];
 const recipe = JSON.stringify({ version: 3, renditions, blurhash: [4, 3] });
-const recipeId = createHash('sha256').update(recipe).digest('hex').slice(0, 16);
-const publicCacheManifest = 'image-cache-v3.json';
-const publicCacheBundle = 'image-cache-v3.bin';
-const defaultWorkerCacheOrigin = 'https://xeu.life/';
+const legacyPublicCacheFiles = ['image-cache-v3.json', 'image-cache-v3.bin'];
 const isCandidate = name => /\.(avif|gif|jpe?g|png|webp|tiff?)$/i.test(name) || !path.extname(name);
 const exists = file => access(file).then(() => true, () => false);
 const hasImage = file => stat(file).then(info => info.isFile() && info.size > 0, error => {
@@ -36,6 +33,10 @@ function resolveConcurrency(buildEnv, override) {
   const requested = Number(override ?? buildEnv.SHIUE_IMAGE_CONCURRENCY);
   if (Number.isInteger(requested) && requested > 0) return Math.min(requested, 12);
   return Math.min(6, Math.max(2, availableParallelism()));
+}
+
+export function imageCacheDirectory(root) {
+  return path.join(root, '.cache/xeu-images');
 }
 
 async function runConcurrent(items, concurrency, task) {
@@ -77,16 +78,6 @@ async function copyImage(source, target) {
   }
 }
 
-async function writeImage(data, target) {
-  const temp = `${target}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(temp, data);
-    await rename(temp, target);
-  } finally {
-    await rm(temp, { force: true });
-  }
-}
-
 async function renderWebp(pipeline, target, width, options) {
   const temp = `${target}.${randomUUID()}.tmp`;
   try {
@@ -94,83 +85,6 @@ async function renderWebp(pipeline, target, width, options) {
     await rename(temp, target);
   } finally {
     await rm(temp, { force: true });
-  }
-}
-
-function cacheURL(origin, relative) {
-  const base = new URL(origin);
-  if (base.protocol !== 'https:') throw new Error('图片远端缓存地址必须使用 HTTPS');
-  base.pathname = base.pathname.endsWith('/') ? base.pathname : `${base.pathname}/`;
-  return new URL(relative, base).href;
-}
-
-async function readRemoteCache(origin, fetchImpl) {
-  const empty = { entries: {}, files: {}, bundle: undefined };
-  if (!origin) return empty;
-  try {
-    const response = await fetchImpl(cacheURL(origin, `xeu-images/${publicCacheManifest}`), {
-      headers: { accept: 'application/json' },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!response.ok) return empty;
-    const text = await response.text();
-    if (text.length > 2_000_000) return empty;
-    const value = JSON.parse(text);
-    if (value?.schemaVersion !== 1 || value.recipeId !== recipeId || !value.entries
-      || typeof value.entries !== 'object' || Array.isArray(value.entries)) return empty;
-    let bundle;
-    if (value.bundle?.src && Number.isInteger(value.bundle.size) && value.bundle.size > 0
-      && value.bundle.size <= 64 * 1024 * 1024 && /^[a-f0-9]{64}$/.test(value.bundle.sha256)) {
-      const bundleResponse = await fetchImpl(cacheURL(origin, value.bundle.src), {
-        headers: { accept: 'application/octet-stream' },
-        cache: 'no-store',
-        signal: AbortSignal.timeout(20000),
-      });
-      if (bundleResponse.ok) {
-        const data = Buffer.from(await bundleResponse.arrayBuffer());
-        const hash = createHash('sha256').update(data).digest('hex');
-        if (data.length === value.bundle.size && hash === value.bundle.sha256) bundle = data;
-      }
-    }
-    return {
-      entries: value.entries,
-      files: value.files && typeof value.files === 'object' && !Array.isArray(value.files) ? value.files : {},
-      bundle,
-    };
-  } catch {
-    return empty;
-  }
-}
-
-async function readRemoteVariant(remoteCache, origin, item, fetchImpl) {
-  if (!origin) return;
-  try {
-    const name = path.basename(item.src);
-    const bundled = remoteCache.files[name];
-    let data;
-    if (remoteCache.bundle && Number.isInteger(bundled?.offset) && Number.isInteger(bundled?.length)
-      && bundled.offset >= 0 && bundled.length > 0 && bundled.offset + bundled.length <= remoteCache.bundle.length
-      && /^[a-f0-9]{64}$/.test(bundled.sha256)) {
-      data = remoteCache.bundle.subarray(bundled.offset, bundled.offset + bundled.length);
-      if (createHash('sha256').update(data).digest('hex') !== bundled.sha256) return;
-    } else {
-      const response = await fetchImpl(cacheURL(origin, item.src), {
-        headers: { accept: 'image/webp' },
-        cache: 'no-store',
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) return;
-      const length = Number(response.headers.get('content-length'));
-      if (Number.isFinite(length) && length > 32 * 1024 * 1024) return;
-      data = Buffer.from(await response.arrayBuffer());
-    }
-    if (!data.length || data.length > 32 * 1024 * 1024) return;
-    const metadata = await sharp(data, { animated: true }).metadata();
-    if (metadata.format !== 'webp' || metadata.width !== item.width) return;
-    return data;
-  } catch {
-    return;
   }
 }
 
@@ -192,33 +106,27 @@ export async function prepareImages(root = projectRoot, {
   onProgress,
   buildEnv = process.env,
   concurrency,
-  cacheOrigin = buildEnv.SHIUE_IMAGE_CACHE_ORIGIN
-    || (buildEnv.WORKERS_CI === '1' ? buildEnv.COMMENTS_SITE_URL || defaultWorkerCacheOrigin : undefined),
-  fetchImpl = fetch,
 } = {}) {
   const manifestPath = path.join(root, 'data/xeu/images.json');
   const destination = path.join(root, 'static/xeu-images');
-  const workerBuild = buildEnv.WORKERS_CI === '1';
   const imageConcurrency = resolveConcurrency(buildEnv, concurrency);
-  // Vercel 的 Other 构建器默认保存 node_modules；安装入口会在 npm ci 前后保留此目录。
-  const cache = path.join(root, 'node_modules/.cache/xeu-images');
+  // 唯一的构建缓存位置；Cloudflare Workers Builds 会跨构建保存项目 .cache。
+  const cache = imageCacheDirectory(root);
   const cacheManifestPath = path.join(cache, 'images.json');
   const cacheFiles = path.join(cache, 'files');
   await mkdir(destination, { recursive: true });
+  await Promise.all(legacyPublicCacheFiles.map(name => rm(path.join(destination, name), { force: true })));
   await mkdir(path.dirname(manifestPath), { recursive: true });
   await mkdir(cacheFiles, { recursive: true });
   const previousText = await readFile(manifestPath, 'utf8').catch(() => '{}');
   const previous = await readManifest(manifestPath);
   const persisted = await readManifest(cacheManifestPath);
-  const remoteCache = await readRemoteCache(cacheOrigin, fetchImpl);
-  const remoteEntries = remoteCache.entries;
   const byFingerprint = new Map(Object.values(persisted).filter(entry => /^[a-f0-9]{24}$/.test(entry?.fingerprint))
     .map(entry => [entry.fingerprint, entry]));
   const manifest = {};
   let generated = 0;
   let generatedUnique = 0;
   let restored = 0;
-  let restoredRemote = 0;
 
   // 先按内容指纹分组：重复图片只解码、压缩和计算 BlurHash 一次。
   const queue = [...await sources(root, 'content'), ...await sources(root, 'static')];
@@ -236,13 +144,11 @@ export async function prepareImages(root = projectRoot, {
 
   await runConcurrent(groups, imageConcurrency, async group => {
     const { fingerprint, input } = group;
-    const remoteEntry = remoteEntries[fingerprint];
     const previousEntry = group.sources.map(source => previous[source]).find(Boolean);
-    for (const cached of [previousEntry, byFingerprint.get(fingerprint), remoteEntry]) {
-      if (!validEntry(cached, fingerprint)) continue;
+    const tryCached = async cached => {
+      if (!validEntry(cached, fingerprint)) return undefined;
       let complete = true;
       let recovered = false;
-      let recoveredFromRemote = false;
       for (const item of uniqueVariants(cached)) {
         const target = path.join(root, 'static', item.src);
         if (await hasImage(target)) continue;
@@ -252,26 +158,25 @@ export async function prepareImages(root = projectRoot, {
           recovered = true;
           continue;
         }
-        if (cached === remoteEntry) {
-          const data = await readRemoteVariant(remoteCache, cacheOrigin, item, fetchImpl);
-          if (data) {
-            await writeImage(data, target);
-            recovered = true;
-            recoveredFromRemote = true;
-            continue;
-          }
-        }
         complete = false;
         break;
       }
       if (complete) {
-        for (const source of group.sources) manifest[source] = cached;
-        if (recovered) restored += group.sources.length;
-        if (recoveredFromRemote) restoredRemote += group.sources.length;
-        completed += group.sources.length;
-        onProgress?.({ completed, total, source: group.sources.at(-1) });
-        return;
+        return { entry: cached, recovered };
       }
+      return undefined;
+    };
+    let cachedResult;
+    for (const cached of [previousEntry, byFingerprint.get(fingerprint)]) {
+      cachedResult = await tryCached(cached);
+      if (cachedResult) break;
+    }
+    if (cachedResult) {
+      for (const source of group.sources) manifest[source] = cachedResult.entry;
+      if (cachedResult.recovered) restored += group.sources.length;
+      completed += group.sources.length;
+      onProgress?.({ completed, total, source: group.sources.at(-1) });
+      return;
     }
     let metadata;
     try { metadata = await sharp(input, { animated: true }).metadata(); }
@@ -345,43 +250,8 @@ export async function prepareImages(root = projectRoot, {
   for (const name of await readdir(cacheFiles)) {
     if (/^[a-f0-9]{24}-\d+\.webp$/.test(name) && !activeFiles.has(name)) await rm(path.join(cacheFiles, name));
   }
-  const uniqueEntries = [...new Map(Object.values(sorted).map(entry => [entry.fingerprint, entry])).values()];
-  const bundleFiles = {};
-  const bundleChunks = [];
-  let bundleOffset = 0;
-  for (const name of [...activeFiles].sort()) {
-    const data = await readFile(path.join(destination, name));
-    bundleFiles[name] = {
-      offset: bundleOffset,
-      length: data.length,
-      sha256: createHash('sha256').update(data).digest('hex'),
-    };
-    bundleChunks.push(data);
-    bundleOffset += data.length;
-  }
-  const bundle = Buffer.concat(bundleChunks);
-  const bundleHash = createHash('sha256').update(bundle).digest('hex');
-  const bundlePath = path.join(destination, publicCacheBundle);
-  const previousBundle = await readFile(bundlePath).catch(() => undefined);
-  if (!previousBundle?.equals(bundle)) await writeImage(bundle, bundlePath);
-  const publicText = `${JSON.stringify({
-    schemaVersion: 1,
-    recipeId,
-    bundle: { src: `xeu-images/${publicCacheBundle}`, size: bundle.length, sha256: bundleHash },
-    files: bundleFiles,
-    entries: Object.fromEntries(uniqueEntries.map(entry => [entry.fingerprint, entry])),
-  }, null, 2)}\n`;
-  const publicManifestPath = path.join(destination, publicCacheManifest);
-  if (await readFile(publicManifestPath, 'utf8').catch(() => '') !== publicText) {
-    const temp = `${publicManifestPath}.${process.pid}.tmp`;
-    await writeFile(temp, publicText);
-    await rename(temp, publicManifestPath);
-  }
   const summary = `图片准备完成：${totalImages} 张图片，缓存复用 ${totalImages - generated} 张（从构建缓存恢复 ${restored} 张），${generated} 张新生成缩略图与 BlurHash（${generatedUnique} 份唯一内容）；并发 ${imageConcurrency}。`;
-  const remoteIndexSize = Object.keys(remoteEntries).length;
-  log(workerBuild || cacheOrigin
-    ? `${summary} 已部署资源缓存索引 ${remoteIndexSize} 份，远端恢复 ${restoredRemote} 张，来源 ${cacheOrigin || '未配置'}。`
-    : summary);
+  log(summary);
   return sorted;
 }
 

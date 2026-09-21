@@ -15,6 +15,7 @@ data/friends.json.lock
 data/friends.json.*.tmp
 .cache/deploy/
 .cache/cloudflare-build-probe-*.json
+.cache/xeu-images/
 
 # Generated image manifests, site identity and friend-health snapshots.
 /data/xeu/

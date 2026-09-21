@@ -29,7 +29,6 @@
 | `scripts/deploy/identity.mjs` | 每次联网拉取 GitHub 头像、生成多尺寸站点图标和响应式头像 |
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
 | `scripts/hugo.sh` | Hugo 版本解析、官方校验和、工具缓存、底层执行和旧入口兼容 |
-| `scripts/vercel-install.mjs` | Vercel 安装依赖时保留图片构建缓存，再执行 `npm ci` |
 | `.github/workflows/daily-deploy.yml` | 每天向默认分支推送空提交，由 托管平台的 Git 集成触发构建 |
 
 步骤默认顺序执行，依赖关系直接体现在注册顺序中；友链检测内部最多 3 个请求并发，图片处理内部最多 2 张图片并发，避免所有预处理同时争用资源。
@@ -76,23 +75,19 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 ## 图片构建缓存
 
-项目的 `framework: null` 使用 Vercel 的 Other 构建流程。[Vercel 构建器默认缓存规则](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/build-utils/src/default-cache-path-glob.ts)包含 `node_modules/**`，因此图片缓存放在 `node_modules/.cache/xeu-images/`：`images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，`files/` 保存 WebP 缩略图。单独放在 `static/`、`data/` 或普通 `.cache/` 下不能依靠这条规则跨构建保留。
+图片构建缓存只使用 `$PWD/.cache/xeu-images/`：`images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，`files/` 保存 WebP 小图与中图。Cloudflare Workers Builds 的 [Build cache](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/) 需在项目 **Settings → Build → Build cache** 启用；连续两次真实构建中，第二次构建前恢复了第一次构建后写入 `$PWD/.cache` 的同一 UUID 探针，证明该目录会跨构建保存。
 
-Cloudflare Workers Builds 的 [Build cache](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/) 只有在项目 **Settings → Build → Build cache** 启用后才工作，构建环境会注入 `WORKERS_CI=1`。平台明确列出的 npm 缓存用途是全局 `.npm` 依赖缓存，保留期为最后读取后 7 天、每项目最多 10GB；实测写入 npm `_cacache` 的自定义图片键不会在下一次 Workers Build 中恢复，因此图片流水线不再把它当作持久化接口。任意 `node_modules/.cache`、`.npm` 旁挂目录或 Hugo `public/` 也不属于本项目可依赖的框架缓存目录。
+`node_modules/.cache` 会在平台恢复缓存后被 `npm clean-install` 清空，因此不再用于图片缓存；npm `_cacache`、上一版线上 Static Assets、Vercel 安装期搬运等路径也全部取消。缓存不存在、配方不一致、索引损坏或派生文件缺失时直接重新生成，不访问其他缓存来源。旧的公开 `image-cache-v3.json` 与 `image-cache-v3.bin` 会从静态源目录和恢复的 `public/` 中删除，不再上传。
 
 为确认平台实际恢复与保存的目录，`WORKERS_CI=1` 时部署脚本会在完整构建前后分别打印 Cloudflare 文档中与本仓库有关的 npm 全局缓存，以及全部框架缓存候选目录。每项包含递归文件数、目录数、逻辑大小和首层条目，并在末尾汇总前后增量；不存在或无权读取的目录也会明确显示。首层超过 200 项时只展开前 200 项。符号链接只计数，不跟随目标。
 
 构建前快照完成后，脚本会删除旧探针并在 `$PWD/.cache/` 直接写入唯一的 `cloudflare-build-probe-<UUID>.json`，日志同时打印完整路径和 UUID。Cloudflare 在构建命令退出后保存缓存，所以应比较“本次构建后”与“下一次构建前”的探针文件名：完全相同才表示 `$PWD/.cache` 被跨构建恢复；下一次脚本随后换成新的 UUID，目录中始终只保留一个探针。可在本地用 `SHIUE_CACHE_PROBE=1 npm run build -- --offline` 复现，或用 `SHIUE_CACHE_PROBE=0` 暂时关闭线上探测日志。
 
-Cloudflare 图片缓存改为复用上一版 Workers Static Assets：每次构建把不含密钥和原图的 `image-cache-v3.json` 与 `image-cache-v3.bin` 发布到 `/xeu-images/`。索引以处理配方和原图内容指纹定位不可变 WebP，并记录 bundle 内每个文件的偏移、长度和 SHA-256；下一次 Workers Build 只需两次请求即可恢复全部匹配派生图，逐文件校验后再写入构建目录。默认来源是 `https://xeu.life/`，可用 `SHIUE_IMAGE_CACHE_ORIGIN` 覆盖。首次部署当前配方会全量生成并发布索引；后续构建应显示“已部署资源缓存索引 N 份”“远端恢复 M 张”和 `0 张新生成`。远端不可达、索引不匹配或 bundle/文件校验失败时安全回退为本地生成。
-
-`vercel.json` 的 Install Command 使用 `node scripts/vercel-install.mjs`。脚本先把图片缓存移动到 `.cache/deploy/` 下的临时目录，执行原有 `npm ci` 后再放回，避免 npm 清空 `node_modules` 时删除缓存；安装失败也尝试恢复，并仍以失败状态退出。无需新增平台变量。如果控制台曾覆盖 Install Command，应与仓库配置保持一致。
-
 图片预处理先计算源文件内容与处理配置的指纹，再把重复内容合并为一组：每份唯一内容只解码一次，并行生成 640px 小图和 1600px 中图；原图不进入图片缓存，也不会被改写。不同图片组按可用 CPU 并发处理，默认最多 6 组，可用 `SHIUE_IMAGE_CONCURRENCY` 调整。命中完整清单与派生文件时直接恢复到 `data/xeu/images.json` 和 `static/xeu-images/`，不重新压缩或计算 BlurHash；原图重命名也可按内容复用。新增图片、内容变更、处理配置变化或缓存不完整时补算，损坏的 JSON 清单按未命中处理。保存缓存与发布产物时移除不再引用的旧档位。
 
-构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。Cloudflare 首次部署用于发布公开索引，后续只要上一版生产资源可访问且图片未变，就应显示 `0 张新生成`；这条路径不受 Workers Build cache 是否恢复自定义文件影响。
+构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。首次没有 `.cache/xeu-images` 时全量生成；后续命中 Workers Build cache 时应显示 `0 张新生成`。
 
-`node scripts/check-images.mjs` 验证冷/热缓存、从上一版线上索引跨全新工作区恢复、Vercel `npm ci` 前后恢复、安装失败、图片改名/更新、缺失文件、无效清单和旧缓存清理。
+`node scripts/check-images.mjs` 验证冷/热缓存、从 `$PWD/.cache/xeu-images` 跨全新工作区恢复、图片改名/更新、缺失文件、无效清单、旧缓存清理，以及远端索引和 bundle 不再发布。
 
 ## 友链检测
 
@@ -108,9 +103,9 @@ Cloudflare 图片缓存改为复用上一版 Workers Static Assets：每次构�
 
 | 用途 | 尺寸与格式 |
 | --- | --- |
-| 浏览器 favicon | 16 / 32 / 48px PNG，同尺寸多帧 ICO |
+| 浏览器 favicon | 16 / 32 / 48px WebP，同尺寸 PNG 帧组成的兼容 ICO |
 | Apple Touch Icon | 180px PNG |
-| Android 图标 | 192px PNG |
+| 浏览器应用图标 | 192px WebP |
 | 无封面页面的默认分享图 | 512px PNG；文章已有封面时仍优先使用封面 |
 | 页面头像 | 48 / 80 / 96 / 160 / 192 / 240 / 320 / 512px WebP |
 

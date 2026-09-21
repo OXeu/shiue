@@ -3,4 +3,4 @@
   {{- $comment := .Content | transform.Unmarshal -}}
   {{- $comments = $comments | append $comment -}}
 {{- end -}}
-{{- return (sort $comments "createdAt" "asc") -}}
+{{- return (sort $comments "createdAt" "desc") -}}

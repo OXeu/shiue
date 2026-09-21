@@ -9,8 +9,9 @@ import { writeJSON } from './files.mjs';
 export const AVATAR_SOURCE = 'https://avatars.githubusercontent.com/u/36541432';
 export const AVATAR_SIZES = [48, 80, 96, 160, 192, 240, 320, 512];
 export const ICON_SIZES = [16, 32, 48, 180, 192, 512];
-// Invalidate assets generated before GitHub's HTTP 200 placeholder was rejected.
-const recipe = JSON.stringify({ version: 2, avatars: AVATAR_SIZES, icons: ICON_SIZES, webpQuality: 85 });
+const FAVICON_SIZES = [16, 32, 48];
+// The recipe version invalidates assets when validation or output formats change.
+const recipe = JSON.stringify({ version: 3, avatars: AVATAR_SIZES, icons: ICON_SIZES, webpIcons: [...FAVICON_SIZES, 192], webpQuality: 85 });
 // GitHub can serve this image with HTTP 200 from a user's avatar URL:
 // https://github.githubassets.com/images/gravatars/gravatar-user-420.png
 const githubPlaceholderHash = '2ae73e12cb1e9989929920c4e9da0b02b6f6f8f0bd1944ac9ebfbf6b4dca746b';
@@ -127,11 +128,20 @@ export async function prepareIdentity({ root = projectRoot, offline = false, sig
   const resize = size => sharp(input, { limitInputPixels: 16_777_216 }).rotate().resize(size, size, { fit: 'cover', position: 'centre' });
   const files = new Map();
   const pngs = new Map();
-  for (const size of ICON_SIZES) {
+  // Keep small PNG frames in memory for the legacy ICO, but publish browser
+  // icons as WebP. Apple Touch and Open Graph remain PNG for compatibility.
+  for (const size of FAVICON_SIZES) {
     signal?.throwIfAborted();
     const bytes = await resize(size).png({ compressionLevel: 9 }).toBuffer();
     pngs.set(size, bytes);
-    files.set(`${prefix}/icon-${size}.png`, bytes);
+  }
+  for (const size of [...FAVICON_SIZES, 192]) {
+    signal?.throwIfAborted();
+    files.set(`${prefix}/icon-${size}.webp`, await resize(size).webp({ quality: 85 }).toBuffer());
+  }
+  for (const size of [180, 512]) {
+    signal?.throwIfAborted();
+    files.set(`${prefix}/icon-${size}.png`, await resize(size).png({ compressionLevel: 9 }).toBuffer());
   }
   for (const size of AVATAR_SIZES) {
     signal?.throwIfAborted();
@@ -140,10 +150,11 @@ export async function prepareIdentity({ root = projectRoot, offline = false, sig
   const ico = makeICO([16, 32, 48].map(size => ({ size, bytes: pngs.get(size) })));
   files.set(`${prefix}/favicon.ico`, ico);
   const jpeg = await resize(512).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
-  const icon = size => ({ size, src: `${prefix}/icon-${size}.png` });
+  const icon = (size, format) => ({ size, src: `${prefix}/icon-${size}.${format}` });
   const manifest = {
     source: AVATAR_SOURCE, recipe, fingerprint, generatedAt: new Date().toISOString(),
-    favicons: [16, 32, 48].map(icon), appleTouchIcon: icon(180), touchIcon: icon(192), socialImage: icon(512),
+    favicons: FAVICON_SIZES.map(size => icon(size, 'webp')),
+    appleTouchIcon: icon(180, 'png'), touchIcon: icon(192, 'webp'), socialImage: icon(512, 'png'),
     ico: { src: `${prefix}/favicon.ico`, sizes: '16x16 32x32 48x48' },
     avatars: AVATAR_SIZES.map(size => ({ size, src: `${prefix}/avatar-${size}.webp` })),
   };
@@ -154,7 +165,7 @@ export async function prepareIdentity({ root = projectRoot, offline = false, sig
   await writeAsset(path.join(root, 'static/favicon.ico'), ico);
   await writeAsset(path.join(root, 'static/avatar.jpg'), jpeg);
   await writeJSON(manifestFile(root), manifest);
-  log(`favicon 16/32/48px · Apple 180px · Android 192px · 分享图 512px`);
+  log(`WebP favicon 16/32/48px · Apple PNG 180px · WebP 应用图标 192px · PNG 分享图 512px`);
   log(`响应式头像 ${AVATAR_SIZES.join('/')}px · 资源指纹 ${fingerprint}`);
   return manifest;
 }

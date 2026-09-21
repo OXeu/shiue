@@ -24,8 +24,8 @@ test('build cache probe reports Cloudflare candidates before and after without f
   await mkdir(path.join(home, '.npm/_cacache/content-v2'), { recursive: true });
   await writeFile(path.join(home, '.npm/_cacache/content-v2/item'), '1234');
   await symlink(home, path.join(home, '.npm/_cacache/recursive-link'));
-  await mkdir(path.join(root, 'node_modules/.cache/xeu-images/files'), { recursive: true });
-  await writeFile(path.join(root, 'node_modules/.cache/xeu-images/files/image.webp'), '123456');
+  await mkdir(path.join(root, 'node_modules/.cache/framework/files'), { recursive: true });
+  await writeFile(path.join(root, 'node_modules/.cache/framework/files/item.bin'), '123456');
   const before = await captureBuildCaches({ root, env: { HOME: home } });
   const npm = before.snapshots.find(item => item.label === 'npm 全局缓存');
   const images = before.snapshots.find(item => item.path === path.join(root, 'node_modules/.cache'));
@@ -36,7 +36,7 @@ test('build cache probe reports Cloudflare candidates before and after without f
   assert.equal(images.counts.files, 1);
   assert.equal(images.counts.bytes, 6);
   assert.match(formatBuildCacheSnapshot(before, '构建前'), /\[目录\] _cacache · 1 个文件/);
-  await writeFile(path.join(root, 'node_modules/.cache/xeu-images/files/second.webp'), '12');
+  await writeFile(path.join(root, 'node_modules/.cache/framework/files/second.bin'), '12');
   const after = await captureBuildCaches({ root, env: { HOME: home } });
   assert.match(formatBuildCacheDelta(before, after), /Docusaurus \/ 通用 node_modules 缓存：文件 \+1 · 目录 \+0 · 大小 \+2 B/);
   assert.equal(cacheProbeEnabled({ WORKERS_CI: '1' }), true);
@@ -223,7 +223,7 @@ test('deploy CLI and registered steps have a single entry and an explicit offlin
   const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(config.buildCommand, 'npm run deploy');
-  assert.equal(config.installCommand, 'node scripts/vercel-install.mjs');
+  assert.equal(config.installCommand, 'npm ci');
   assert.equal(pkg.scripts.build, pkg.scripts.deploy);
   assert.equal(config.crons, undefined);
   assert.equal(config.functions['api/daily-deploy.js'], undefined);
@@ -231,15 +231,19 @@ test('deploy CLI and registered steps have a single entry and an explicit offlin
   assert.doesNotMatch(ci, /npm run (deploy|check:friends|check:deploy)|schedule:/, 'CI 不执行友链检测或每日更新');
 });
 
-test('Workers static build removes a restored Pages route artifact', async () => {
+test('Workers static build removes restored route and legacy remote-cache artifacts', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-worker-output-'));
   const destination = path.join(root, 'public');
   const stale = path.join(destination, '_routes.json');
-  await mkdir(destination, { recursive: true });
+  const legacyIndex = path.join(destination, 'xeu-images/image-cache-v3.json');
+  const legacyBundle = path.join(destination, 'xeu-images/image-cache-v3.bin');
+  await mkdir(path.dirname(legacyIndex), { recursive: true });
   await writeFile(stale, '{"include":["/api/*"]}\n');
+  await writeFile(legacyIndex, '{}\n');
+  await writeFile(legacyBundle, 'legacy');
   const step = deploymentSteps().find(item => item.id === 'hugo-build');
   await step.run({ root, destination, hugo: '/bin/true', hugoArgs: [], env: {} }, { log: () => {} });
-  await assert.rejects(readFile(stale), { code: 'ENOENT' });
+  for (const file of [stale, legacyIndex, legacyBundle]) await assert.rejects(readFile(file), { code: 'ENOENT' });
 });
 
 test('daily workflow pushes an empty commit and preserves a concurrent update when retrying', async () => {

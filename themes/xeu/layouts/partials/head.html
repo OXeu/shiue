@@ -13,9 +13,9 @@
 <link rel="canonical" href="{{ .Permalink }}">
 {{ $identity := partialCached "identity.html" .Site }}
 <link rel="icon" type="image/x-icon" sizes="{{ $identity.ico.sizes }}" href="{{ $identity.ico.src | relURL }}">
-{{ range $identity.favicons }}<link rel="icon" type="image/png" sizes="{{ .size }}x{{ .size }}" href="{{ .src | relURL }}">{{ end }}
+{{ range $identity.favicons }}<link rel="icon" type="image/webp" sizes="{{ .size }}x{{ .size }}" href="{{ .src | relURL }}">{{ end }}
 <link rel="apple-touch-icon" sizes="180x180" href="{{ $identity.appleTouchIcon.src | relURL }}">
-<link rel="icon" type="image/png" sizes="192x192" href="{{ $identity.touchIcon.src | relURL }}">
+<link rel="icon" type="image/webp" sizes="192x192" href="{{ $identity.touchIcon.src | relURL }}">
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="{{ "index.xml" | absURL }}">
 <meta property="og:site_name" content="{{ .Site.Title }}">
 <meta property="og:title" content="{{ .Title | default .Site.Title }}">

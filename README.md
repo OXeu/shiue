@@ -83,11 +83,11 @@ flowchart LR
 
 `data/xeu/images.json` 与 `static/xeu-images/` 是自动生成并被 Git 忽略的文件。更新图片后执行 `npm run images`；预览时可另开终端运行 `npm run images:watch` 自动更新。BlurHash 解码器采用 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`。
 
-派生图和 BlurHash 清单按平台复用：Vercel 使用 `node_modules/.cache/xeu-images/`；Cloudflare Workers Builds 从上一版已经部署的 `/xeu-images/image-cache-v3.json` 与单个校验 bundle 恢复，不依赖 npm `_cacache` 是否保存自定义条目。未变化的图片直接恢复到构建目录，新增或变更图片才重新处理；相同内容先按指纹合并，生成并发默认按可用 CPU 自动调整、最多 6，可用 `SHIUE_IMAGE_CONCURRENCY` 覆盖。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
+派生图和 BlurHash 清单只使用项目 `.cache/xeu-images/`。Cloudflare Workers Builds 已通过连续两次真实构建确认会恢复该目录；未变化的图片直接恢复到构建目录，新增或变更图片才重新处理。缓存缺失或损坏时直接重新生成，不使用 npm `_cacache`、`node_modules/.cache` 或线上 Static Assets 回退。相同内容先按指纹合并，生成并发默认按可用 CPU 自动调整、最多 6，可用 `SHIUE_IMAGE_CONCURRENCY` 覆盖。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
 
 ## 站点头像与图标
 
-站点自身的图标来自 `https://avatars.githubusercontent.com/u/36541432`，每次部署重新下载并生成 favicon 16/32/48px、Apple 180px、Android 192px、分享图 512px，以及 48–512px 的响应式 WebP 头像。关于页显示 80px，并为高倍屏选择对应尺寸；页头仍为纯文本。生成文件与清单被 Git 忽略，内容指纹地址避免浏览器显示旧头像；`/favicon.ico` 和 `/avatar.jpg` 保留为构建时生成的兼容地址。可单独执行 `npm run identity` 刷新。详情见 [站点图标](docs/deployment.md#github-头像与站点图标)。这与下述友链图标在添加时下载并提交的规则不同。
+站点自身的图标来自 `https://avatars.githubusercontent.com/u/36541432`，每次部署重新下载并生成 WebP favicon 16/32/48px、Apple 180px PNG、192px WebP 浏览器图标、512px PNG 分享图，以及 48–512px 的响应式 WebP 头像。关于页显示 80px，并为高倍屏选择对应尺寸；页头仍为纯文本。生成文件与清单被 Git 忽略，内容指纹地址避免浏览器显示旧头像；`/favicon.ico` 和 `/avatar.jpg` 保留为构建时生成的兼容地址。可单独执行 `npm run identity` 刷新。详情见 [站点图标](docs/deployment.md#github-头像与站点图标)。这与下述友链图标在添加时下载并提交的规则不同。
 
 ## 友情链接
 

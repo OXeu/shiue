@@ -56,8 +56,12 @@ export function deploymentSteps() {
     {
       id: 'hugo-build', title: '构建静态站点',
       async run(context, io) {
-        // Workers Builds 可能恢复旧 public/；避免已删除的 Pages 路由文件混入 Static Assets。
-        await rm(path.join(context.destination, '_routes.json'), { force: true });
+        // Workers Builds 可能恢复旧 public/；避免已删除的路由和远端缓存产物继续发布。
+        await Promise.all([
+          '_routes.json',
+          'xeu-images/image-cache-v3.json',
+          'xeu-images/image-cache-v3.bin',
+        ].map(file => rm(path.join(context.destination, file), { force: true })));
         await command(context.hugo, ['--minify', '--destination', context.destination, ...context.hugoArgs], {
           ...io, cwd: context.root, env: { ...context.env, SHIUE_IMAGES_READY: '1' },
         });
