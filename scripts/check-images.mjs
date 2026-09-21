@@ -77,14 +77,16 @@ for (const format of ['gif', 'webp']) {
 
 // Cloudflare Workers Builds 只恢复全局 npm 缓存；全新工作区应能仅靠该目录恢复全部产物。
 const cloudflareHome = await mkdtemp(path.join(tmpdir(), 'xeu-images-cloudflare-home-'));
-const cloudflareOptions = { buildEnv: { WORKERS_CI: '1' }, homeDirectory: cloudflareHome };
+const configuredNpmCache = path.join(cloudflareHome, 'configured-npm-cache');
+const cloudflareOptions = { buildEnv: { WORKERS_CI: '1', NPM_CONFIG_CACHE: configuredNpmCache }, homeDirectory: path.join(cloudflareHome, 'wrong-default-home') };
 await prepareImages(root, cloudflareOptions);
+assert.equal(JSON.parse(await readFile(path.join(configuredNpmCache, 'xeu-images/images.json'), 'utf8'))['static/images/cover.jpg'].fingerprint, formats['static/images/cover.jpg'].fingerprint, 'Cloudflare 必须使用 npm 实际配置的缓存目录');
 const cloudflareDeploy = await mkdtemp(path.join(tmpdir(), 'xeu-images-cloudflare-deploy-'));
 await cp(path.join(root, 'content'), path.join(cloudflareDeploy, 'content'), { recursive: true });
 await cp(path.join(root, 'static/images'), path.join(cloudflareDeploy, 'static/images'), { recursive: true });
 const cloudflareLogs = [];
 assert.deepEqual(await prepareImages(cloudflareDeploy, { ...cloudflareOptions, log: line => cloudflareLogs.push(line) }), formats);
-assert.match(cloudflareLogs.at(-1), /缓存复用 6 张.*从构建缓存恢复 [1-6] 张.*0 张新生成.*Cloudflare Workers/);
+assert.match(cloudflareLogs.at(-1), /缓存复用 6 张.*从构建缓存恢复 [1-6] 张.*0 张新生成.*Cloudflare Workers，恢复索引 6 条/);
 for (const entry of Object.values(formats)) {
   for (const variant of entry.variants) {
     assert.deepEqual(await readFile(path.join(cloudflareDeploy, 'static', variant.src)), await readFile(path.join(root, 'static', variant.src)), 'Cloudflare 缓存恢复的缩略图必须逐字节一致');

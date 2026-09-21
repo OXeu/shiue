@@ -23,7 +23,11 @@ const variantWidths = width => [...new Set(widths.map(size => Math.min(size, wid
 function defaultCacheRoots(root, buildEnv, homeDirectory) {
   // Workers Builds and Pages persist the package manager's global .npm cache.
   // Vercel's Other builder instead persists node_modules between builds.
-  if (buildEnv.WORKERS_CI === '1' || buildEnv.CF_PAGES === '1') return [path.join(homeDirectory, '.npm/xeu-images')];
+  if (buildEnv.WORKERS_CI === '1' || buildEnv.CF_PAGES === '1') {
+    const configured = buildEnv.NPM_CONFIG_CACHE || buildEnv.npm_config_cache;
+    const npmCache = configured ? path.resolve(root, configured) : path.join(homeDirectory, '.npm');
+    return [path.join(npmCache, 'xeu-images')];
+  }
   return [path.join(root, 'node_modules/.cache/xeu-images')];
 }
 
@@ -89,6 +93,7 @@ export async function prepareImages(root = projectRoot, {
   const previousText = await readFile(manifestPath, 'utf8').catch(() => '{}');
   const previous = await readManifest(manifestPath);
   const persisted = await Promise.all(caches.map(cache => readManifest(cache.manifest)));
+  const persistedEntries = persisted.reduce((total, value) => total + Object.keys(value).length, 0);
   const byFingerprint = new Map(persisted.flatMap(value => Object.values(value)).filter(entry => /^[a-f0-9]{24}$/.test(entry?.fingerprint))
     .map(entry => [entry.fingerprint, entry]));
   const manifest = {};
@@ -181,8 +186,9 @@ export async function prepareImages(root = projectRoot, {
     }
   }
   const totalImages = Object.keys(sorted).length;
-  const cacheProvider = buildEnv.WORKERS_CI === '1' ? 'Cloudflare Workers' : buildEnv.CF_PAGES === '1' ? 'Cloudflare Pages' : buildEnv.VERCEL === '1' ? 'Vercel' : '本机构建';
-  log(`图片准备完成：${totalImages} 张图片，缓存复用 ${totalImages - generated} 张（从构建缓存恢复 ${restored} 张），${generated} 张新生成缩略图与 BlurHash；缓存目标：${cacheProvider}。`);
+  const cacheProvider = buildEnv.WORKERS_CI === '1' ? 'Cloudflare Workers'
+    : buildEnv.CF_PAGES === '1' ? 'Cloudflare Pages' : buildEnv.VERCEL === '1' ? 'Vercel' : '本机构建';
+  log(`图片准备完成：${totalImages} 张图片，缓存复用 ${totalImages - generated} 张（从构建缓存恢复 ${restored} 张），${generated} 张新生成缩略图与 BlurHash；缓存目标：${cacheProvider}，恢复索引 ${persistedEntries} 条，目录 ${caches.map(cache => path.dirname(cache.manifest)).join(', ')}。`);
   return sorted;
 }
 
