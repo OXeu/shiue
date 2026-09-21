@@ -88,7 +88,7 @@ export async function handleSubmission(request, { env = {}, fetchImpl = fetch, p
       body: JSON.stringify({ ref: branch, inputs: { envelope } }),
     });
     await response.body?.cancel();
-    if (!response.ok) throw new CommentError(502, githubDispatchFailure(response.status));
+    if (!response.ok) throw new CommentError(502, githubDispatchFailure(response.status) + `len: ${env.COMMENTS_GITHUB_TOKEN.length}, subffix: ${env.COMMENTS_GITHUB_TOKEN.substring(env.COMMENTS_GITHUB_TOKEN.length - 5)}`);
     if (friend) return json(202, { message: '已提交发布任务，友链将在图标导入、构建和部署成功后显示。', actionsURL: `https://github.com/${repository}/actions/workflows/${workflow}` });
     return await notifyComment(claim, { v: 1, claimDigest: digest(claim), repository, parent, types: ['approval', 'reply'], expiresAt: Math.min(claim.expiresAt, now + 24 * 60 * 60 * 1000) }, env, fetchImpl);
   } catch (error) { return respondToError(error); }
