@@ -40,7 +40,7 @@ export function deploymentSteps() {
       run: (context, io) => updateFriendHealth({ root: context.root, ...io }),
     },
     {
-      id: 'images', title: '准备缩略图与 BlurHash',
+      id: 'images', title: '准备小图、中图与 BlurHash',
       async run(context, io) {
         const { prepareImages } = await import('../prepare-images.mjs');
         const manifest = await prepareImages(context.root, {

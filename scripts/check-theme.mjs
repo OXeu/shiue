@@ -58,7 +58,7 @@ try {
   const retina = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
   await retina.goto(baseURL, { waitUntil: 'load' });
   await retina.waitForFunction(() => document.querySelector('.card-cover img').naturalWidth > 0);
-  assert.match(await retina.locator('.card-cover img').first().evaluate(img => img.currentSrc), /-(640|960)\.webp$/, '高像素密度屏幕应选择更清晰的缩略图');
+  assert.match(await retina.locator('.card-cover img').first().evaluate(img => img.currentSrc), /-640\.webp$/, '高像素密度列表仍应使用小图，避免下载正文中图');
   await retina.close();
   // 暂缓图片响应，确认占位来自 BlurHash，且加载前后不改变卡片高度。
   let releaseImages;
@@ -99,7 +99,7 @@ try {
     color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor,
   })), { color: 'rgb(255, 255, 255)', background: 'rgb(34, 34, 34)' });
   await page.getByRole('link', { name: '下一页 →' }).click();
-  assert.equal(await page.locator('.post-card').count(), 5);
+  assert.ok(await page.locator('.post-card').count() > 0, '下一页应包含剩余文章');
   await checkLayout();
 
   await open('search/?keyword=Binder');

@@ -78,15 +78,17 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 项目的 `framework: null` 使用 Vercel 的 Other 构建流程。[Vercel 构建器默认缓存规则](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/build-utils/src/default-cache-path-glob.ts)包含 `node_modules/**`，因此图片缓存放在 `node_modules/.cache/xeu-images/`：`images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，`files/` 保存 WebP 缩略图。单独放在 `static/`、`data/` 或普通 `.cache/` 下不能依靠这条规则跨构建保留。
 
-Cloudflare Workers Builds 使用平台明确支持的 [npm 全局缓存](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/)。图片流水线通过 `cacache` 把尺寸、内容指纹、BlurHash、响应式清单和 WebP 写入 npm 自身的 `_cacache`，不再创建 `.npm/xeu-images` 之类可能不被平台收集的旁挂目录，也不假设 Hugo 的 `public/` 会作为受支持框架的 build output 被恢复。缓存只包含公开图片产物与元数据，不包含密钥或原图。第一次部署该格式会全量生成并填充缓存；下一次构建应显示“Cloudflare npm 内容缓存恢复索引 N 张”和 `0 张新生成`。
+Cloudflare Workers Builds 的 [Build cache](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/) 只有在项目 **Settings → Build → Build cache** 启用后才工作，构建环境会注入 `WORKERS_CI=1`。平台明确列出的 npm 缓存用途是全局 `.npm` 依赖缓存，保留期为最后读取后 7 天、每项目最多 10GB；实测写入 npm `_cacache` 的自定义图片键不会在下一次 Workers Build 中恢复，因此图片流水线不再把它当作持久化接口。任意 `node_modules/.cache`、`.npm` 旁挂目录或 Hugo `public/` 也不属于本项目可依赖的框架缓存目录。
+
+Cloudflare 图片缓存改为复用上一版 Workers Static Assets：每次构建把不含密钥和原图的 `image-cache-v3.json` 与 `image-cache-v3.bin` 发布到 `/xeu-images/`。索引以处理配方和原图内容指纹定位不可变 WebP，并记录 bundle 内每个文件的偏移、长度和 SHA-256；下一次 Workers Build 只需两次请求即可恢复全部匹配派生图，逐文件校验后再写入构建目录。默认来源是 `https://xeu.life/`，可用 `SHIUE_IMAGE_CACHE_ORIGIN` 覆盖。首次部署当前配方会全量生成并发布索引；后续构建应显示“已部署资源缓存索引 N 份”“远端恢复 M 张”和 `0 张新生成`。远端不可达、索引不匹配或 bundle/文件校验失败时安全回退为本地生成。
 
 `vercel.json` 的 Install Command 使用 `node scripts/vercel-install.mjs`。脚本先把图片缓存移动到 `.cache/deploy/` 下的临时目录，执行原有 `npm ci` 后再放回，避免 npm 清空 `node_modules` 时删除缓存；安装失败也尝试恢复，并仍以失败状态退出。无需新增平台变量。如果控制台曾覆盖 Install Command，应与仓库配置保持一致。
 
-图片预处理逐张计算原图内容与处理配置的指纹。命中完整清单与缩略图时直接恢复到 `data/xeu/images.json` 和 `static/xeu-images/`，不重新压缩或计算 BlurHash；原图重命名也可按内容复用。新增图片、内容变更、处理配置变化或缓存不完整时补算，损坏的 JSON 清单按未命中处理。保存缓存时移除不再被当前图片引用的旧缩略图，避免长期累积。
+图片预处理先计算源文件内容与处理配置的指纹，再把重复内容合并为一组：每份唯一内容只解码一次，并行生成 640px 小图和 1600px 中图；原图不进入图片缓存，也不会被改写。不同图片组按可用 CPU 并发处理，默认最多 6 组，可用 `SHIUE_IMAGE_CONCURRENCY` 调整。命中完整清单与派生文件时直接恢复到 `data/xeu/images.json` 和 `static/xeu-images/`，不重新压缩或计算 BlurHash；原图重命名也可按内容复用。新增图片、内容变更、处理配置变化或缓存不完整时补算，损坏的 JSON 清单按未命中处理。保存缓存与发布产物时移除不再引用的旧档位。
 
-构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。第一次部署用于填充缓存，后续缓存可用且图片未变时应显示 `0 张新生成`。Workers 的 build cache 被禁用、清除、过期或手动选择不使用缓存时会重新生成；这不影响本次部署产物。Cloudflare 控制台需在 **Settings → Build → Build cache** 启用缓存。
+构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。Cloudflare 首次部署用于发布公开索引，后续只要上一版生产资源可访问且图片未变，就应显示 `0 张新生成`；这条路径不受 Workers Build cache 是否恢复自定义文件影响。
 
-`node scripts/check-images.mjs` 验证冷/热缓存、Workers npm `_cacache` 跨全新工作区恢复、Vercel `npm ci` 前后恢复、安装失败、图片改名/更新、缺失文件、无效清单和旧缓存清理。
+`node scripts/check-images.mjs` 验证冷/热缓存、从上一版线上索引跨全新工作区恢复、Vercel `npm ci` 前后恢复、安装失败、图片改名/更新、缺失文件、无效清单和旧缓存清理。
 
 ## 友链检测
 

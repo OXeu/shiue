@@ -11,12 +11,10 @@ const measurements = [];
 
 try {
   // 独立上下文避免缓存的大图影响 srcset 选择。
-  for (const [width, density, maxWidth] of [
-    [1174, 2, 768], [390, 2, 768], [1440, 1, 320], [1440, 2, 640],
-    // 原网格断点附近，稳定滚动条会减少实际可用列数。
-    [608, 1, 640], [620, 1, 640], [628, 1, 320],
-    [892, 1, 480], [906, 1, 480], [912, 1, 320],
-    [1176, 1, 480], [1190, 1, 480], [1196, 1, 320],
+  for (const [width, density] of [
+    [1174, 2], [390, 2], [1440, 1], [1440, 2],
+    // 原网格断点附近也始终只请求小图。
+    [608, 1], [620, 1], [628, 1], [892, 1], [912, 1], [1196, 1],
   ]) {
     const page = await browser.newPage({ viewport: { width, height: 823 }, deviceScaleFactor: density });
     const errors = [];
@@ -42,15 +40,14 @@ try {
     const first = covers[0];
     assert.equal(first.loading, 'eager');
     assert.equal(first.priority, 'high');
-    assert.ok(!first.sizes.startsWith('auto'), '立即加载不能使用 sizes=auto');
-    assert.match(first.srcset, /480w/);
-    assert.match(first.srcset, /768w/);
+    assert.equal(first.srcset, '', '列表不应提供正文中图候选');
+    assert.equal(first.sizes, '');
     assert.ok(covers.slice(1).every(img => img.loading === 'lazy' && img.priority !== 'high'));
-    assert.ok(covers.slice(1).every(img => img.sizes.startsWith('auto, ')));
+    assert.ok(covers.slice(1).every(img => !img.srcset && !img.sizes));
     const pixels = Number(first.src.match(/-(\d+)\.webp$/)?.[1]);
-    assert.ok(pixels >= first.width * density, '首图不能因缩小尺寸而低于显示像素需求');
-    assert.ok(pixels <= maxWidth, `${width}px / ${density}x 选择了过大的缩略图：${first.src}`);
-    const firstRequests = requested.filter(request => first.srcset.includes(new URL(request.url).pathname));
+    assert.equal(pixels, 640, '列表必须固定加载 640px 小图');
+    const firstPath = new URL(first.src).pathname;
+    const firstRequests = requested.filter(request => new URL(request.url).pathname === firstPath);
     assert.equal(firstRequests.length, 1, '首图不应重复下载 fallback 和 srcset 图片');
     assert.equal(firstRequests[0].priority, 'High', '首图请求应从一开始就是高优先级');
     assert.ok(requested.every(request => new URL(request.url).pathname.includes('/xeu-images/')), '列表不得请求原图');
@@ -69,11 +66,10 @@ try {
     const img = await noJS.locator('.card-cover img').first().evaluate(img => ({
       loaded: img.complete && img.naturalWidth > 0, loading: img.loading, width: img.getBoundingClientRect().width,
       selected: Number(img.currentSrc.match(/-(\d+)\.webp$/)?.[1]),
-      largest: Math.max(...img.srcset.split(',').map(candidate => parseInt(candidate.trim().split(/\s+/)[1], 10))),
     }));
     assert.ok(img.loaded);
     assert.equal(img.loading, 'eager');
-    assert.ok(img.selected >= Math.min(img.width, img.largest), '少量卡片的无 JS 网格不能按四列选取过小图片');
+    assert.equal(img.selected, 640, '无 JS 列表也应固定使用小图');
     await noJS.close();
   }
   await writeFile(path.join(artifacts, 'measurements.json'), JSON.stringify(measurements, null, 2));

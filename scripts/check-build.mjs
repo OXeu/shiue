@@ -20,11 +20,12 @@ catch { identity = await prepareIdentity({ root }); }
 const images = await prepareImages(root);
 for (const [source, image] of Object.entries(images)) {
   assert.ok(isBlurhashValid(image.blurhash).result, `BlurHash 无效：${source}`);
-  for (const variant of image.variants) {
+  assert.deepEqual(image.variants.map(item => item.role), ['thumbnail', 'medium'], `图片角色不完整：${source}`);
+  for (const variant of new Map(image.variants.map(item => [item.src, item])).values()) {
     const metadata = await sharp(path.join(root, 'static', variant.src), { animated: true }).metadata();
     assert.equal(metadata.format, 'webp');
-    assert.equal(metadata.width, variant.width, `缩略图尺寸不符：${source}`);
-    assert.ok(variant.width <= 1440 && variant.width <= image.width, '缩略图不得放大原图');
+    assert.equal(metadata.width, variant.width, `派生图片尺寸不符：${source}`);
+    assert.ok(variant.width <= 1600 && variant.width <= image.width, '派生图片不得放大原图');
   }
 }
 const output = mkdtempSync(path.join(tmpdir(), 'shiue-build-'));
@@ -150,24 +151,25 @@ assert.match(home, /<article\b/, '首页缺少文章卡片');
 assert.match(home, /data-masonry/, '首页缺少瀑布流');
 function checkCardImages(html) {
   const cards = [...html.matchAll(/<article\b[^>]*class=["']?post-card\b[\s\S]*?<\/article>/g)];
-  for (const [index, [card]] of cards.entries()) {
+  let imageIndex = 0;
+  for (const [card] of cards) {
     const img = card.match(/<img\b[^>]*>/)?.[0];
     if (!img) continue;
-    assert.match(img, index === 0 ? /loading=["']?eager\b/ : /loading=["']?lazy\b/, '仅首张卡片封面立即加载');
-    if (index === 0) {
+    assert.match(img, imageIndex === 0 ? /loading=["']?eager\b/ : /loading=["']?lazy\b/, '仅第一张实际存在的卡片封面立即加载');
+    if (imageIndex === 0) {
       assert.match(img, /fetchpriority=["']?high\b/, '首张封面应高优先级加载');
       assert.doesNotMatch(img, /sizes=["']?auto\b/, '立即加载的图片不能使用 sizes=auto');
     } else assert.doesNotMatch(img, /fetchpriority=["']?high\b/, '其他封面不应抢占高优先级');
-    if (img.includes('srcset=')) {
-      assert.match(img, /\bwidth=/, '必须保留预留尺寸');
-      assert.match(img, /\bheight=/, '必须保留预留尺寸');
-    }
+    assert.doesNotMatch(img, /\bsrcset=/, '列表只能加载小图，不能候选正文中图');
+    assert.match(img, /\/xeu-images\/[a-f0-9]+-640\.webp/, '列表应使用 640px 小图');
+    assert.match(img, /\bwidth=/, '必须保留预留尺寸');
+    assert.match(img, /\bheight=/, '必须保留预留尺寸');
+    imageIndex++;
   }
 }
 checkCardImages(home);
 const firstCover = home.match(/<img\b[^>]*>/)?.[0];
-assert.match(firstCover, /480\.webp 480w/, '首页封面缺少 480px 档位');
-assert.match(firstCover, /768\.webp 768w/, '首页封面缺少 768px 档位');
+assert.match(firstCover, /-640\.webp/, '首页封面必须使用小图');
 const header = home.match(/<header\b[\s\S]*?<\/header>/)?.[0];
 assert.ok(header, '首页缺少页头');
 assert.doesNotMatch(header, /<img\b|<svg\b/, '页头必须为纯文本');
@@ -277,13 +279,8 @@ for (const article of search) {
     assert.match(article.image, /\/xeu-images\/.*\.webp$/, '搜索结果不应加载原图');
     assert.ok(isBlurhashValid(article.imageData.blurhash).result);
     localAsset(article.imageData.original);
-    assert.ok(article.imageData.sizes.startsWith('auto, '), '搜索封面应保留懒加载自动尺寸');
-    if (article.imageData.width >= 768) assert.match(article.imageData.srcset, /768\.webp 768w/, '搜索结果缺少中间档位');
-    for (const candidate of article.imageData.srcset.split(', ')) {
-      const [src, width] = candidate.split(' ');
-      localAsset(src);
-      assert.ok(parseInt(width, 10) <= 960, '列表缩略图过大');
-    }
+    assert.equal(article.imageData.srcset, undefined, '搜索封面不能暴露正文中图候选');
+    assert.match(article.image, /-640\.webp$/, '搜索封面应使用 640px 小图');
   }
   const $article = load(html);
   for (const image of $article('img[src]').toArray()) localAsset($article(image).attr('src'));

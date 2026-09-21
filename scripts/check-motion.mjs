@@ -160,7 +160,7 @@ try {
   const cover = page.locator('.card-cover').first();
   await cover.locator('canvas').waitFor();
   await page.mouse.move(0, 0);
-  await page.locator('.post-card').first().hover();
+  await cover.locator('..').hover();
   releaseCovers();
   await page.waitForFunction(() => document.querySelector('.card-cover').classList.contains('image-loaded'));
   const hoverHandoff = await cover.evaluate(async frame => {

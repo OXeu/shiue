@@ -1,9 +1,8 @@
 {{- $page := .page -}}
 {{- $eager := .eager | default false -}}
-{{- $columns := int (math.Min 4 (.count | default 4)) -}}
 <article class="post-card">
   {{ with $page.Params.image }}
-    {{ $image := partial "image.html" (dict "page" $page "src" . "kind" "card" "eager" $eager "columns" $columns) }}
+    {{ $image := partial "image.html" (dict "page" $page "src" . "kind" "card") }}
     <a class="card-cover" href="{{ $page.RelPermalink }}" tabindex="-1" aria-hidden="true" data-progressive-image{{ with $image.blurhash }} data-blurhash="{{ . }}"{{ end }}{{ if and $image.width $image.height }} data-ratio="{{ div (float $image.width) $image.height }}"{{ end }}>
       <img src="{{ $image.src }}"{{ with $image.srcset }} srcset="{{ . }}" sizes="{{ $image.sizes }}"{{ end }} alt=""{{ if $eager }} loading="eager" fetchpriority="high"{{ else }} loading="lazy"{{ end }} decoding="async"{{ with $image.width }} width="{{ . }}"{{ end }}{{ with $image.height }} height="{{ . }}"{{ end }}>
     </a>

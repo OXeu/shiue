@@ -8,28 +8,12 @@
     "health": ""
   },
   {
-    "title": "ligen131",
-    "description": "Don't worry, be happy.",
-    "website": "https://ligen.life/",
-    "image": "/friends/ligen.life-a55a555b896a2800.webp",
-    "iconSource": "https://images.xeu.life/images/46ed16b0ea05dee999474d079f4348b4a32e1f5b.jpg",
-    "health": "526"
-  },
-  {
     "title": "jyi2ya 的博客",
     "description": "Let me write C again and kill me.",
     "website": "https://jyi2ya.github.io/",
     "image": "/friends/jyi2ya.github.io-c6552a7741ed5f5b.webp",
     "iconSource": "https://avatars.githubusercontent.com/u/86813521",
     "health": ""
-  },
-  {
-    "title": "GGG.Life",
-    "description": "Grow, Gain, Glow",
-    "website": "https://ggg.life/",
-    "image": "/friends/ggg.life-f95cf857e3bcec55.webp",
-    "iconSource": "https://avatars.githubusercontent.com/u/107761771?v=4",
-    "health": "522"
   },
   {
     "title": "Chales",
@@ -64,14 +48,6 @@
     "health": ""
   },
   {
-    "title": "foggy",
-    "description": "咕咕大王",
-    "website": "https://foggyww.life/",
-    "image": "/friends/foggyww.life-e0dda58ee0f9ac58.webp",
-    "iconSource": "https://avatars.githubusercontent.com/u/115924110",
-    "health": "530"
-  },
-  {
     "title": "Nick Chen's Blog",
     "description": "天王寺科技驱动⚡~",
     "website": "https://nickchen.top/",
@@ -93,14 +69,6 @@
     "website": "https://blog.houman.top/",
     "image": "/friends/blog.houman.top-aec06a42ae37a4ba.webp",
     "iconSource": "https://file.houman.top/leidun.png",
-    "health": ""
-  },
-  {
-    "title": "YiNN",
-    "description": "A plain blog",
-    "website": "https://just-plain.fun/",
-    "image": "/friends/just-plain.fun-8f8da0822cb4c3f1.webp",
-    "iconSource": "https://avatars.githubusercontent.com/u/86649490?v=4",
     "health": ""
   }
 ]

@@ -77,13 +77,13 @@ flowchart LR
 
 ## 图片加载
 
-构建时用 Sharp 自动处理 `static/` 和 `content/` 的本地位图（也识别无扩展名图片），生成 320、480、640、768、960、1440px WebP 和 4×3 BlurHash；小图不会放大，GIF/WebP 动图保留动画。WebP 质量维持 78，使用 effort 6 提高压缩效率；产物按图片内容及处理配置哈希缓存，替换原图或调整尺寸、压缩配置时自动生成新地址。
+构建时用 Sharp 自动处理 `static/` 和 `content/` 的本地位图（也识别无扩展名图片），每份唯一内容只生成两种 WebP：640px、质量 76 的小图用于卡片和搜索预览，1600px、质量 82 的中图用于正文；第三档是源文件本身，不改写、不重新压缩，只在点击正文图片打开预览器后加载。派生图使用 effort 4 和高质量色度下采样，小图不会放大，GIF/WebP 动图保留动画，同时生成 4×3 BlurHash。
 
-列表最多提供 960px 缩略图，正文最多 1440px，通过 `srcset`、`sizes` 按显示尺寸和像素密度选择；首页、分页和分类/标签列表首张卡片的封面立即加载并设置高优先级，其余图片默认懒加载。立即加载的封面使用响应式 `sizes`，懒加载图片使用 `auto` 加响应式回退。图片加载前由浏览器本地解码 BlurHash 占位，失败时保留占位。点击正文图片才加载原图。首页、分类、标签和搜索使用同一套图片数据。外部图片和 SVG 保留原地址；需要缩略图时可将外部图片保存为本地资源。
+列表固定加载 640px 小图，不因高像素密度屏幕下载正文中图；正文通过 `srcset`、`sizes` 在小图和 1600px 中图之间选择。首页、分页和分类/标签列表首张卡片的封面立即加载并设置高优先级，其余图片默认懒加载。图片加载前由浏览器本地解码 BlurHash 占位，失败时保留占位。点击正文图片才加载原图。首页、分类、标签和搜索使用同一套图片数据。外部图片和 SVG 保留原地址；需要缩略图时可将外部图片保存为本地资源。
 
 `data/xeu/images.json` 与 `static/xeu-images/` 是自动生成并被 Git 忽略的文件。更新图片后执行 `npm run images`；预览时可另开终端运行 `npm run images:watch` 自动更新。BlurHash 解码器采用 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`。
 
-缩略图和 BlurHash 清单按平台保存：Vercel 使用 `node_modules/.cache/xeu-images/`；Cloudflare Workers Builds 把稳定键条目写入 npm 全局缓存自身的 `_cacache`，由 Workers Build cache 跨构建恢复，而不是在 `.npm` 旁挂平台可能忽略的自定义目录。未变化的图片直接恢复，新增或变更图片才重新处理；首次构建或平台未提供缓存时正常全量生成。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
+派生图和 BlurHash 清单按平台复用：Vercel 使用 `node_modules/.cache/xeu-images/`；Cloudflare Workers Builds 从上一版已经部署的 `/xeu-images/image-cache-v3.json` 与单个校验 bundle 恢复，不依赖 npm `_cacache` 是否保存自定义条目。未变化的图片直接恢复到构建目录，新增或变更图片才重新处理；相同内容先按指纹合并，生成并发默认按可用 CPU 自动调整、最多 6，可用 `SHIUE_IMAGE_CONCURRENCY` 覆盖。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
 
 ## 站点头像与图标
 
