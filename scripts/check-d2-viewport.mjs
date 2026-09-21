@@ -66,19 +66,45 @@ try {
   previous = await camera(viewport);
   const pageScroll = await page.evaluate(() => scrollY);
   await page.mouse.move(box.x + anchor.x + border.x, box.y + anchor.y + border.y);
-  await page.keyboard.down('Control');
   await page.mouse.wheel(0, -90);
-  await page.keyboard.up('Control');
   await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('[data-d2-active]')).transform).a > 1);
   let next = await camera(viewport);
   near((anchor.x - next.x) / next.scale, (anchor.x - previous.x) / previous.scale, '缩放水平锚点');
   near((anchor.y - next.y) / next.scale, (anchor.y - previous.y) / previous.scale, '缩放垂直锚点');
-  near(await page.evaluate(() => scrollY), pageScroll, '修饰键滚轮不移动页面');
+  near(await page.evaluate(() => scrollY), pageScroll, '图框内滚轮不移动页面');
   near(await page.evaluate(() => visualViewport.scale), 1, '缩放图表不缩放浏览器视口');
   previous = next;
   await page.mouse.wheel(0, 200);
-  await page.waitForFunction(y => scrollY !== y, pageScroll);
-  near((await camera(viewport)).scale, previous.scale, '普通滚轮只滚动文章');
+  await page.waitForFunction(scale => new DOMMatrix(getComputedStyle(document.querySelector('[data-d2-active]')).transform).a < scale, previous.scale);
+  assert.ok((await camera(viewport)).scale < previous.scale, '向下滚轮应缩小图表');
+  near(await page.evaluate(() => scrollY), pageScroll, '缩小图表也不移动页面');
+
+  const viewer = block.locator('[data-d2-viewer]');
+  await action('fullscreen');
+  await page.waitForFunction(() => document.querySelector('[data-d2-viewer]')?.classList.contains('is-fullscreen'));
+  assert.equal(await page.locator('body').evaluate(body => body.classList.contains('d2-fullscreen-open')), true, '全屏预览应锁定页面滚动');
+  assert.equal(await block.locator('[data-d2-action="close"]').isVisible(), true, '全屏预览应显示关闭按钮');
+  const fullscreenBox = await viewer.boundingBox();
+  near(fullscreenBox.x, 0, '全屏预览左边缘', 1);
+  near(fullscreenBox.y, 0, '全屏预览上边缘', 1);
+  near(fullscreenBox.width, 1280, '全屏预览宽度', 1);
+  near(fullscreenBox.height, 900, '全屏预览高度', 1);
+  const dock = await block.locator('[data-d2-controls]').evaluate(node => {
+    const box = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return { right: innerWidth - box.right, top: box.top, position: style.position, radius: style.borderRadius, blur: style.backdropFilter };
+  });
+  assert.equal(dock.position, 'fixed');
+  assert.ok(dock.right <= 17 && dock.top <= 17, '全屏操作区应悬浮在右上角');
+  assert.notEqual(dock.radius, '0px', '全屏操作区应为圆角矩形');
+  assert.notEqual(dock.blur, 'none', '全屏操作区应启用毛玻璃模糊');
+  await viewer.screenshot({ path: path.join(artifacts, 'fullscreen-dock.png') });
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('[data-d2-viewer]')?.classList.contains('is-fullscreen'));
+  assert.equal(await page.locator('body').evaluate(body => body.classList.contains('d2-fullscreen-open')), false);
+  await action('fullscreen');
+  await block.locator('[data-d2-action="close"]').click();
+  assert.equal(await viewer.evaluate(node => node.classList.contains('is-fullscreen')), false, '右上角关闭按钮应退出全屏');
 
   await viewport.scrollIntoViewIfNeeded();
   await action('actual');
@@ -181,6 +207,10 @@ try {
   near(next.x - previous.x, 50, '单指水平拖拽', 1);
   near(next.y - previous.y, 45, '单指垂直拖拽', 1);
   assert.equal(await touchViewport.evaluate(element => element.classList.contains('is-dragging')), false, '取消触摸应清理拖拽状态');
+  await mobile.locator('[data-d2-action="fullscreen"]').click();
+  const mobileDock = await mobile.locator('[data-d2-controls]').boundingBox();
+  assert.ok(mobileDock.x >= 0 && mobileDock.x + mobileDock.width <= 390, '手机全屏操作区不得溢出视口');
+  await mobile.locator('[data-d2-action="close"]').click();
   await mobile.locator('[data-d2]').screenshot({ path: path.join(artifacts, 'touch-zoom.png') });
   await sendTouch('touchStart', [point(1, 4, 600)]);
   for (const y of [550, 500, 450, 400, 350]) await sendTouch('touchMove', [point(1, 4, y)]);
@@ -188,7 +218,7 @@ try {
   await mobile.waitForFunction(y => scrollY !== y, touchScroll);
   await mobile.close();
   assert.deepEqual(errors, []);
-  console.log(`D2 图表交互检查通过：缩放按钮与边界、指针锚点、拖拽及框外释放、键盘、原图/适应、主题/尺寸状态保留、多图隔离、触屏捏合/拖拽/取消、页面正常滚动。截图：${artifacts}`);
+  console.log(`D2 图表交互检查通过：滚轮指针锚点、缩放边界、拖拽及框外释放、全屏 Dock 与 Esc/X、键盘、原图/适应、主题/尺寸状态保留、多图隔离、触屏捏合/拖拽/取消、页面正常滚动。截图：${artifacts}`);
 } finally {
   await browser.close();
 }

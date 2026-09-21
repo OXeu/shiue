@@ -24,6 +24,7 @@ try {
   await page.goto(articleURL);
   await block.scrollIntoViewIfNeeded();
   assert.equal(await block.locator('[data-d2-output] > svg').count(), 2, 'SSG 应内联浅深两份 SVG');
+  assert.equal(await block.locator('[data-d2-hint]').count(), 0, '不再显示图表手势提示');
   assert.equal(await activeSVG().getAttribute('data-d2-render-theme'), 'light');
   assert.equal(await block.locator('.d2-source').getAttribute('open'), null);
   assert.match(await activeSVG().textContent(), /读者提交评论/);
@@ -71,7 +72,7 @@ try {
   await noJS.close();
   assert.deepEqual(engineRequests, []);
   assert.deepEqual(errors, []);
-  console.log(`D2 SSG 检查通过：双主题静态 SVG、零渲染引擎请求、主题切换、手机布局、缩放增强、源码复制与无 JavaScript。截图：${artifacts}`);
+  console.log(`D2 SSG 检查通过：双主题静态 SVG、零渲染引擎请求、主题切换、手机布局、缩放增强、精简提示、源码复制与无 JavaScript。截图：${artifacts}`);
 } finally {
   await browser.close();
 }

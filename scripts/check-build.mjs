@@ -144,8 +144,10 @@ assert.equal($d2('[data-d2-output] script, [data-d2-output] [onerror]').length, 
 assert.doesNotMatch($d2.html(), /@font-face|data:application\/font-woff/, '静态 SVG 不应重复内嵌字体');
 assert.match($d2.html(), /font-family:var\(--font-body\)/, '静态 SVG 应继承站点中文字体栈');
 assert.equal($d2('[data-d2-controls][hidden]').length, 2, '缩放控件只在图表可交互时显示');
-assert.equal($d2('[data-d2-controls] button[type="button"][aria-label]').length, 4);
+assert.equal($d2('[data-d2-controls] button[type="button"][aria-label]').length, 12);
 assert.equal($d2('[data-d2-action="fit"]').length, 2);
+assert.equal($d2('[data-d2-action="fullscreen"]').length, 2);
+assert.equal($d2('[data-d2-hint]').length, 0);
 assert.equal($d2('.d2-source .copy-code').length, 2);
 assert.equal($d2('.prose > .code-block .copy-code').length, 1, '普通代码块不受影响');
 const d2Script = $d2('script[data-d2-script][type="module"]');

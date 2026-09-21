@@ -3,9 +3,12 @@ const maxScale = 4;
 const step = 1.25;
 
 export function createD2Viewport(element) {
+  const viewer = element.querySelector('[data-d2-viewer]');
   const viewport = element.querySelector('[data-d2-output]');
   const controls = element.querySelector('[data-d2-controls]');
   const zoomLabel = element.querySelector('[data-d2-zoom]');
+  const fullscreenButton = controls.querySelector('[data-d2-action="fullscreen"]');
+  const closeButton = controls.querySelector('[data-d2-action="close"]');
   const pointers = new Map();
   let svg;
   let width = 1;
@@ -18,6 +21,8 @@ export function createD2Viewport(element) {
   let viewportHeight = 0;
   let gesture;
   let dragged = false;
+  let fullscreen = false;
+  let returnFocus;
 
   const fitScale = () => Math.min(1, Math.max(1, viewport.clientWidth - 32) / width, Math.max(1, viewport.clientHeight - 32) / height);
   const minScale = () => Math.min(.1, fitScale());
@@ -85,15 +90,52 @@ export function createD2Viewport(element) {
     beginGesture();
   }
 
+  function setFullscreen(next, restoreFocus = true) {
+    if (fullscreen === next) return;
+    cancelGesture();
+    fullscreen = next;
+    fullscreenButton.setAttribute('aria-expanded', String(next));
+    if (next) {
+      document.dispatchEvent(new CustomEvent('d2-fullscreen-open', { detail: viewer }));
+      returnFocus = document.activeElement;
+      viewer.classList.add('is-fullscreen');
+      viewer.setAttribute('role', 'dialog');
+      viewer.setAttribute('aria-modal', 'true');
+      viewer.setAttribute('aria-label', 'D2 图表全屏预览');
+      document.documentElement.classList.add('d2-fullscreen-open');
+      document.body.classList.add('d2-fullscreen-open');
+      fullscreenButton.hidden = true;
+      closeButton.hidden = false;
+      closeButton.focus({ preventScroll: true });
+    } else {
+      viewer.classList.remove('is-fullscreen');
+      viewer.removeAttribute('role');
+      viewer.removeAttribute('aria-modal');
+      viewer.removeAttribute('aria-label');
+      if (!document.querySelector('.d2-viewer.is-fullscreen')) {
+        document.documentElement.classList.remove('d2-fullscreen-open');
+        document.body.classList.remove('d2-fullscreen-open');
+      }
+      fullscreenButton.hidden = false;
+      closeButton.hidden = true;
+      if (restoreFocus && returnFocus instanceof HTMLElement && returnFocus.isConnected) returnFocus.focus({ preventScroll: true });
+    }
+  }
+
+  document.addEventListener('d2-fullscreen-open', event => {
+    if (fullscreen && event.detail !== viewer) setFullscreen(false, false);
+  });
+
   controls.addEventListener('click', event => {
     const action = event.target.closest('[data-d2-action]')?.dataset.d2Action;
     if (!action) return;
     cancelGesture();
-    if (action === 'fit') fit();
+    if (action === 'fullscreen') setFullscreen(true);
+    else if (action === 'close') setFullscreen(false);
+    else if (action === 'fit') fit();
     else zoom(action === 'actual' ? 1 : scale * (action === 'in' ? step : 1 / step));
   });
   viewport.addEventListener('wheel', event => {
-    if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1;
     zoom(scale * Math.exp(-clamp(event.deltaY * unit, -250, 250) * .005), localPoint(event));
@@ -139,8 +181,32 @@ export function createD2Viewport(element) {
     else if (event.key === '0' || event.key === 'Home') fit();
     else zoom(event.key === '1' ? 1 : scale * (['+', '='].includes(event.key) ? step : 1 / step));
   });
+  document.addEventListener('keydown', event => {
+    if (!fullscreen) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setFullscreen(false);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [...viewer.querySelectorAll('button:not([hidden]):not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')]
+      .filter(node => node.getClientRects().length);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
   window.addEventListener('blur', cancelGesture);
-  window.addEventListener('pagehide', cancelGesture);
+  window.addEventListener('pagehide', () => {
+    cancelGesture();
+    if (fullscreen) setFullscreen(false, false);
+  });
 
   function resize() {
     if (!svg || !viewport.clientWidth || !viewport.clientHeight) return;
@@ -167,7 +233,6 @@ export function createD2Viewport(element) {
       Object.assign(svg.style, { width: `${width}px`, height: `${height}px`, maxWidth: 'none' });
       viewport.classList.add('is-interactive');
       controls.hidden = false;
-      element.querySelector('[data-d2-hint]').hidden = false;
       viewportWidth = viewport.clientWidth;
       viewportHeight = viewport.clientHeight;
       if (autoFit) fit();

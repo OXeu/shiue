@@ -12,15 +12,22 @@
 <figure class="d2-block" data-d2 data-d2-theme="light" aria-labelledby="{{ $instance }}-caption">
   <span data-d2-rss-start hidden></span>
   <figcaption class="d2-caption" id="{{ $instance }}-caption">{{ $caption }}</figcaption>
-  <div class="d2-controls" data-d2-controls hidden role="group" aria-label="图表缩放">
-    <button type="button" data-d2-action="out" aria-label="缩小图表" title="缩小">−</button>
-    <output data-d2-zoom aria-label="缩放比例" aria-live="polite">100%</output>
-    <button type="button" data-d2-action="in" aria-label="放大图表" title="放大">+</button>
-    <button type="button" data-d2-action="actual" title="原始大小（1）">原始大小</button>
-    <button type="button" data-d2-action="fit" title="适应窗口（0）">适应窗口</button>
+  <div class="d2-viewer" data-d2-viewer>
+    <div class="d2-controls" data-d2-controls hidden role="group" aria-label="图表操作">
+      <button type="button" data-d2-action="out" aria-label="缩小图表" title="缩小">−</button>
+      <output data-d2-zoom aria-label="缩放比例" aria-live="polite">100%</output>
+      <button type="button" data-d2-action="in" aria-label="放大图表" title="放大">+</button>
+      <button type="button" data-d2-action="actual" aria-label="显示图表原始大小" title="原始大小（1）"><span class="d2-action-label">原始大小</span><span class="d2-action-compact" aria-hidden="true">1:1</span></button>
+      <button type="button" data-d2-action="fit" aria-label="使图表适应窗口" title="适应窗口（0）"><span class="d2-action-label">适应窗口</span><svg class="d2-action-compact" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M8 9h8v6H8z"/></svg></button>
+      <button class="d2-fullscreen-open" type="button" data-d2-action="fullscreen" aria-label="全屏预览图表" aria-haspopup="dialog" aria-expanded="false" title="全屏预览">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+      </button>
+      <button class="d2-fullscreen-close" type="button" data-d2-action="close" aria-label="关闭全屏预览" title="关闭（Esc）" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="d2-diagram" data-d2-output tabindex="0" role="group" aria-label="交互式图表：滚轮缩放，拖拽移动，加减键缩放，方向键移动，0 适应窗口，1 原始大小">{{ $light | safeHTML }}{{ $dark | safeHTML }}</div>
   </div>
-  <div class="d2-diagram" data-d2-output tabindex="0" role="group" aria-label="交互式图表：加减键缩放，方向键移动，0 适应窗口，1 原始大小" aria-describedby="{{ $instance }}-hint">{{ $light | safeHTML }}{{ $dark | safeHTML }}</div>
-  <p class="d2-hint" id="{{ $instance }}-hint" data-d2-hint hidden>拖拽移动 · Ctrl/⌘ + 滚轮缩放 · 触屏双指缩放</p>
   <span data-d2-rss-end hidden></span>
   <details class="d2-source">
     <summary>图表源码</summary>

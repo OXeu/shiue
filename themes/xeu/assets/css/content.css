@@ -51,11 +51,44 @@
 .d2-controls button:is(:hover, :focus-visible) { background: var(--hover); }
 .d2-controls button:disabled { cursor: default; opacity: .45; }
 .d2-controls output { min-width: 54px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-soft); }
+.d2-controls .d2-fullscreen-open { display: grid; place-items: center; margin-left: auto; padding: 10px; }
+.d2-controls svg { display: block; width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.d2-controls .d2-action-compact { display: none; }
 .d2-diagram.is-interactive { position: relative; height: clamp(260px, 55vh, 480px); padding: 0; overflow: hidden; touch-action: none; user-select: none; cursor: grab; }
 .d2-diagram.is-interactive > svg { position: absolute; top: 0; left: 0; margin: 0; transform-origin: 0 0; }
 .d2-diagram.is-dragging { cursor: grabbing; }
 .d2-diagram.is-dragging > svg { will-change: transform; }
-.prose .d2-hint { margin: 8px 0; color: var(--muted); font-size: 12px; }
+html.d2-fullscreen-open { overflow: hidden; scrollbar-gutter: auto; }
+body.d2-fullscreen-open { overflow: hidden; }
+.d2-viewer.is-fullscreen { position: fixed; inset: 0; z-index: 1000; background: var(--surface); animation: d2-fullscreen-in 180ms ease-out; }
+.d2-viewer.is-fullscreen .d2-diagram { width: 100%; max-width: none; height: 100dvh; border: 0; border-radius: 0; }
+.d2-viewer.is-fullscreen .d2-controls {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 1001;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-hover) 65%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow: 0 12px 36px rgb(0 0 0 / .16), inset 0 1px 0 rgb(255 255 255 / .34);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+}
+.d2-viewer.is-fullscreen .d2-controls button { background: transparent; }
+.d2-viewer.is-fullscreen .d2-controls button:is(:hover, :focus-visible) { background: var(--hover); }
+.d2-viewer.is-fullscreen .d2-fullscreen-close { display: grid; place-items: center; padding: 10px; }
+@media (max-width: 600px) {
+  .d2-controls [data-d2-action="actual"], .d2-controls [data-d2-action="fit"] { width: 44px; min-width: 44px; padding-inline: 8px; }
+  .d2-controls .d2-action-label { display: none; }
+  .d2-controls .d2-action-compact { display: block; }
+  .d2-viewer.is-fullscreen .d2-controls { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); gap: 2px; padding: 4px; }
+  .d2-viewer.is-fullscreen .d2-controls button { width: 44px; min-width: 44px; padding-inline: 8px; }
+  .d2-viewer.is-fullscreen .d2-controls output { min-width: 46px; }
+}
+@keyframes d2-fullscreen-in { from { opacity: 0; } }
 .d2-source { margin-top: 8px; }
 .d2-source > summary { width: fit-content; padding: 8px 0; cursor: pointer; color: var(--muted); font-size: 13px; }
 .d2-source > summary:hover { color: var(--text); }
