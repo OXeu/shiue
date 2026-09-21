@@ -75,6 +75,22 @@ for (const format of ['gif', 'webp']) {
   assert.deepEqual(metadata.delay, [100, 200], '压缩不能改变动画速度');
 }
 
+// Cloudflare Workers Builds 只恢复全局 npm 缓存；全新工作区应能仅靠该目录恢复全部产物。
+const cloudflareHome = await mkdtemp(path.join(tmpdir(), 'xeu-images-cloudflare-home-'));
+const cloudflareOptions = { buildEnv: { WORKERS_CI: '1' }, homeDirectory: cloudflareHome };
+await prepareImages(root, cloudflareOptions);
+const cloudflareDeploy = await mkdtemp(path.join(tmpdir(), 'xeu-images-cloudflare-deploy-'));
+await cp(path.join(root, 'content'), path.join(cloudflareDeploy, 'content'), { recursive: true });
+await cp(path.join(root, 'static/images'), path.join(cloudflareDeploy, 'static/images'), { recursive: true });
+const cloudflareLogs = [];
+assert.deepEqual(await prepareImages(cloudflareDeploy, { ...cloudflareOptions, log: line => cloudflareLogs.push(line) }), formats);
+assert.match(cloudflareLogs.at(-1), /缓存复用 6 张.*从构建缓存恢复 [1-6] 张.*0 张新生成.*Cloudflare Workers/);
+for (const entry of Object.values(formats)) {
+  for (const variant of entry.variants) {
+    assert.deepEqual(await readFile(path.join(cloudflareDeploy, 'static', variant.src)), await readFile(path.join(root, 'static', variant.src)), 'Cloudflare 缓存恢复的缩略图必须逐字节一致');
+  }
+}
+
 // 模拟新部署：只有 Git 原图与 Vercel 保存的 node_modules 缓存，没有上次的发布产物。
 const deployed = await mkdtemp(path.join(tmpdir(), 'xeu-images-deploy-'));
 const cacheRelative = 'node_modules/.cache/xeu-images';
@@ -149,4 +165,4 @@ await copyFile(path.join(deployed, 'package-lock.json'), path.join(coldInstall, 
 await copyFile(path.join(deployed, '.npmrc'), path.join(coldInstall, '.npmrc'));
 await installDependencies(coldInstall, { log: () => {} });
 assert.deepEqual(await readdir(path.join(coldInstall, '.cache/deploy')), [], '首次无缓存安装必须成功');
-console.log(`图片流水线检查通过：响应式档位、比例、旋转、动图、无扩展名、小图、重复文件、跨构建缓存、npm ci 保留/失败恢复、缓存修复/清理及内容更新。产物：${root}；模拟部署：${deployed}`);
+console.log(`图片流水线检查通过：响应式档位、比例、旋转、动图、无扩展名、小图、重复文件、Cloudflare/Vercel 跨构建缓存、npm ci 保留/失败恢复、缓存修复/清理及内容更新。产物：${root}；模拟部署：${deployed}`);

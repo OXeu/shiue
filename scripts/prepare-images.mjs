@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { watch } from 'node:fs';
 import { readFile, writeFile, readdir, mkdir, access, rename, copyFile, stat, rm } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -18,6 +19,13 @@ const hasImage = file => stat(file).then(info => info.isFile() && info.size > 0,
   throw error;
 });
 const variantWidths = width => [...new Set(widths.map(size => Math.min(size, width)))];
+
+function defaultCacheRoots(root, buildEnv, homeDirectory) {
+  // Workers Builds and Pages persist the package manager's global .npm cache.
+  // Vercel's Other builder instead persists node_modules between builds.
+  if (buildEnv.WORKERS_CI === '1' || buildEnv.CF_PAGES === '1') return [path.join(homeDirectory, '.npm/xeu-images')];
+  return [path.join(root, 'node_modules/.cache/xeu-images')];
+}
 
 async function readManifest(file) {
   try {
@@ -61,20 +69,27 @@ async function sources(root, directory) {
   return found.sort();
 }
 
-export async function prepareImages(root = projectRoot, { log = console.log, onProgress } = {}) {
+export async function prepareImages(root = projectRoot, {
+  log = console.log,
+  onProgress,
+  buildEnv = process.env,
+  homeDirectory = homedir(),
+  cacheRoots = defaultCacheRoots(root, buildEnv, homeDirectory),
+} = {}) {
   const manifestPath = path.join(root, 'data/xeu/images.json');
   const destination = path.join(root, 'static/xeu-images');
-  // Vercel 的 Other 构建器默认保存 node_modules；安装入口会在 npm ci 前后保留此目录。
-  const cache = path.join(root, 'node_modules/.cache/xeu-images');
-  const cacheManifestPath = path.join(cache, 'images.json');
-  const cacheFiles = path.join(cache, 'files');
+  const caches = [...new Set(cacheRoots.map(cache => path.resolve(cache)))].map(cache => ({
+    manifest: path.join(cache, 'images.json'),
+    files: path.join(cache, 'files'),
+  }));
+  if (!caches.length) throw new Error('图片构建缓存目录不能为空');
   await mkdir(destination, { recursive: true });
   await mkdir(path.dirname(manifestPath), { recursive: true });
-  await mkdir(cacheFiles, { recursive: true });
+  await Promise.all(caches.map(cache => mkdir(cache.files, { recursive: true })));
   const previousText = await readFile(manifestPath, 'utf8').catch(() => '{}');
   const previous = await readManifest(manifestPath);
-  const persisted = await readManifest(cacheManifestPath);
-  const byFingerprint = new Map(Object.values(persisted).filter(entry => /^[a-f0-9]{24}$/.test(entry?.fingerprint))
+  const persisted = await Promise.all(caches.map(cache => readManifest(cache.manifest)));
+  const byFingerprint = new Map(persisted.flatMap(value => Object.values(value)).filter(entry => /^[a-f0-9]{24}$/.test(entry?.fingerprint))
     .map(entry => [entry.fingerprint, entry]));
   const manifest = {};
   let generated = 0;
@@ -91,8 +106,12 @@ export async function prepareImages(root = projectRoot, { log = console.log, onP
       for (const item of cached.variants) {
         const target = path.join(root, 'static', item.src);
         if (await hasImage(target)) continue;
-        const saved = path.join(cacheFiles, path.basename(item.src));
-        if (!await hasImage(saved)) { complete = false; break; }
+        let saved;
+        for (const cache of caches) {
+          const candidate = path.join(cache.files, path.basename(item.src));
+          if (await hasImage(candidate)) { saved = candidate; break; }
+        }
+        if (!saved) { complete = false; break; }
         await copyImage(saved, target);
         recovered = true;
       }
@@ -146,21 +165,24 @@ export async function prepareImages(root = projectRoot, { log = console.log, onP
     await rename(temp, manifestPath);
   }
   const activeFiles = new Set(Object.values(sorted).flatMap(entry => entry.variants.map(item => path.basename(item.src))));
-  for (const name of activeFiles) {
-    const saved = path.join(cacheFiles, name);
-    if (!await hasImage(saved)) await copyImage(path.join(destination, name), saved);
-  }
-  if (await readFile(cacheManifestPath, 'utf8').catch(() => '') !== text) {
-    const temp = `${cacheManifestPath}.${process.pid}.tmp`;
-    await writeFile(temp, text);
-    await rename(temp, cacheManifestPath);
-  }
-  // 只保留当前图片使用的缓存，避免内容更新后旧指纹无限累积。
-  for (const name of await readdir(cacheFiles)) {
-    if (/^[a-f0-9]{24}-\d+\.webp$/.test(name) && !activeFiles.has(name)) await rm(path.join(cacheFiles, name));
+  for (const cache of caches) {
+    for (const name of activeFiles) {
+      const saved = path.join(cache.files, name);
+      if (!await hasImage(saved)) await copyImage(path.join(destination, name), saved);
+    }
+    if (await readFile(cache.manifest, 'utf8').catch(() => '') !== text) {
+      const temp = `${cache.manifest}.${process.pid}.tmp`;
+      await writeFile(temp, text);
+      await rename(temp, cache.manifest);
+    }
+    // 只保留当前图片使用的缓存，避免内容更新后旧指纹无限累积。
+    for (const name of await readdir(cache.files)) {
+      if (/^[a-f0-9]{24}-\d+\.webp$/.test(name) && !activeFiles.has(name)) await rm(path.join(cache.files, name));
+    }
   }
   const totalImages = Object.keys(sorted).length;
-  log(`图片准备完成：${totalImages} 张图片，缓存复用 ${totalImages - generated} 张（从构建缓存恢复 ${restored} 张），${generated} 张新生成缩略图与 BlurHash。`);
+  const cacheProvider = buildEnv.WORKERS_CI === '1' ? 'Cloudflare Workers' : buildEnv.CF_PAGES === '1' ? 'Cloudflare Pages' : buildEnv.VERCEL === '1' ? 'Vercel' : '本机构建';
+  log(`图片准备完成：${totalImages} 张图片，缓存复用 ${totalImages - generated} 张（从构建缓存恢复 ${restored} 张），${generated} 张新生成缩略图与 BlurHash；缓存目标：${cacheProvider}。`);
   return sorted;
 }
 

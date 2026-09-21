@@ -76,15 +76,15 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 ## 图片构建缓存
 
-项目的 `framework: null` 使用 Vercel 的 Other 构建流程。[Vercel 构建器默认缓存规则](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/build-utils/src/default-cache-path-glob.ts)包含 `node_modules/**`，因此图片缓存放在 `node_modules/.cache/xeu-images/`：`images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，`files/` 保存 WebP 缩略图。单独放在 `static/`、`data/` 或普通 `.cache/` 下不能依靠这条规则跨构建保留。
+图片缓存根据构建平台写入其会跨构建恢复的目录：Vercel 的 Other 构建流程使用 `node_modules/.cache/xeu-images/`；检测到 Cloudflare Workers Builds 的 `WORKERS_CI=1` 或 Pages 的 `CF_PAGES=1` 时，改用全局 npm 缓存中的 `.npm/xeu-images/`。每处缓存都以 `images.json` 保存尺寸、内容指纹、BlurHash 和响应式清单，以 `files/` 保存 WebP 缩略图。[Cloudflare Workers Build cache](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/) 与 [Pages Build cache](https://developers.cloudflare.com/pages/configuration/build-caching/) 都会保存 npm 的 `.npm` 目录；项目需在 **Settings → Build → Build cache** 启用缓存。
 
 `vercel.json` 的 Install Command 使用 `node scripts/vercel-install.mjs`。脚本先把图片缓存移动到 `.cache/deploy/` 下的临时目录，执行原有 `npm ci` 后再放回，避免 npm 清空 `node_modules` 时删除缓存；安装失败也尝试恢复，并仍以失败状态退出。无需新增依赖或环境变量。如果控制台曾覆盖 Install Command，应与仓库配置保持一致。
 
 图片预处理逐张计算原图内容与处理配置的指纹。命中完整清单与缩略图时直接恢复到 `data/xeu/images.json` 和 `static/xeu-images/`，不重新压缩或计算 BlurHash；原图重命名也可按内容复用。新增图片、内容变更、处理配置变化或缓存不完整时补算，损坏的 JSON 清单按未命中处理。保存缓存时移除不再被当前图片引用的旧缩略图，避免长期累积。
 
-构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。第一次部署用于填充缓存，后续缓存可用且图片未变时应显示 `0 张新生成`。缓存被清除、过期或手动选择不使用缓存时会重新生成。本地普通 `npm ci` 可能清除缓存副本，但已有发布产物仍可复用并重新填充缓存。
+构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”及当前缓存目标。第一次部署用于填充缓存，后续缓存可用且图片未变时应显示 `0 张新生成`。Cloudflare 缓存未启用、超过七天未读取、被清除或首次部署时会重新生成；这不会影响本次构建产物，只会增加构建时间。本地普通 `npm ci` 可能清除 Vercel 缓存副本，但 Vercel 安装入口会在安装前后保留它。
 
-`node scripts/check-images.mjs` 验证冷/热缓存、只携带构建缓存的新工作区、实际 `npm ci` 后恢复、安装失败、图片改名/更新、缺失文件、无效清单和旧缓存清理。
+`node scripts/check-images.mjs` 验证冷/热缓存、Cloudflare 全局 npm 缓存恢复、Vercel `npm ci` 前后恢复、安装失败、图片改名/更新、缺失文件、无效清单和旧缓存清理。
 
 ## 友链检测
 

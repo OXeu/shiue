@@ -83,7 +83,7 @@ flowchart LR
 
 `data/xeu/images.json` 与 `static/xeu-images/` 是自动生成并被 Git 忽略的文件。更新图片后执行 `npm run images`；预览时可另开终端运行 `npm run images:watch` 自动更新。BlurHash 解码器采用 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`。
 
-缩略图和 BlurHash 清单同时保存到 `node_modules/.cache/xeu-images/`，随 Vercel 构建缓存恢复。Vercel 安装入口会在执行 `npm ci` 前暂存、结束后放回这份缓存；未变化的图片直接恢复产物，新增或变更图片才重新处理。日志显示缓存复用、恢复及新生成数量；首次构建或平台未提供缓存时正常全量生成。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
+缩略图和 BlurHash 清单会保存到托管平台可持久化的构建缓存：Vercel 使用 `node_modules/.cache/xeu-images/`，Cloudflare Workers Builds / Pages 使用全局 npm 缓存中的 `.npm/xeu-images/`。未变化的图片直接恢复产物，新增或变更图片才重新处理；首次构建、缓存未启用或缓存已过期时正常全量生成。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
 
 ## 站点头像与图标
 
