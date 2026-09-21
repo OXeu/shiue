@@ -31,6 +31,19 @@ const captured = async name => {
   await page.waitForFunction(name => window.__heroProbe.frames.some(frame => frame.pseudo === `::view-transition-group(${name})`), name);
   return page.evaluate(name => window.__heroProbe.frames.find(frame => frame.pseudo === `::view-transition-group(${name})`).frames, name);
 };
+const assertSingleCoverSnapshot = async direction => {
+  const hidden = direction === 'open' ? 'old' : 'new';
+  const visible = direction === 'open' ? 'new' : 'old';
+  const styles = await page.evaluate(([hidden, visible]) => ({
+    hidden: getComputedStyle(document.documentElement, `::view-transition-${hidden}(article-cover)`).display,
+    visibleAnimation: getComputedStyle(document.documentElement, `::view-transition-${visible}(article-cover)`).animationName,
+  }), [hidden, visible]);
+  assert.equal(styles.hidden, 'none', 'Hero 过渡必须隐藏另一张图片快照');
+  assert.equal(styles.visibleAnimation, 'none', 'Hero 的唯一图片快照不得执行透明度动画');
+  assert.equal(await page.evaluate(() => window.__heroProbe.frames.some(frame =>
+    frame.pseudo === '::view-transition-old(article-cover)' || frame.pseudo === '::view-transition-new(article-cover)')),
+  false, 'Hero 图片不得交叉淡化');
+};
 
 try {
   // 捕获浏览器生成的真实关键帧，验证卡片和封面从原位置展开到正文。
@@ -50,6 +63,7 @@ try {
   assert.ok(parseFloat(panel.at(-1).width) > parseFloat(panel[0].width) * 2);
   assert.ok(parseFloat(cover.at(-1).width) > parseFloat(cover[0].width) * 2);
   assert.notEqual(cover[0].transform, cover.at(-1).transform);
+  await assertSingleCoverSnapshot('open');
   await captured('article-title');
   await writeFile(path.join(artifacts, 'native-keyframes.json'), JSON.stringify(await page.evaluate(() => window.__heroProbe.frames), null, 2));
   // 固定在真实动画的中间时刻截图，然后恢复播放。
@@ -66,6 +80,7 @@ try {
   await page.goBack();
   const reverse = await captured('article-panel');
   assert.ok(parseFloat(reverse[0].width) > parseFloat(reverse.at(-1).width));
+  await assertSingleCoverSnapshot('close');
   await settle();
   await page.goForward();
   await captured('article-title');

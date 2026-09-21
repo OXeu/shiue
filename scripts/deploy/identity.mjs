@@ -10,8 +10,10 @@ export const AVATAR_SOURCE = 'https://avatars.githubusercontent.com/u/36541432';
 export const AVATAR_SIZES = [48, 80, 96, 160, 192, 240, 320, 512];
 export const ICON_SIZES = [16, 32, 48, 180, 192, 512];
 const FAVICON_SIZES = [16, 32, 48];
+const ROUNDED_ICON_SIZES = [...FAVICON_SIZES, 192];
+const ICON_CORNER_RADIUS_RATIO = 0.2;
 // The recipe version invalidates assets when validation or output formats change.
-const recipe = JSON.stringify({ version: 3, avatars: AVATAR_SIZES, icons: ICON_SIZES, webpIcons: [...FAVICON_SIZES, 192], webpQuality: 85 });
+const recipe = JSON.stringify({ version: 4, avatars: AVATAR_SIZES, icons: ICON_SIZES, webpIcons: ROUNDED_ICON_SIZES, webpQuality: 85, iconCornerRadiusRatio: ICON_CORNER_RADIUS_RATIO });
 // GitHub can serve this image with HTTP 200 from a user's avatar URL:
 // https://github.githubassets.com/images/gravatars/gravatar-user-420.png
 const githubPlaceholderHash = '2ae73e12cb1e9989929920c4e9da0b02b6f6f8f0bd1944ac9ebfbf6b4dca746b';
@@ -126,18 +128,23 @@ export async function prepareIdentity({ root = projectRoot, offline = false, sig
   const fingerprint = createHash('sha256').update(recipe).update(input).digest('hex').slice(0, 20);
   const prefix = `site-identity/${fingerprint}`;
   const resize = size => sharp(input, { limitInputPixels: 16_777_216 }).rotate().resize(size, size, { fit: 'cover', position: 'centre' });
+  const roundedIcon = size => {
+    const radius = size * ICON_CORNER_RADIUS_RATIO;
+    const mask = Buffer.from(`<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg"><rect width="${size}" height="${size}" rx="${radius}" fill="#fff"/></svg>`);
+    return resize(size).ensureAlpha().composite([{ input: mask, blend: 'dest-in' }]);
+  };
   const files = new Map();
   const pngs = new Map();
   // Keep small PNG frames in memory for the legacy ICO, but publish browser
   // icons as WebP. Apple Touch and Open Graph remain PNG for compatibility.
   for (const size of FAVICON_SIZES) {
     signal?.throwIfAborted();
-    const bytes = await resize(size).png({ compressionLevel: 9 }).toBuffer();
+    const bytes = await roundedIcon(size).png({ compressionLevel: 9 }).toBuffer();
     pngs.set(size, bytes);
   }
-  for (const size of [...FAVICON_SIZES, 192]) {
+  for (const size of ROUNDED_ICON_SIZES) {
     signal?.throwIfAborted();
-    files.set(`${prefix}/icon-${size}.webp`, await resize(size).webp({ quality: 85 }).toBuffer());
+    files.set(`${prefix}/icon-${size}.webp`, await roundedIcon(size).webp({ quality: 85 }).toBuffer());
   }
   for (const size of [180, 512]) {
     signal?.throwIfAborted();

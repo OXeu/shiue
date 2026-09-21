@@ -32,10 +32,11 @@ html[data-article-transition]::view-transition-new(root) { animation: article-pa
 html[data-article-transition-cover="true"]::view-transition-old(article-title) { animation: page-leave 90ms both; }
 html[data-article-transition-cover="true"]::view-transition-new(article-title) { animation: article-page-arrive 240ms 240ms both; }
 ::view-transition-old(article-cover), ::view-transition-new(article-cover) { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: normal; }
-::view-transition-old(article-cover) { animation: page-leave 180ms 380ms both; }
-::view-transition-new(article-cover) { animation: article-page-arrive 180ms 380ms both; }
-::view-transition-old(article-cover):only-child { animation: page-leave 120ms both; }
-::view-transition-new(article-cover):only-child { animation: article-page-arrive 220ms 160ms both; }
+/* Hero 全程只使用一张完整快照，避免不同裁切尺寸的旧、新图片交叉淡化。 */
+html[data-article-transition="open"]::view-transition-old(article-cover),
+html[data-article-transition="close"]::view-transition-new(article-cover) { display: none; }
+html[data-article-transition="open"]::view-transition-new(article-cover),
+html[data-article-transition="close"]::view-transition-old(article-cover) { animation: none; }
 @keyframes article-page-arrive { from { opacity: 0; } to { opacity: 1; } }
 .reveal-pending { opacity: 0; }
 .post-card { contain: layout paint; transition: translate 360ms var(--ease-spring), border-color 200ms, box-shadow 280ms; }

@@ -40,6 +40,13 @@ test('identity fetches on every invocation, generates exact sizes, and never sto
     assert.equal(metadata.format, asset.src.endsWith('.webp') ? 'webp' : 'png');
     assert.ok(!bytes.equals(png), '原始下载文件不能写入构建目录');
   }
+  for (const asset of [...first.favicons, first.touchIcon]) {
+    const { data, info } = await sharp(path.join(root, 'static', asset.src)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    assert.equal(info.channels, 4);
+    assert.ok(data[3] <= 8, `${asset.size}px favicon 左上角应透明`);
+    const centre = (Math.floor(asset.size / 2) * asset.size + Math.floor(asset.size / 2)) * info.channels;
+    assert.equal(data[centre + 3], 255, `${asset.size}px favicon 中心应不透明`);
+  }
   const ico = await readFile(path.join(root, 'static', first.ico.src));
   assert.equal(ico.readUInt32LE(0), 0x00010000);
   assert.equal(ico.readUInt16LE(4), 3);
@@ -49,7 +56,10 @@ test('identity fetches on every invocation, generates exact sizes, and never sto
     assert.equal(ico[entry + 1], size);
     const start = ico.readUInt32LE(entry + 12);
     const length = ico.readUInt32LE(entry + 8);
-    assert.equal((await sharp(ico.subarray(start, start + length)).metadata()).width, size);
+    const frame = sharp(ico.subarray(start, start + length));
+    assert.equal((await frame.metadata()).width, size);
+    const { data } = await frame.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    assert.ok(data[3] <= 8, `${size}px ICO 帧左上角应透明`);
   }
   assert.deepEqual(await readFile(path.join(root, 'static/favicon.ico')), ico);
   const jpeg = await sharp(path.join(root, 'static/avatar.jpg')).metadata();

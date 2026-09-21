@@ -89,7 +89,7 @@ reader -> mail -> git -> build
 
 ## 站点头像与图标
 
-站点自身的图标来自 `https://avatars.githubusercontent.com/u/36541432`，每次部署重新下载并生成 WebP favicon 16/32/48px、Apple 180px PNG、192px WebP 浏览器图标、512px PNG 分享图，以及 48–512px 的响应式 WebP 头像。关于页显示 80px，并为高倍屏选择对应尺寸；页头仍为纯文本。生成文件与清单被 Git 忽略，内容指纹地址避免浏览器显示旧头像；`/favicon.ico` 和 `/avatar.jpg` 保留为构建时生成的兼容地址。可单独执行 `npm run identity` 刷新。详情见 [站点图标](docs/deployment.md#github-头像与站点图标)。这与下述友链图标在添加时下载并提交的规则不同。
+站点自身的图标来自 `https://avatars.githubusercontent.com/u/36541432`，每次部署重新下载并生成带透明圆角的 WebP favicon 16/32/48px、Apple 180px PNG、带透明圆角的 192px WebP 浏览器图标、512px PNG 分享图，以及 48–512px 的响应式 WebP 头像。关于页显示 80px，并为高倍屏选择对应尺寸；页头仍为纯文本。生成文件与清单被 Git 忽略，内容指纹地址避免浏览器显示旧头像；`/favicon.ico` 和 `/avatar.jpg` 保留为构建时生成的兼容地址。可单独执行 `npm run identity` 刷新。详情见 [站点图标](docs/deployment.md#github-头像与站点图标)。这与下述友链图标在添加时下载并提交的规则不同。
 
 ## 友情链接
 
