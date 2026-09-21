@@ -53,7 +53,7 @@ draft: false
 
 因此，最终凭借俺寻思之力，成功搓出了一个奇妙评论框架：
 
-**评论 → 发送邮件 → 审批触发 GitHub Actions 将评论写入仓库 → Vercel 自动部署**
+**评论 → Turnstile 验证 → 发送审核邮件 → 审批触发 GitHub Actions 将评论写入仓库 → 托管平台通过 Git 集成自动构建部署**
 
 ![Bingo！俺寻思这事能成](meme-bingo.gif)
 
@@ -85,7 +85,7 @@ https://xeu.life/comment-review/#token=<加密后的评论payload>
 >
 > 以「B 回复 A」为例，代码流程是：
 >
-> 1. **A 发表原评论时收集邮箱。** 前端把 A 填写的邮箱放入 `email` 字段，随评论提交到 Vercel Function。
+> 1. **A 发表原评论时收集邮箱。** 前端把 A 填写的邮箱放入 `email` 字段，随评论提交到 Serverless Function。
 > 2. **A 的评论审核通过时加密保存。** `sealComment()` 使用 AES-256-GCM 加密邮箱，公开评论 JSON 中保存 `emailEncrypted` 和 `emailHash`，不保存明文邮箱。
 > 3. **网站构建时生成查询索引。** Hugo 把已发布评论的邮箱密文整理进 `comment-pages.json`，形成 `notificationEmails[评论 ID]` 映射，供审批接口读取。因此这里不需要查数据库。
 > 4. **B 的回复审核通过后，取出 A 的邮箱并发信。** B 的回复通过 `parentId` 指向 A 的评论。审批接口成功启动 GitHub 发布任务后，用这个 ID 查到 A 的邮箱密文，再调用 `openCommentEmail()` 解密，通过 Resend 发送回复通知。
@@ -119,117 +119,139 @@ classes: {
       font-color: "#654510"
     }
   }
+  external: {
+    style: {
+      fill: "#f4edff"
+      stroke: "#8250df"
+      font-color: "#45257a"
+    }
+  }
 }
 
-reader: "读者提交评论或回复：选填邮箱、parentId"
-
-ingress: {
-  label: "接入安全 · 无状态 Vercel Functions"
+serverless: {
+  label: "无状态 Serverless 平台适配层"
   direction: right
-  validate: {
-    label: "校验 Origin、请求大小、文章白名单及父评论"
+  vercel: "Vercel Functions"
+  netlify: "Netlify Functions"
+  workers: "Cloudflare Workers + Static Assets"
+  shared: {
+    label: "任选一种入口注入 env、deployment、pages()，共用 server/submissions.js"
     class: secure
   }
-  pow: {
-    label: "验证短期 PoW：绑定评论内容、邮箱和 parentId"
-    class: secure
-  }
-  sign: {
-    label: "生成 HMAC 审批凭据：绑定内容、站点及有效期"
-    class: secure
-  }
-  validate -> pow -> sign
+  vercel -> shared
+  netlify -> shared
+  workers -> shared
 }
 
-moderation: {
-  label: "待审数据 · 私有审核邮件承载，无待审数据库"
+submission: {
+  label: "1 · 提交链路 · 统一 POST /api/submissions"
   direction: right
-  mail: {
-    label: "Resend 将评论和审批链接发送给博主"
+  form: "读者填写评论或回复：选填邮箱、parentId"
+  challenge: {
+    label: "Serverless action: challenge：校验同源、生产环境、内容及 comment-pages 白名单"
+    class: secure
+  }
+  managed: {
+    label: "浏览器按需加载 Cloudflare Turnstile Managed 组件并取得 token"
+    class: external
+  }
+  submit: {
+    label: "Serverless action: submit：复验内容、文章与父评论"
+    class: secure
+  }
+  siteverify: {
+    label: "Turnstile Siteverify：校验单次 token、hostname、action 与内容摘要 cData"
+    class: external
+  }
+  moderationMail: {
+    label: "从 COMMENTS_SECRET 派生审批密钥；Resend 发送带 7 天 HMAC 凭据的审核邮件"
     class: sensitive
   }
-  review: {
-    label: "博主打开预览后，手动确认批准"
-    class: sensitive
-  }
-  mail -> review: "凭据放在 URL fragment，页面读取后清除"
+  form -> challenge: "同源 action: challenge"
+  challenge -> managed: "返回 Site Key、action、cData"
+  managed -> submit: "浏览器携 turnstileToken 自动提交"
+  submit -> siteverify
+  siteverify -> moderationMail: "验证通过；邮件使用固定幂等键"
 }
 
-approval: {
-  label: "审批安全 · 服务端再次校验"
+review: {
+  label: "2 · 邮件审核与批准 · 同一共享 API"
   direction: right
-  verify: {
-    label: "验证审批签名、期限和当前文章及父评论"
+  inbox: {
+    label: "博主收到私有邮件；待审数据不落数据库"
+    class: sensitive
+  }
+  preview: {
+    label: "审核页从 URL fragment 取出并清除凭据；action: preview 只展示"
+    class: sensitive
+  }
+  approve: {
+    label: "手动确认 action: approve：复验签名、期限、当前白名单与父评论"
     class: secure
   }
-  encrypt: {
-    label: "邮箱 AES-256-GCM 加密：绑定评论 ID 和文章路径"
+  seal: {
+    label: "派生邮箱密钥：AES-256-GCM 加密选填邮箱，附带密钥摘要"
     class: secure
   }
   dispatch: {
-    label: "使用独立用途密钥签名发布数据，提交 GitHub"
-    class: secure
+    label: "派生发布密钥签名信封；GitHub API 接受 workflow_dispatch"
+    class: external
   }
-  accepted: "GitHub 接受发布任务"
-  verify -> encrypt -> dispatch -> accepted
+  inbox -> preview -> approve -> seal -> dispatch
 }
 
-persistence: {
-  label: "持久化 · 仅复用 Git 仓库与静态构建产物"
+publishing: {
+  label: "3A · Git 持久化与 SSG 发布"
   direction: right
   action: {
-    label: "GitHub Actions 再次验签：检查仓库、目录和父评论"
+    label: "publish-comment.yml：用同一 COMMENTS_SECRET 派生密钥并再次验签"
     class: secure
   }
   git: {
-    label: "每条评论一个 JSON：正文公开，邮箱仅保存密文和带密钥摘要"
+    label: "检查仓库、目录、父评论及循环；写入独立评论 JSON"
     class: storage
   }
-  build: "Vercel 自动部署，Hugo 构建"
+  push: "Git commit + push：并发时 fetch / rebase / 重试，不强推"
+  build: "托管平台 Git 集成运行 npm run deploy；Hugo SSG"
   html: {
-    label: "静态 HTML：文本转义，不展示邮箱；阅读不调用评论 API"
+    label: "静态 HTML：嵌套评论转义渲染；阅读不请求评论 API"
     class: storage
   }
   index: {
-    label: "comment-pages.json：文章白名单、评论 ID、邮箱密文索引"
+    label: "新 comment-pages.json：下次部署供 Node 函数包或 Workers ASSETS 读取"
     class: storage
   }
-  action -> git: "拒绝明文邮箱；重复内容幂等，不覆盖冲突"
-  git -> build
+  action -> git: "拒绝明文邮箱；同 ID 同内容幂等，不覆盖冲突"
+  git -> push -> build
   build -> html
   build -> index
 }
 
 notification: {
-  label: "通知隐私 · 仅服务端解密，收件人分别发送"
+  label: "3B · 审批后的邮件通知"
   direction: right
   lookup: {
-    label: "按 parentId 取得父评论邮箱密文，并验证解密"
+    label: "GitHub 接受任务后，从审批数据及当前 comment-pages 索引取得收件信息"
     class: sensitive
   }
   notify: {
-    label: "Resend 发送回复通知：固定幂等键减少重复发送"
+    label: "仅服务端解密；Resend 分别发送审核通过和直接回复通知"
     class: sensitive
   }
-  recipient: "直接被回复者收到邮件"
-  lookup -> notify: "父评论留有邮箱，且与回复者邮箱不同"
-  notify -> recipient
+  retry: {
+    label: "部分失败时返回短期签名 notificationToken；action: notify 只重试失败邮件"
+    class: secure
+  }
+  recipients: "评论者与直接被回复者收到邮件；同邮箱或未留邮箱时跳过"
+  lookup -> notify: "每位收件人独立发送，使用固定幂等键"
+  notify -> recipients
+  notify -> retry: "仅部分通知失败时"
 }
 
-reader -> ingress.validate
-ingress.sign -> moderation.mail
-moderation.review -> approval.verify: "同源 POST；打开链接本身不发布"
-approval.accepted -> persistence.action
-approval.accepted -> notification.lookup: "无需等待构建部署完成"
-persistence.index -> ingress.validate: "随函数打包，读取本地文件" {
-  style.stroke-dash: 4
-}
-persistence.index -> approval.verify: "审批时校验" {
-  style.stroke-dash: 4
-}
-persistence.index -> notification.lookup: "提供已发布父评论的邮箱密文" {
-  style.stroke-dash: 4
-}
+serverless.shared -> submission.challenge: "处理 challenge、submit 等 action"
+submission.moderationMail -> review.inbox
+review.dispatch -> publishing.action: "GitHub 接受任务后异步执行"
+review.dispatch -> notification.lookup: "不等待 Action、构建或部署完成"
 ```
 
 你可以在我的博客仓库中查看完整的源代码：[OXeu/shiue](https://github.com/OXeu/shiue)。
