@@ -108,3 +108,14 @@ button { border: 0; background: transparent; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+@media (prefers-contrast: more) {
+  :root { --muted: #4f4f55; --footer-text: #555; --border: #b5b5bd; --card-border: #b5b5bd; }
+  :root[data-color-mode="dark"] { --muted: #d0d0d6; --footer-text: #d0d0d6; --border: #777783; --card-border: #777783; }
+}
+@media (forced-colors: active) {
+  a[href] { color: LinkText; text-decoration: underline; }
+  :focus-visible { outline: 3px solid Highlight; }
+  button, .page-link, .text-button, .post-card, .friend-card, .search-form, .code-block, .d2-diagram { border: 1px solid ButtonText; }
+  .site-nav [aria-current="page"], .color-modes [aria-pressed="true"] { color: HighlightText; background: Highlight; }
+  .markdown-alert { border: 1px solid CanvasText; }
+}

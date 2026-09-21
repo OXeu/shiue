@@ -1,3 +1,4 @@
 {{- $url := .Destination -}}
 {{- if and (strings.HasPrefix $url "/") (not (strings.HasPrefix $url "//")) }}{{ $url = strings.TrimPrefix "/" $url | relURL }}{{ end -}}
-<a href="{{ $url | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ if findRE `^https?://` $url }} target="_blank" rel="noopener noreferrer"{{ end }}>{{ .Text | safeHTML }}</a>
+{{- $external := findRE `^https?://` $url -}}
+<a href="{{ $url | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ if $external }} target="_blank" rel="noopener noreferrer" aria-label="{{ .Text | plainify }}（在新窗口打开）"{{ end }}>{{ .Text | safeHTML }}</a>

@@ -1,1 +1,2 @@
-<div class="code-block"><div class="code-toolbar"><span>{{ .Type | default "text" }}</span><button type="button" class="copy-code">复制</button></div>{{ highlight .Inner .Type }}</div>
+{{- $language := .Type | default "文本" -}}
+<div class="code-block"><div class="code-toolbar"><span>{{ $language }}</span><button type="button" class="copy-code" data-copy-label="{{ $language }}代码" aria-label="复制{{ $language }}代码" aria-live="polite">复制</button></div>{{ highlight .Inner .Type }}</div>

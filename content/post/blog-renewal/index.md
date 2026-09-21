@@ -11,7 +11,7 @@ tags:
 - blog
 title: 博客焕新
 ---
-![118936196_p0.jpg](/images/a8b2c9bc18ad6236cf9e2fa4.jpg)
+![鱼群环绕的水下白发少女插画](/images/a8b2c9bc18ad6236cf9e2fa4.jpg)
 
 已经不记得这是第几次重新开始搓博客了
 

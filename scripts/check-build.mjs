@@ -375,6 +375,54 @@ for (const relative of htmlFiles) {
   const html = read(relative);
   assert.ok(!html.includes(fixtureEmail), '明文邮箱不能进入公开页面');
   const $ = load(html);
+  if ($('main').length) {
+    assert.equal($('html').attr('lang'), 'zh-CN', `${relative} 缺少页面语言`);
+    assert.equal($('main').length, 1, `${relative} 必须只有一个 main 地标`);
+    assert.equal($('main h1').length, 1, `${relative} 必须只有一个一级标题`);
+
+    const ids = new Map();
+    for (const element of $('[id]').toArray()) {
+      const id = $(element).attr('id');
+      ids.set(id, (ids.get(id) || 0) + 1);
+    }
+    for (const [id, count] of ids) assert.equal(count, 1, `${relative} 存在重复 id：${id}`);
+    for (const attribute of ['aria-labelledby', 'aria-describedby', 'aria-controls']) {
+      for (const element of $(`[${attribute}]`).toArray()) {
+        for (const id of ($(element).attr(attribute) || '').split(/\s+/).filter(Boolean)) {
+          assert.ok(ids.has(id), `${relative} 的 ${attribute} 指向不存在的 #${id}`);
+        }
+      }
+    }
+
+    let previousHeading = 0;
+    for (const heading of $('main h1, main h2, main h3, main h4, main h5, main h6').toArray()) {
+      const level = Number(heading.tagName.slice(1));
+      assert.ok(!previousHeading || level <= previousHeading + 1, `${relative} 的标题从 h${previousHeading} 跳到 h${level}：${$(heading).text().trim()}`);
+      previousHeading = level;
+    }
+    for (const image of $('img').toArray()) assert.notEqual($(image).attr('alt'), undefined, `${relative} 的图片缺少 alt`);
+    for (const image of $('[data-zoomable]').toArray()) {
+      const alt = ($(image).attr('alt') || '').trim();
+      assert.ok(alt, `${relative} 的正文图片缺少替代文本`);
+      assert.doesNotMatch(alt, /^(?:图片(?:\.\w+)?|image(?:\.\w+)?|\d+|[0-9a-f-]{8,}\.(?:png|jpe?g|gif))$/i, `${relative} 的图片替代文本没有描述内容：${alt}`);
+    }
+    const labelTargets = new Set($('label[for]').map((_, label) => $(label).attr('for')).get());
+    for (const control of $('input:not([type="hidden"]), textarea, select').toArray()) {
+      if ($(control).closest('[aria-hidden="true"]').length) continue;
+      const labelled = $(control).closest('label').length || labelTargets.has($(control).attr('id'))
+        || $(control).is('[aria-label], [aria-labelledby]');
+      assert.ok(labelled, `${relative} 的 ${control.tagName} 控件缺少标签：${$(control).attr('name') || $(control).attr('id') || ''}`);
+    }
+    for (const element of $('a[href], button').toArray()) {
+      if ($(element).is('[aria-hidden="true"]') || $(element).closest('[aria-hidden="true"]').length) continue;
+      const name = ($(element).attr('aria-label') || $(element).text() || $(element).find('img[alt]').attr('alt') || '').trim();
+      assert.ok(name || $(element).is('[aria-labelledby]'), `${relative} 存在没有可访问名称的 ${element.tagName}`);
+    }
+  }
+  for (const link of $('a[target="_blank"]').toArray()) {
+    const name = ($(link).attr('aria-label') || $(link).text()).trim();
+    assert.match(name, /新窗口/, `${relative} 未提示链接会在新窗口打开：${name}`);
+  }
   for (const link of $('link[rel="canonical"], meta[property="og:url"]').toArray()) {
     const url = $(link).attr('href') || $(link).attr('content');
     assert.match(url, /^https?:\/\//, `${relative} 的 canonical/og:url 必须是绝对网址`);

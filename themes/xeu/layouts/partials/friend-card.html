@@ -4,7 +4,7 @@
 {{ else if or (in (slice "521" "522") $status) (in $status "Unable to connect") }}
   {{ $status = "无法访问" }}
 {{ end }}
-<a class="friend-card{{ if .health }} friend-card--away{{ end }}" href="{{ .website }}" target="_blank" rel="noopener noreferrer">
+<a class="friend-card{{ if .health }} friend-card--away{{ end }}" href="{{ .website }}" target="_blank" rel="noopener noreferrer" aria-label="{{ .title }}{{ with .description }}：{{ . }}{{ end }}{{ with $status }}，状态：{{ . }}{{ end }}（在新窗口打开）">
   {{ with .image }}<img src="{{ strings.TrimPrefix "/" . | relURL }}" alt="" loading="lazy" decoding="async" width="48" height="48">{{ end }}
   {{ if .health }}<h3 class="friend-title">{{ .title }}</h3>{{ else }}<h2 class="friend-title">{{ .title }}</h2>{{ end }}
   {{ with .description }}<p>{{ . }}</p>{{ end }}

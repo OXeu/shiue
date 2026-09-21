@@ -94,7 +94,7 @@ https://xeu.life/comment-review/#token=<加密后的评论payload>
 
 最终的整体架构如下：
 
-```d2
+```d2 {title="评论提交、审核发布与邮件通知的数据流"}
 direction: down
 
 classes: {

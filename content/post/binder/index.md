@@ -15,7 +15,7 @@ tags:
 title: Binder 是什么
 ---
 
-![b1baf704-e441-474e-a1b1-afb02f00c9ea.png](/images/07844401bab2b2815b3d8aaa.png)
+![“Binder 到底是什么”标题图](/images/07844401bab2b2815b3d8aaa.png)
 
 # Binder 是什么
 
@@ -471,7 +471,7 @@ public class Binder implements IBinder {
 
 全流程图：
 
-![9075dc6b-7a09-4422-a85c-a3b24e4911ae.png](/images/099012818b3548ed61c1f6f0.png)
+![Binder 客户端、驱动与服务端之间的调用流程图](/images/099012818b3548ed61c1f6f0.png)
 
 
 # Binder 原理

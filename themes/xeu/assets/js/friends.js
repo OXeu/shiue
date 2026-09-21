@@ -19,6 +19,7 @@ for (const form of document.querySelectorAll('[data-friend-form]')) {
     values.consent = data.get('consent') === 'on';
     const fingerprint = JSON.stringify(values);
     busy = true;
+    form.setAttribute('aria-busy', 'true');
     controller = new AbortController();
     fields.disabled = true;
     cancel.hidden = false;
@@ -48,6 +49,7 @@ for (const form of document.querySelectorAll('[data-friend-form]')) {
     } finally {
       const focusSubmit = document.activeElement === cancel;
       busy = false; fields.disabled = false; cancel.hidden = true;
+      form.removeAttribute('aria-busy');
       if (focusSubmit) form.querySelector('[type="submit"]').focus();
     }
   });
@@ -68,11 +70,16 @@ if (review) {
       for (const key of ['title', 'description']) review.querySelector(`[data-review-${key}]`).textContent = friend[key];
       for (const key of ['website', 'icon']) {
         const link = review.querySelector(`[data-review-${key}]`);
-        if (!friend[key]) { link.textContent = '自动获取站点图标'; continue; }
+        if (!friend[key]) {
+          link.textContent = '自动获取站点图标';
+          for (const attribute of ['target', 'rel', 'aria-label']) link.removeAttribute(attribute);
+          continue;
+        }
         const url = new URL(friend[key]);
         if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('申请中的网址无效。');
         link.href = url.href;
         link.textContent = url.href;
+        link.setAttribute('aria-label', `${key === 'website' ? '申请网站' : '申请图标'}：${url.href}（在新窗口打开）`);
       }
       const time = review.querySelector('[data-review-time]');
       time.dateTime = friend.createdAt;
@@ -85,6 +92,7 @@ if (review) {
   button.addEventListener('click', async () => {
     if (busy || !token || !ready) return;
     busy = true;
+    review.setAttribute('aria-busy', 'true');
     button.disabled = true;
     status.textContent = '正在提交发布任务…';
     try {
@@ -96,7 +104,7 @@ if (review) {
       const url = new URL(result.actionsURL);
       if (url.origin === 'https://github.com') { link.href = url.href; link.hidden = false; }
     } catch (error) { status.textContent = error.name === 'AbortError' ? '请求超时，请重试；重复审批不会重复添加友链。' : error.message; }
-    finally { busy = false; button.disabled = false; }
+    finally { busy = false; button.disabled = false; review.removeAttribute('aria-busy'); }
   });
   preview();
 }

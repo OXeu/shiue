@@ -1,3 +1,3 @@
 {{ if eq .Type "alert" }}
-<aside class="markdown-alert alert-{{ .AlertType }}"><p class="alert-title">{{ .AlertTitle | default (strings.FirstUpper .AlertType) }}</p>{{ .Text | safeHTML }}</aside>
+<aside class="markdown-alert alert-{{ .AlertType }}" role="note"><p class="alert-title">{{ .AlertTitle | default (strings.FirstUpper .AlertType) }}</p>{{ .Text | safeHTML }}</aside>
 {{ else }}<blockquote>{{ .Text | safeHTML }}</blockquote>{{ end }}

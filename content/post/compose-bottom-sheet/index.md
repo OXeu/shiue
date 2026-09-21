@@ -23,7 +23,7 @@ Compose 其实是提供了 BottomSheet 的实现方式的，就是用官方的 `
 
 按规矩先上效果图：
 
-![6579cc51-fc35-417d-994d-5b346402271b.png](/images/e4f3d27c57ae282aaec66982.png)
+![手机界面中从底部展开的 BottomSheetDialog 效果](/images/e4f3d27c57ae282aaec66982.png)
 
 以下是文件结构：
 
@@ -851,11 +851,4 @@ BottomSheetDialog(
 
 
 
-![图片](/images/d887f14961a53bfa33eab2ce.png)
-
-
-
-![图片](/images/d887f14961a53bfa33eab2ce.png)
-
-
-![图片](/images/d887f14961a53bfa33eab2ce.png)
+![BottomSheetDialog 展开后的手机界面效果](/images/d887f14961a53bfa33eab2ce.png)

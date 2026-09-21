@@ -85,11 +85,19 @@
   updateHeader();
   document.querySelectorAll('.copy-code').forEach(button => {
     button.addEventListener('click', async () => {
+      const label = button.dataset.copyLabel || '代码';
       try {
         await navigator.clipboard.writeText(button.closest('.code-block').querySelector('code').textContent);
         button.textContent = '已复制';
-      } catch { button.textContent = '复制失败，请手动选择'; }
-      setTimeout(() => { button.textContent = '复制'; }, 2200);
+        button.setAttribute('aria-label', `${label}已复制`);
+      } catch {
+        button.textContent = '复制失败，请手动选择';
+        button.setAttribute('aria-label', `${label}复制失败，请手动选择`);
+      }
+      setTimeout(() => {
+        button.textContent = '复制';
+        button.setAttribute('aria-label', `复制${label}`);
+      }, 2200);
     });
   });
   if ('IntersectionObserver' in window) {

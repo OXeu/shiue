@@ -22,6 +22,7 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
     if (data.get('email')?.trim()) values.email = data.get('email').trim();
     const fingerprint = JSON.stringify(values);
     busy = true;
+    form.setAttribute('aria-busy', 'true');
     editor.saveDraft();
     controller = new AbortController();
     fields.disabled = true;
@@ -54,6 +55,7 @@ for (const form of document.querySelectorAll('[data-comment-form]')) {
     } finally {
       const focusSubmit = document.activeElement === cancel;
       busy = false; fields.disabled = false; cancel.hidden = true;
+      form.removeAttribute('aria-busy');
       editor.setBusy(false);
       if (focusSubmit) form.querySelector('[type="submit"]').focus();
     }
@@ -82,6 +84,7 @@ if (review) {
       if (url.origin !== location.origin || url.protocol !== location.protocol) throw new Error('文章链接不属于本站。');
       article.href = url.href;
       article.textContent = result.title;
+      article.setAttribute('aria-label', `${result.title}（在新窗口打开）`);
       if (result.comment.parentId) {
         url.hash = `comment-${result.comment.parentId}`;
         review.querySelector('[data-review-parent-link]').href = url.href;
@@ -94,6 +97,7 @@ if (review) {
   button.addEventListener('click', async () => {
     if (busy || !token) return;
     busy = true;
+    review.setAttribute('aria-busy', 'true');
     button.disabled = true;
     status.textContent = notificationToken ? '正在重试发送通知…' : '正在提交发布任务…';
     try {
@@ -107,7 +111,7 @@ if (review) {
       const url = new URL(result.actionsURL);
       if (url.origin === 'https://github.com') { link.href = url.href; link.hidden = false; }
     } catch (error) { status.textContent = error.name === 'AbortError' ? (notificationToken ? '通知请求超时，请重试；不会重新发布留言。' : '请求超时，请重试；重复审批不会重复添加评论。') : error.message; }
-    finally { busy = false; button.disabled = false; }
+    finally { busy = false; button.disabled = false; review.removeAttribute('aria-busy'); }
   });
   preview();
 }

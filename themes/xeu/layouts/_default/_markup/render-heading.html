@@ -1,0 +1,4 @@
+{{- /* 页面标题已经占用 h1；正文中的一级标题降为 h2，避免读屏标题层级重复。 */ -}}
+{{- $level := .Level -}}
+{{- if eq $level 1 }}{{ $level = 2 }}{{ end -}}
+<h{{ $level }} id="{{ .Anchor | safeURL }}">{{ .Text | safeHTML }}</h{{ $level }}>

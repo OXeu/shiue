@@ -3,7 +3,7 @@
   <div class="page-heading"><h1>{{ .Title }}</h1></div>
   <div class="friend-grid">
   {{ range .Params.links }}
-    <a class="friend-card" href="{{ .website }}" target="_blank" rel="noopener noreferrer">
+    <a class="friend-card" href="{{ .website }}" target="_blank" rel="noopener noreferrer" aria-label="{{ .title }}{{ with .description }}：{{ . }}{{ end }}（在新窗口打开）">
       {{ with .image }}<img src="{{ . }}" alt="" loading="lazy" width="48" height="48">{{ end }}
       <h2>{{ .title }}</h2><p>{{ .description }}</p>
     </a>
@@ -12,6 +12,8 @@
   {{ with .Content }}<div class="prose surface">{{ . }}</div>{{ end }}
   {{ partial "comments.html" . }}
 {{ else }}
+  {{ $mobileTOC := replace .TableOfContents `id="TableOfContents"` `id="mobile-table-of-contents" class="toc-nav" aria-label="文章目录"` | safeHTML }}
+  {{ $desktopTOC := replace .TableOfContents `id="TableOfContents"` `id="desktop-table-of-contents" class="toc-nav" aria-label="文章目录"` | safeHTML }}
   <div class="reading-layout">
     <div class="reading-column">
       <article class="article surface"{{ if eq .Section "post" }} data-article{{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }} data-article-cover="{{ $cover.original }}"{{ end }}{{ end }}>
@@ -20,7 +22,7 @@
           {{ if .Params.profile }}<div class="profile-heading">{{ partial "site-avatar.html" (dict "page" . "size" 80) }}<h1>{{ .Title }}</h1></div>{{ else }}<h1>{{ .Title }}</h1>{{ end }}
           {{ if eq .Section "post" }}<div class="article-tags">{{ range .GetTerms "tags" }}<a href="{{ .RelPermalink }}"># {{ .Title }}</a>{{ end }}</div>{{ end }}
         </header>
-        {{ if .Fragments.Headings }}<details class="mobile-toc"><summary>文章目录</summary>{{ .TableOfContents }}</details>{{ end }}
+        {{ if .Fragments.Headings }}<details class="mobile-toc"><summary>文章目录</summary>{{ $mobileTOC }}</details>{{ end }}
         <div class="prose">{{ .Content }}</div>
         {{ if eq .Section "post" }}
         <footer class="article-footer"><p>本文采用 <a href="{{ .Site.Params.article.licenseURL }}" rel="license">{{ .Site.Params.article.license }}</a> 许可，转载请注明出处。</p></footer>
@@ -34,7 +36,7 @@
       {{ end }}
       {{ partial "comments.html" . }}
     </div>
-    {{ if .Fragments.Headings }}<aside class="desktop-toc" aria-label="文章目录"><div class="toc-panel"><p>目录</p>{{ .TableOfContents }}</div></aside>{{ end }}
+    {{ if .Fragments.Headings }}<aside class="desktop-toc" aria-label="文章目录"><div class="toc-panel"><p aria-hidden="true">目录</p>{{ $desktopTOC }}</div></aside>{{ end }}
   </div>
 {{ end }}
 {{ end }}
