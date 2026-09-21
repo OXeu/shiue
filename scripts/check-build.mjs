@@ -98,6 +98,22 @@ function localAsset(url, parent = baseURL) {
 
 const home = read('index.html');
 const $home = load(home);
+const homeScripts = $home('script[src]').map((_, element) => $home(element).attr('src')).get();
+assert.equal(homeScripts.length, 2, '首页只应加载跨页过渡与文章列表两个外部脚本');
+assert.ok(homeScripts.some(src => /\/js\/article-transition\.min\.[a-f0-9]+\.js$/.test(src)));
+const feedScript = homeScripts.find(src => /\/js\/feed\.[a-f0-9]+\.js$/.test(src));
+assert.ok(feedScript, '首页缺少按页面裁剪的文章列表脚本');
+const colorMode = $home('head script:not([src])');
+assert.equal(colorMode.length, 1, '颜色模式初始化应直接内联，避免额外阻塞请求');
+assert.match(colorMode.text(), /xeu-color-mode/);
+const feedBundle = readFileSync(outputPath(feedScript), 'utf8');
+assert.ok(Buffer.byteLength(feedBundle) < 16_000, '首页脚本体积异常增长');
+assert.match(feedBundle, /data-masonry/);
+assert.match(feedBundle, /data-progressive-image/);
+assert.match(feedBundle, /site-nav-toggle/);
+for (const unusedFeature of ['data-search', 'data-comment-form', 'data-friend-form', 'data-zoomable', 'data-x-embed', 'turnstile']) {
+  assert.doesNotMatch(feedBundle, new RegExp(unusedFeature), `首页脚本不应包含 ${unusedFeature} 功能`);
+}
 assert.equal($home('[data-mermaid-script]').length, 0, '没有图表的首页不得加载 Mermaid');
 const $mermaid = load(read('p/mermaid-render-check/index.html'));
 assert.equal($mermaid('[data-mermaid]').length, 1);

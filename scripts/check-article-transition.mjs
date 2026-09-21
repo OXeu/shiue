@@ -37,10 +37,11 @@ try {
   await open('');
   await page.waitForFunction(() => document.querySelector('.card-cover img').naturalWidth > 0);
   await page.waitForTimeout(400);
-  const link = page.locator('.card-title a').first();
+  const card = page.locator('.post-card').filter({ has: page.locator('.card-cover') }).first();
+  const link = card.locator('.card-title a');
   const target = await link.getAttribute('href');
-  const cardBox = await page.locator('.post-card').first().boundingBox();
-  const coverBox = await page.locator('.card-cover').first().boundingBox();
+  const cardBox = await card.boundingBox();
+  const coverBox = await card.locator('.card-cover').boundingBox();
   await link.click();
   const panel = await captured('article-panel');
   const cover = await captured('article-cover');

@@ -6,7 +6,22 @@
   {{ partial "header.html" . }}
   <main id="main" class="site-main{{ if or .IsHome .IsSection (eq .Kind "term") (eq .Params.layout "search") }} site-main--feed{{ end }}" tabindex="-1">{{ block "main" . }}{{ end }}</main>
   {{ partial "footer.html" . }}
-  {{ $scripts := resources.Get "js/main.js" | js.Build (dict "targetPath" "js/xeu.js" "minify" true "target" "es2020") | fingerprint }}
+  {{ $bundle := "site-page" }}
+  {{ if eq .Params.layout "search" }}
+    {{ $bundle = "search-page" }}
+  {{ else if or .IsHome .IsSection (eq .Kind "term") }}
+    {{ $bundle = "feed" }}
+  {{ else if and .IsPage (eq .Section "post") }}
+    {{ $bundle = "post" }}
+  {{ else if eq .Params.layout "friends" }}
+    {{ $bundle = "friends-page" }}
+  {{ else if eq .Params.layout "comment-review" }}
+    {{ $bundle = "comment-review-page" }}
+  {{ else if eq .Params.layout "friend-review" }}
+    {{ $bundle = "friends-page" }}
+  {{ end }}
+  {{ $path := printf "js/%s.js" $bundle }}
+  {{ $scripts := resources.Get $path | js.Build (dict "targetPath" $path "minify" true "target" "es2020") | fingerprint }}
   <script src="{{ $scripts.RelPermalink }}" integrity="{{ $scripts.Data.Integrity }}" defer></script>
   {{ partial "mermaid.html" . }}
 </body>

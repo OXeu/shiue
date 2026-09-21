@@ -24,9 +24,16 @@
 <meta property="og:type" content="{{ if eq .Section "post" }}article{{ else }}website{{ end }}">
 {{ with .Params.image }}{{ $cover := partial "image.html" (dict "page" $ "src" .) }}<meta property="og:image" content="{{ $cover.original | absURL }}">
 {{ else }}<meta property="og:image" content="{{ $identity.socialImage.src | absURL }}"><meta property="og:image:width" content="512"><meta property="og:image:height" content="512">{{ end }}
-{{ $init := resources.Get "js/color-mode.js" | minify | fingerprint }}
-<script src="{{ $init.RelPermalink }}" integrity="{{ $init.Data.Integrity }}"></script>
-{{ $transitions := resources.Get "js/article-transition.js" | minify | fingerprint }}
-<script src="{{ $transitions.RelPermalink }}" integrity="{{ $transitions.Data.Integrity }}"></script>
+{{ $init := resources.Get "js/color-mode.js" | minify }}
+{{ if .Params.noindex }}
+  {{ $init = $init | fingerprint }}
+  <script src="{{ $init.RelPermalink }}" integrity="{{ $init.Data.Integrity }}"></script>
+{{ else }}
+  <script>{{ $init.Content | safeJS }}</script>
+{{ end }}
+{{ if or .IsHome .IsSection (eq .Kind "term") (eq .Params.layout "search") (and .IsPage (eq .Section "post")) }}
+  {{ $transitions := resources.Get "js/article-transition.js" | minify | fingerprint }}
+  <script src="{{ $transitions.RelPermalink }}" integrity="{{ $transitions.Data.Integrity }}"></script>
+{{ end }}
 {{ $style := slice (resources.Get "css/tokens.css") (resources.Get "css/layout.css") (resources.Get "css/content.css") (resources.Get "css/identity.css") (resources.Get "css/syntax.css") (resources.Get "css/motion.css") | resources.Concat "css/xeu.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
