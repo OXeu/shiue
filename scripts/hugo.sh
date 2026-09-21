@@ -8,7 +8,7 @@ case "${1:-}" in
     if [[ "${SHIUE_IMAGES_READY:-0}" != 1 ]]; then
       node "$project_dir/scripts/deploy/identity.mjs"
       node "$project_dir/scripts/prepare-images.mjs"
-      node "$project_dir/scripts/prepare-mermaid.mjs"
+      node "$project_dir/scripts/prepare-d2.mjs"
     fi
     ;;
   *)

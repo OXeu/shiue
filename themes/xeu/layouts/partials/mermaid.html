@@ -1,4 +1,0 @@
-{{- if .Store.Get "hasMermaid" -}}
-  {{- $script := resources.Get "js/mermaid.js" | js.Build (dict "targetPath" "js/mermaid.js" "format" "esm" "minify" true "target" "es2020") | fingerprint -}}
-  <script type="module" src="{{ $script.RelPermalink }}" integrity="{{ $script.Data.Integrity }}" data-mermaid-script></script>
-{{- end -}}

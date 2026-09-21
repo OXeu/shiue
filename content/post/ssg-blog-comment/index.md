@@ -94,68 +94,142 @@ https://xeu.life/comment-review/#token=<加密后的评论payload>
 
 最终的整体架构如下：
 
-```mermaid
-flowchart LR
-    reader["读者提交评论或回复：选填邮箱、parentId"]
+```d2
+direction: down
 
-    subgraph ingress["接入安全 · 无状态 Vercel Functions"]
-        validate["校验 Origin、请求大小、文章白名单及父评论"]
-        pow["验证短期 PoW：绑定评论内容、邮箱和 parentId"]
-        sign["生成 HMAC 审批凭据：绑定内容、站点及有效期"]
-        validate --> pow --> sign
-    end
+classes: {
+  secure: {
+    style: {
+      fill: "#e8f5ee"
+      stroke: "#238636"
+      font-color: "#173b25"
+    }
+  }
+  storage: {
+    style: {
+      fill: "#eaf2ff"
+      stroke: "#3975c6"
+      font-color: "#183b65"
+    }
+  }
+  sensitive: {
+    style: {
+      fill: "#fff4df"
+      stroke: "#b7791f"
+      font-color: "#654510"
+    }
+  }
+}
 
-    subgraph moderation["待审数据 · 私有审核邮件承载，无待审数据库"]
-        mail["Resend 将评论和审批链接发送给博主"]
-        review["博主打开预览后，手动确认批准"]
-        mail -->|"凭据放在 URL fragment，页面读取后清除"| review
-    end
+reader: "读者提交评论或回复：选填邮箱、parentId"
 
-    subgraph approval["审批安全 · 服务端再次校验"]
-        verify["验证审批签名、期限和当前文章及父评论"]
-        encrypt["邮箱 AES-256-GCM 加密：绑定评论 ID 和文章路径"]
-        dispatch["使用独立用途密钥签名发布数据，提交 GitHub"]
-        accepted["GitHub 接受发布任务"]
-        verify --> encrypt --> dispatch --> accepted
-    end
+ingress: {
+  label: "接入安全 · 无状态 Vercel Functions"
+  direction: right
+  validate: {
+    label: "校验 Origin、请求大小、文章白名单及父评论"
+    class: secure
+  }
+  pow: {
+    label: "验证短期 PoW：绑定评论内容、邮箱和 parentId"
+    class: secure
+  }
+  sign: {
+    label: "生成 HMAC 审批凭据：绑定内容、站点及有效期"
+    class: secure
+  }
+  validate -> pow -> sign
+}
 
-    subgraph persistence["持久化 · 仅复用 Git 仓库与静态构建产物"]
-        action["GitHub Actions 再次验签：检查仓库、目录和父评论"]
-        git["每条评论一个 JSON：正文公开，邮箱仅保存密文和带密钥摘要"]
-        build["Vercel 自动部署，Hugo 构建"]
-        html["静态 HTML：文本转义，不展示邮箱；阅读不调用评论 API"]
-        index["comment-pages.json：文章白名单、评论 ID、邮箱密文索引"]
+moderation: {
+  label: "待审数据 · 私有审核邮件承载，无待审数据库"
+  direction: right
+  mail: {
+    label: "Resend 将评论和审批链接发送给博主"
+    class: sensitive
+  }
+  review: {
+    label: "博主打开预览后，手动确认批准"
+    class: sensitive
+  }
+  mail -> review: "凭据放在 URL fragment，页面读取后清除"
+}
 
-        action -->|"拒绝明文邮箱；重复内容幂等，不覆盖冲突"| git
-        git --> build
-        build --> html
-        build --> index
-    end
+approval: {
+  label: "审批安全 · 服务端再次校验"
+  direction: right
+  verify: {
+    label: "验证审批签名、期限和当前文章及父评论"
+    class: secure
+  }
+  encrypt: {
+    label: "邮箱 AES-256-GCM 加密：绑定评论 ID 和文章路径"
+    class: secure
+  }
+  dispatch: {
+    label: "使用独立用途密钥签名发布数据，提交 GitHub"
+    class: secure
+  }
+  accepted: "GitHub 接受发布任务"
+  verify -> encrypt -> dispatch -> accepted
+}
 
-    subgraph notification["通知隐私 · 仅服务端解密，收件人分别发送"]
-        lookup["按 parentId 取得父评论邮箱密文，并验证解密"]
-        notify["Resend 发送回复通知：固定幂等键减少重复发送"]
-        recipient["直接被回复者收到邮件"]
-        lookup -->|"父评论留有邮箱，且与回复者邮箱不同"| notify
-        notify --> recipient
-    end
+persistence: {
+  label: "持久化 · 仅复用 Git 仓库与静态构建产物"
+  direction: right
+  action: {
+    label: "GitHub Actions 再次验签：检查仓库、目录和父评论"
+    class: secure
+  }
+  git: {
+    label: "每条评论一个 JSON：正文公开，邮箱仅保存密文和带密钥摘要"
+    class: storage
+  }
+  build: "Vercel 自动部署，Hugo 构建"
+  html: {
+    label: "静态 HTML：文本转义，不展示邮箱；阅读不调用评论 API"
+    class: storage
+  }
+  index: {
+    label: "comment-pages.json：文章白名单、评论 ID、邮箱密文索引"
+    class: storage
+  }
+  action -> git: "拒绝明文邮箱；重复内容幂等，不覆盖冲突"
+  git -> build
+  build -> html
+  build -> index
+}
 
-    reader --> validate
-    sign --> mail
-    review -->|"同源 POST；打开链接本身不发布"| verify
-    accepted --> action
-    accepted -->|"无需等待构建部署完成"| lookup
-    index -.->|"随函数打包，读取本地文件"| validate
-    index -.->|"审批时校验"| verify
-    index -.->|"提供已发布父评论的邮箱密文"| lookup
+notification: {
+  label: "通知隐私 · 仅服务端解密，收件人分别发送"
+  direction: right
+  lookup: {
+    label: "按 parentId 取得父评论邮箱密文，并验证解密"
+    class: sensitive
+  }
+  notify: {
+    label: "Resend 发送回复通知：固定幂等键减少重复发送"
+    class: sensitive
+  }
+  recipient: "直接被回复者收到邮件"
+  lookup -> notify: "父评论留有邮箱，且与回复者邮箱不同"
+  notify -> recipient
+}
 
-    classDef secure fill:#e8f5ee,stroke:#238636,color:#173b25
-    classDef storage fill:#eaf2ff,stroke:#3975c6,color:#183b65
-    classDef private fill:#fff4df,stroke:#b7791f,color:#654510
-
-    class validate,pow,sign,verify,encrypt,dispatch,action secure
-    class git,index,html storage
-    class mail,review,lookup,notify private
+reader -> ingress.validate
+ingress.sign -> moderation.mail
+moderation.review -> approval.verify: "同源 POST；打开链接本身不发布"
+approval.accepted -> persistence.action
+approval.accepted -> notification.lookup: "无需等待构建部署完成"
+persistence.index -> ingress.validate: "随函数打包，读取本地文件" {
+  style.stroke-dash: 4
+}
+persistence.index -> approval.verify: "审批时校验" {
+  style.stroke-dash: 4
+}
+persistence.index -> notification.lookup: "提供已发布父评论的邮箱密文" {
+  style.stroke-dash: 4
+}
 ```
 
 你可以在我的博客仓库中查看完整的源代码：[OXeu/shiue](https://github.com/OXeu/shiue)。
@@ -171,4 +245,3 @@ flowchart LR
 *谁也说不准明天和意外哪个先到*，但不难想象我在家里的小鸡大概率会随我飞升，云上的小鸡没人续费也活不了几年，但云服务厂商的免费托管，想必应该是其中能活得最久的那个。
 
 ![企鹅灵魂出窍，带着光环飞升](meme-ascension.gif)
-

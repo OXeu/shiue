@@ -127,6 +127,8 @@ try {
   const utf8 = pageMetadata(Buffer.from('<title>没有 charset 的中文博客</title><link rel="icon" href="//example.org/i.png">'), base);
   assert.equal(utf8.title, '没有 charset 的中文博客');
   assert.equal(utf8.icons[0], 'http://example.org/i.png');
+  const latin1 = pageMetadata(Buffer.from('<title>Caf\xe9</title>', 'latin1'), base, 'text/html; charset=iso-8859-1');
+  assert.equal(latin1.title, 'Café', 'HTTP charset 应使用新版 encoding-sniffer 正确解码');
 
   // Exercise the actual CLI against an isolated repo, not the real friend list.
   await mkdir(path.join(root, 'scripts'));

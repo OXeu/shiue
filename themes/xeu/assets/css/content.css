@@ -3,10 +3,7 @@
 .reading-column { min-width: 0; }
 .article-heading { padding-bottom: 8px; margin-bottom: 32px; }
 .article-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.article-heading h1 { margin-top: 16px; font-size: 36px; line-height: 1.4; font-weight: 700; letter-spacing: -.025em; }
-@supports (text-wrap: pretty) {
-  .article-heading h1 { text-wrap: pretty; }
-}
+.article-heading h1 { margin-top: 16px; font-size: 36px; line-height: 1.4; font-weight: 700; letter-spacing: -.025em; text-wrap: balance; }
 .article-heading h1:first-child { margin-top: 0; }
 .article-tags { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; font-size: 13px; color: var(--muted); }
 .article-tags a { padding: 5px 12px; border-radius: var(--radius-control); background: var(--surface-muted); }
@@ -42,28 +39,26 @@
 .copy-code:hover { background: var(--hover); color: var(--text); }
 .prose pre { max-width: 100%; overflow-x: auto; margin: 0; padding: 16px; line-height: 1.6; tab-size: 4; }
 .prose pre code { background: transparent; color: inherit; padding: 0; border-radius: 0; font-size: 13px; white-space: pre; overflow-wrap: normal; }
-.mermaid-block { min-width: 0; margin: 24px 0; }
-.mermaid-diagram { max-width: 100%; overflow-x: auto; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--surface); line-height: 1.5; }
-.mermaid-diagram > svg { display: block; margin-inline: auto; }
-.mermaid-diagram > [data-mermaid-render-theme="dark"] { display: none; }
-:root[data-color-mode="dark"] .mermaid-diagram > [data-mermaid-render-theme="light"] { display: none; }
-:root[data-color-mode="dark"] .mermaid-diagram > [data-mermaid-render-theme="dark"] { display: block; }
-.mermaid-diagram .label p { margin: 0; }
-.mermaid-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-.mermaid-controls button { min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: var(--radius-control); background: var(--surface-muted); font-size: 13px; }
-.mermaid-controls button:is(:hover, :focus-visible) { background: var(--hover); }
-.mermaid-controls button:disabled { cursor: default; opacity: .45; }
-.mermaid-controls output { min-width: 54px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-soft); }
-.mermaid-diagram.is-interactive { position: relative; height: clamp(260px, 55vh, 480px); padding: 0; overflow: hidden; touch-action: none; user-select: none; cursor: grab; }
-.mermaid-diagram.is-interactive > svg { position: absolute; top: 0; left: 0; margin: 0; transform-origin: 0 0; }
-.mermaid-diagram.is-dragging { cursor: grabbing; }
-.mermaid-diagram.is-dragging > svg { will-change: transform; }
-.prose .mermaid-hint { margin: 8px 0; color: var(--muted); font-size: 12px; }
-.mermaid-source { margin-top: 8px; }
-.mermaid-source > summary { width: fit-content; padding: 8px 0; cursor: pointer; color: var(--muted); font-size: 13px; }
-.mermaid-source > summary:hover { color: var(--text); }
-.prose .mermaid-source .code-block { margin-block: 8px 0; }
-.prose .mermaid-status { margin-block: 8px; color: var(--muted); font-size: 13px; }
+.d2-block { min-width: 0; margin: 24px 0; }
+.d2-diagram { max-width: 100%; overflow-x: auto; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--surface); line-height: 1.5; }
+.d2-diagram > svg { display: block; margin-inline: auto; }
+.d2-diagram > [data-d2-render-theme="dark"] { display: none; }
+:root[data-color-mode="dark"] .d2-diagram > [data-d2-render-theme="light"] { display: none; }
+:root[data-color-mode="dark"] .d2-diagram > [data-d2-render-theme="dark"] { display: block; }
+.d2-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.d2-controls button { min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: var(--radius-control); background: var(--surface-muted); font-size: 13px; }
+.d2-controls button:is(:hover, :focus-visible) { background: var(--hover); }
+.d2-controls button:disabled { cursor: default; opacity: .45; }
+.d2-controls output { min-width: 54px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-soft); }
+.d2-diagram.is-interactive { position: relative; height: clamp(260px, 55vh, 480px); padding: 0; overflow: hidden; touch-action: none; user-select: none; cursor: grab; }
+.d2-diagram.is-interactive > svg { position: absolute; top: 0; left: 0; margin: 0; transform-origin: 0 0; }
+.d2-diagram.is-dragging { cursor: grabbing; }
+.d2-diagram.is-dragging > svg { will-change: transform; }
+.prose .d2-hint { margin: 8px 0; color: var(--muted); font-size: 12px; }
+.d2-source { margin-top: 8px; }
+.d2-source > summary { width: fit-content; padding: 8px 0; cursor: pointer; color: var(--muted); font-size: 13px; }
+.d2-source > summary:hover { color: var(--text); }
+.prose .d2-source .code-block { margin-block: 8px 0; }
 .prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 14px; }
 .prose td, .prose th { border: 1px solid var(--border-hover); padding: 8px 12px; }
 .prose th { background: var(--surface-muted); text-align: left; }

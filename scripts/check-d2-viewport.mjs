@@ -7,29 +7,29 @@ import { load } from 'cheerio';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const baseURL = process.env.SHIUE_TEST_URL || 'http://127.0.0.1:1313/';
 const articleURL = new URL('p/ssg-blog-comment/', baseURL).href;
-const artifacts = await mkdtemp(path.join(tmpdir(), 'xeu-mermaid-viewport-'));
+const artifacts = await mkdtemp(path.join(tmpdir(), 'xeu-d2-viewport-'));
 const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE });
 const errors = [];
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 page.on('pageerror', error => errors.push(error.message));
-const block = page.locator('[data-mermaid]').first();
-const viewport = block.locator('[data-mermaid-output]');
-const action = name => block.locator(`[data-mermaid-action="${name}"]`).click();
+const block = page.locator('[data-d2]').first();
+const viewport = block.locator('[data-d2-output]');
+const action = name => block.locator(`[data-d2-action="${name}"]`).click();
 const near = (actual, expected, label, tolerance = .02) => assert.ok(Math.abs(actual - expected) < tolerance, `${label}: ${actual} ≠ ${expected}`);
 const camera = locator => locator.evaluate(element => {
-  const matrix = new DOMMatrix(getComputedStyle(element.querySelector('svg')).transform);
+  const matrix = new DOMMatrix(getComputedStyle(element.querySelector('[data-d2-active]')).transform);
   return { scale: matrix.a, x: matrix.e, y: matrix.f, width: element.clientWidth, height: element.clientHeight };
 });
 const fits = locator => locator.evaluate(element => {
   const frame = element.getBoundingClientRect();
-  const svg = element.querySelector('svg').getBoundingClientRect();
+  const svg = element.querySelector('[data-d2-active]').getBoundingClientRect();
   return svg.left >= frame.left && svg.top >= frame.top && svg.right <= frame.right + 1 && svg.bottom <= frame.bottom + 1;
 });
 
 try {
   await page.goto(articleURL);
   await block.scrollIntoViewIfNeeded();
-  await viewport.locator('svg').waitFor();
+  await viewport.locator('[data-d2-active]').waitFor();
   await block.scrollIntoViewIfNeeded();
   assert.ok(await fits(viewport), '首次显示应能看到整张图');
   const initial = await camera(viewport);
@@ -69,7 +69,7 @@ try {
   await page.keyboard.down('Control');
   await page.mouse.wheel(0, -90);
   await page.keyboard.up('Control');
-  await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('[data-mermaid-output] svg')).transform).a > 1);
+  await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('[data-d2-active]')).transform).a > 1);
   let next = await camera(viewport);
   near((anchor.x - next.x) / next.scale, (anchor.x - previous.x) / previous.scale, '缩放水平锚点');
   near((anchor.y - next.y) / next.scale, (anchor.y - previous.y) / previous.scale, '缩放垂直锚点');
@@ -97,9 +97,9 @@ try {
   assert.ok((await camera(viewport)).x < previous.x, '方向键平移');
   for (let i = 0; i < 12; i++) await page.keyboard.press('Equal');
   near((await camera(viewport)).scale, 4, '最大缩放比例');
-  assert.ok(await block.locator('[data-mermaid-action="in"]').isDisabled());
+  assert.ok(await block.locator('[data-d2-action="in"]').isDisabled());
   for (let i = 0; i < 45; i++) await page.keyboard.press('Minus');
-  assert.ok(await block.locator('[data-mermaid-action="out"]').isDisabled());
+  assert.ok(await block.locator('[data-d2-action="out"]').isDisabled());
   await page.keyboard.press('0');
   assert.ok(await fits(viewport), '0 适应窗口');
   await page.keyboard.press('1');
@@ -108,7 +108,7 @@ try {
   await action('in');
   previous = await camera(viewport);
   await page.locator('button[data-color-mode="dark"]').click();
-  await page.waitForSelector('[data-mermaid-theme="dark"]');
+  await page.waitForSelector('[data-d2-theme="dark"]');
   next = await camera(viewport);
   near(next.scale, previous.scale, '主题切换保留缩放');
   near(next.x, previous.x, '主题切换保留水平位置');
@@ -119,8 +119,8 @@ try {
   const worldCenter = { x: (next.width / 2 - next.x) / next.scale, y: (next.height / 2 - next.y) / next.scale };
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForFunction(expected => {
-    const frame = document.querySelector('[data-mermaid-output]');
-    const matrix = new DOMMatrix(getComputedStyle(frame.querySelector('svg')).transform);
+    const frame = document.querySelector('[data-d2-output]');
+    const matrix = new DOMMatrix(getComputedStyle(frame.querySelector('[data-d2-active]')).transform);
     return Math.abs((frame.clientWidth / 2 - matrix.e) / matrix.a - expected.x) < .1;
   }, worldCenter);
   next = await camera(viewport);
@@ -135,15 +135,15 @@ try {
   await page.route(articleURL, async route => {
     const response = await route.fetch();
     const $ = load(await response.text());
-    const fixture = $('[data-mermaid]').first().clone();
+    const fixture = $('[data-d2]').first().clone();
     $('.article .prose').empty().append(fixture, fixture.clone());
     await route.fulfill({ response, body: $.html() });
   });
   await page.setViewportSize({ width: 1280, height: 1600 });
   await page.goto(articleURL);
-  await page.locator('[data-mermaid]').last().scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => document.querySelectorAll('[data-mermaid-output] svg').length === 2);
-  const second = page.locator('[data-mermaid-output]').last();
+  await page.locator('[data-d2]').last().scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelectorAll('[data-d2-active]').length === 2);
+  const second = page.locator('[data-d2-output]').last();
   const untouched = await camera(second);
   await action('in');
   await action('actual');
@@ -154,11 +154,11 @@ try {
   // CDP 发送真实触屏输入，由浏览器产生 Pointer Events 和指针捕获。
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   mobile.on('pageerror', error => errors.push(error.message));
-  const touchViewport = mobile.locator('[data-mermaid-output]');
+  const touchViewport = mobile.locator('[data-d2-output]');
   await mobile.goto(articleURL);
-  await mobile.locator('[data-mermaid]').scrollIntoViewIfNeeded();
-  await touchViewport.locator('svg').waitFor();
-  await mobile.locator('[data-mermaid-action="actual"]').click();
+  await mobile.locator('[data-d2]').scrollIntoViewIfNeeded();
+  await touchViewport.locator('[data-d2-active]').waitFor();
+  await mobile.locator('[data-d2-action="actual"]').click();
   await touchViewport.scrollIntoViewIfNeeded();
   box = await touchViewport.boundingBox();
   const session = await mobile.context().newCDPSession(mobile);
@@ -181,14 +181,14 @@ try {
   near(next.x - previous.x, 50, '单指水平拖拽', 1);
   near(next.y - previous.y, 45, '单指垂直拖拽', 1);
   assert.equal(await touchViewport.evaluate(element => element.classList.contains('is-dragging')), false, '取消触摸应清理拖拽状态');
-  await mobile.locator('[data-mermaid]').screenshot({ path: path.join(artifacts, 'touch-zoom.png') });
+  await mobile.locator('[data-d2]').screenshot({ path: path.join(artifacts, 'touch-zoom.png') });
   await sendTouch('touchStart', [point(1, 4, 600)]);
   for (const y of [550, 500, 450, 400, 350]) await sendTouch('touchMove', [point(1, 4, y)]);
   await sendTouch('touchEnd', []);
   await mobile.waitForFunction(y => scrollY !== y, touchScroll);
   await mobile.close();
   assert.deepEqual(errors, []);
-  console.log(`图表交互检查通过：缩放按钮与边界、指针锚点、拖拽及框外释放、键盘、原图/适应、主题/尺寸状态保留、多图隔离、触屏捏合/拖拽/取消、页面正常滚动。截图：${artifacts}`);
+  console.log(`D2 图表交互检查通过：缩放按钮与边界、指针锚点、拖拽及框外释放、键盘、原图/适应、主题/尺寸状态保留、多图隔离、触屏捏合/拖拽/取消、页面正常滚动。截图：${artifacts}`);
 } finally {
   await browser.close();
 }

@@ -11,6 +11,8 @@
                   ↓
         友链检测 → 图片预处理
                   ↓
+         D2 SVG 预渲染与压缩
+                  ↓
          Hugo 构建 → 产物检查
                   ↓
         耗时汇总 + JSON 报告
@@ -27,11 +29,12 @@
 | `scripts/deploy/process.mjs` | 子进程输出流、退出码和取消处理 |
 | `scripts/deploy/friends.mjs` | 有限并发的 HTTP 健康检测、重试和状态快照 |
 | `scripts/deploy/identity.mjs` | 每次联网拉取 GitHub 头像、生成多尺寸站点图标和响应式头像 |
+| `scripts/prepare-d2.mjs` | 扫描 Markdown 图表、用 D2 WebAssembly 预渲染双主题 SVG、进行安全清理与压缩 |
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
 | `scripts/hugo.sh` | Hugo 版本解析、官方校验和、工具缓存、底层执行和旧入口兼容 |
 | `.github/workflows/daily-deploy.yml` | 每天向默认分支推送空提交，由 托管平台的 Git 集成触发构建 |
 
-步骤默认顺序执行，依赖关系直接体现在注册顺序中；友链检测内部最多 3 个请求并发，图片处理内部最多 2 张图片并发，避免所有预处理同时争用资源。
+步骤默认顺序执行，依赖关系直接体现在注册顺序中；友链检测和图片处理各自限制并发，D2 仅在内容指纹缓存未命中时启动构建期 WebAssembly Worker，避免重复布局和渲染。
 
 新增预处理只需在 `deploymentSteps()` 中注册一步：
 
@@ -62,14 +65,16 @@ npm run deploy                         # 完整部署构建
 npm run build                          # 同一套流程
 npm run build -- --offline              # 需已有 Hugo 和图标产物，不访问外网
 npm run identity                       # 重新下载 GitHub 头像并生成站点图标
+npm run d2                            # 预渲染并压缩 D2 SVG
+npm run d2:watch                      # 编辑文章时监听 D2 代码块
 npm run deploy -- --list                # 仅列出注册步骤
 npm run deploy -- --help
 npm run deploy -- --destination /tmp/xeu-output --baseURL https://example.com/blog/
-npm run dev                            # 下载头像、准备图片 + 开发服务器，不检测友链
+npm run dev                            # 下载头像、准备图片和 D2 SVG + 开发服务器，不检测友链
 npm run check:deploy                    # 本地回归，不访问真实友链、不触发真实部署
 ```
 
-`HUGO_BIN` 可指定与 `.hugo-version` 一致的 Extended 二进制；未安装时，Linux x86_64 自动下载官方发行包并验证 SHA-256。二进制保存在 `.cache/deploy/hugo/<版本>/`，图片使用下述内容哈希缓存。没有缓存时仍能正常完成构建。
+`HUGO_BIN` 可指定与 `.hugo-version` 一致的 Extended 二进制；未安装时，Linux x86_64 自动下载官方发行包并验证 SHA-256。二进制保存在 `.cache/deploy/hugo/<版本>/`，图片和 D2 使用下述内容哈希缓存。没有缓存时仍能正常完成构建。
 
 同一工作区不能同时运行两个部署流程。正常结束、失败或 Ctrl+C 时释放锁；若进程被 SIGKILL 或机器断电，需确认没有运行中的构建后再删除 `.cache/deploy/run.lock`。不要将该文件提交到 Git。
 
@@ -84,6 +89,14 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 构建日志会显示“缓存复用 N 张（从构建缓存恢复 M 张），K 张新生成缩略图与 BlurHash”。首次没有 `.cache/xeu-images` 时全量生成；后续命中 Workers Build cache 时应显示 `0 张新生成`。
 
 `node scripts/check-images.mjs` 验证冷/热缓存、从 `$PWD/.cache/xeu-images` 跨全新工作区恢复、图片改名/更新、缺失文件、无效清单、旧缓存清理，以及远端索引和 bundle 不再发布。
+
+## D2 构建缓存
+
+`scripts/prepare-d2.mjs` 扫描 `content/` 中的 D2 围栏代码块，以规范化源码和渲染配方生成内容指纹。每张图在构建机内用锁定版本的 `@d2lang/d2` WebAssembly 包分别渲染浅色与深色 SVG，再经 SVGO 压缩并移除脚本、事件属性、外部图片及其他嵌入资源。构建期使用 GB2312 范围的 Noto Sans SC 子集完成中文测量，发布 SVG 移除重复内嵌字体并继承站点字体栈。最终清单写入被 Git 忽略的 `data/xeu/d2.json`，Hugo 将两份 SVG 直接内联到文章；RSS 仍只输出图表源码。浏览器端只加载按页裁剪的缩放增强，不下载 D2 渲染器或 WASM。
+
+压缩后的 SVG 缓存在 `$PWD/.cache/xeu-d2/`。源码和配方未变化时不启动 D2 Worker，直接重建清单；首次构建、图表修改或配方升级时才重新渲染。D2 语法错误会终止构建，避免发布坏图。缓存与清单缺失时 `npm run build` 会自动补齐；绕过统一入口直接执行 Hugo 前，必须先运行 `npm run d2`。
+
+Hugo 构建前会清理恢复到 `public/js/` 的旧 D2 增强脚本、已下线的 Mermaid 引擎/增强脚本和仍包含 X iframe 逻辑的旧文章包，再重新发布当前指纹版本，避免 Workers Build cache 把旧动态代码继续带入产物。
 
 ## 友链检测
 

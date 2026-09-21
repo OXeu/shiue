@@ -2,10 +2,10 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const maxScale = 4;
 const step = 1.25;
 
-export function createMermaidViewport(element) {
-  const viewport = element.querySelector('[data-mermaid-output]');
-  const controls = element.querySelector('[data-mermaid-controls]');
-  const zoomLabel = element.querySelector('[data-mermaid-zoom]');
+export function createD2Viewport(element) {
+  const viewport = element.querySelector('[data-d2-output]');
+  const controls = element.querySelector('[data-d2-controls]');
+  const zoomLabel = element.querySelector('[data-d2-zoom]');
   const pointers = new Map();
   let svg;
   let width = 1;
@@ -37,8 +37,8 @@ export function createMermaidViewport(element) {
     y = clamp(y, visibleY - height * scale, viewport.clientHeight - visibleY);
     svg.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
     zoomLabel.textContent = `${Math.round(scale * 100)}%`;
-    controls.querySelector('[data-mermaid-action="out"]').disabled = scale <= minScale() + .00001;
-    controls.querySelector('[data-mermaid-action="in"]').disabled = scale >= maxScale - .00001;
+    controls.querySelector('[data-d2-action="out"]').disabled = scale <= minScale() + .00001;
+    controls.querySelector('[data-d2-action="in"]').disabled = scale >= maxScale - .00001;
   }
 
   function fit() {
@@ -86,7 +86,7 @@ export function createMermaidViewport(element) {
   }
 
   controls.addEventListener('click', event => {
-    const action = event.target.closest('[data-mermaid-action]')?.dataset.mermaidAction;
+    const action = event.target.closest('[data-d2-action]')?.dataset.d2Action;
     if (!action) return;
     cancelGesture();
     if (action === 'fit') fit();
@@ -167,7 +167,7 @@ export function createMermaidViewport(element) {
       Object.assign(svg.style, { width: `${width}px`, height: `${height}px`, maxWidth: 'none' });
       viewport.classList.add('is-interactive');
       controls.hidden = false;
-      element.querySelector('[data-mermaid-hint]').hidden = false;
+      element.querySelector('[data-d2-hint]').hidden = false;
       viewportWidth = viewport.clientWidth;
       viewportHeight = viewport.clientHeight;
       if (autoFit) fit();

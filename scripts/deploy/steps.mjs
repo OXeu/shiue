@@ -10,7 +10,7 @@ export function deploymentSteps() {
       id: 'preflight', title: '环境检查',
       async run(context, { log }) {
         const [major, minor] = process.versions.node.split('.').map(Number);
-        if (major < 22 || (major === 22 && minor < 12)) throw new Error('部署脚本需要 Node.js 22.12 或更新版本');
+        if (!((major === 22 && minor >= 12) || major >= 24)) throw new Error('部署脚本需要 Node.js 22.12 LTS 或 24 及更新版本');
         for (const file of ['.hugo-version', 'hugo.toml', 'data/friends.json']) await access(path.join(context.root, file));
         log(`Node.js ${process.versions.node} · ${process.platform}/${process.arch}`);
         log(`输出目录：${context.destination}`);
@@ -54,22 +54,30 @@ export function deploymentSteps() {
       },
     },
     {
-      id: 'mermaid', title: '预渲染并压缩 Mermaid 图表',
+      id: 'd2', title: '预渲染并压缩 D2 图表',
       async run(context, io) {
-        const { prepareMermaid } = await import('../prepare-mermaid.mjs');
-        const manifest = await prepareMermaid(context.root, { log: io.log, signal: io.signal });
+        const { prepareD2 } = await import('../prepare-d2.mjs');
+        const manifest = await prepareD2(context.root, { log: io.log, signal: io.signal });
         return { diagrams: Object.keys(manifest).length };
       },
     },
     {
       id: 'hugo-build', title: '构建静态站点',
       async run(context, io) {
-        // Workers Builds 可能恢复旧 public/；避免已删除的路由和远端缓存产物继续发布。
+        // Workers Builds 可能恢复旧 public/；避免已删除的路由、缓存及图表/X 旧包继续发布。
+        const scriptDirectory = path.join(context.destination, 'js');
+        const retiredBundles = await readdir(scriptDirectory).then(files => files
+          .filter(file => /^(?:d2|mermaid(?:-engine)?|post)\.[a-f0-9]+\.js$/.test(file))
+          .map(file => path.join(scriptDirectory, file)), error => {
+            if (error.code === 'ENOENT') return [];
+            throw error;
+          });
         await Promise.all([
           '_routes.json',
           'xeu-images/image-cache-v3.json',
           'xeu-images/image-cache-v3.bin',
-        ].map(file => rm(path.join(context.destination, file), { force: true })));
+        ].map(file => path.join(context.destination, file)).concat(retiredBundles)
+          .map(file => rm(file, { force: true })));
         await command(context.hugo, ['--minify', '--destination', context.destination, ...context.hugoArgs], {
           ...io, cwd: context.root, env: { ...context.env, SHIUE_IMAGES_READY: '1' },
         });

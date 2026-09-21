@@ -15,7 +15,7 @@ data/friends.json.lock
 data/friends.json.*.tmp
 .cache/deploy/
 .cache/xeu-images/
-.cache/xeu-mermaid/
+.cache/xeu-d2/
 
 # Generated image manifests, site identity and friend-health snapshots.
 /data/xeu/

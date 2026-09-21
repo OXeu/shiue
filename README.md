@@ -4,7 +4,7 @@
 
 ## 新建文章
 
-在仓库根目录执行交互式脚本（只需 Node.js 22.9 或更新版本，无需先安装依赖或 Hugo）：
+在仓库根目录执行交互式脚本（使用 Node.js 22.12 LTS 或 24 及更新版本，无需先安装依赖或 Hugo）：
 
 ```bash
 npm run post:new
@@ -18,40 +18,42 @@ npm run post:new
 
 编辑生成的 Markdown 后，运行 `npm run dev -- --buildDrafts` 预览草稿（环境准备见下文「本地构建」）；准备发布时将 `draft` 改为 `false`，再提交文章与图片。
 
-## Mermaid 图表
+## D2 图表
 
-正文使用标记为 `mermaid` 的围栏代码块即可绘制图表，无需短代码或额外的文章配置：
+正文使用标记为 `d2` 的围栏代码块即可绘制图表，无需短代码或额外的文章配置：
 
 ````markdown
-```mermaid
-flowchart LR
-    reader[读者提交评论] --> mail[邮件审核]
-    mail --> git[写入 Git 仓库]
-    git --> build[重新生成静态站点]
+```d2
+direction: right
+reader: 读者提交评论
+mail: 邮件审核
+git: 写入 Git 仓库
+build: 重新生成静态站点
+reader -> mail -> git -> build
 ```
 ````
 
-主题通过 [Hugo 代码块渲染钩子](https://gohugo.io/render-hooks/code-blocks/) 接入 [Mermaid](https://mermaid.js.org/config/usage)。Mermaid 固定版本随 npm 依赖安装，由 Hugo 打包成带内容指纹的本地脚本，阅读时无需访问第三方 CDN。只有含图表的页面加载初始化脚本，图表接近视口时才下载一次渲染引擎；支持同页多图，颜色和字体沿用主题令牌，随浅色、深色及系统外观变化重新绘制。图中显式指定的节点样式仍由作者控制。
+主题通过 [Hugo 代码块渲染钩子](https://gohugo.io/render-hooks/code-blocks/) 接入 [D2](https://d2lang.com/)。构建流程用锁定版本的 `@d2lang/d2` WebAssembly 渲染器预生成浅色、深色两份 SVG，经 SVGO 清理并压缩后直接内联到静态 HTML；浏览器不下载 D2 渲染器、WASM 或第三方 CDN 资源。构建期使用 Noto Sans SC 子集准确测量中文，输出时移除重复的内嵌字体并继承站点字体栈。图表按源码内容指纹缓存，未修改的图不会重复渲染；同页重复图表的 SVG ID 也会隔离。图中显式指定的节点样式仍由作者控制。
 
-图表初始适应窗口，工具栏可放大、缩小、恢复原始大小或重新适应窗口。按住鼠标或单指拖拽可移动图表，双指捏合缩放；Ctrl/⌘ + 滚轮围绕指针缩放，双击放大，Shift + 双击缩小，普通滚轮仍滚动文章。聚焦图框后可用 `+` / `-` 缩放、方向键平移、`0` 或 Home 适应窗口、`1` 恢复原始大小。最大可放大至 400%，最小可缩至 10% 或完整显示图表所需的更小比例。每张图独立保存查看状态，明暗主题重绘时保留缩放和位置；窗口尺寸变化时，适应模式重新适应，手动查看模式保留中心位置。触屏手势只接管图框内部，图框外仍可正常滑动文章。
+图表初始适应窗口，工具栏可放大、缩小、恢复原始大小或重新适应窗口。按住鼠标或单指拖拽可移动图表，双指捏合缩放；Ctrl/⌘ + 滚轮围绕指针缩放，双击放大，Shift + 双击缩小，普通滚轮仍滚动文章。聚焦图框后可用 `+` / `-` 缩放、方向键平移、`0` 或 Home 适应窗口、`1` 恢复原始大小。最大可放大至 400%，最小可缩至 10% 或完整显示图表所需的更小比例。每张图独立保存查看状态，明暗主题切换时直接切换静态 SVG 并保留缩放和位置；窗口尺寸变化时，适应模式重新适应，手动查看模式保留中心位置。触屏手势只接管图框内部，图框外仍可正常滑动文章。
 
-渲染成功后收起「图表源码」，展开后仍可复制；关闭 JavaScript、加载失败或语法错误时保留源码并隐藏交互控件，RSS 同样保留源码。使用 Mermaid 的严格安全模式，Markdown 的 `unsafe = false` 无需调整，普通代码块的高亮和复制不受影响。
+「图表源码」默认收起，展开后仍可复制；关闭 JavaScript 时静态图照常显示，仅缩放工具不启用。语法错误会在构建阶段直接报出，不会把坏图发布上线；RSS 只保留可读源码，避免重复携带双主题 SVG。构建会移除脚本、事件属性和外部嵌入资源，并拒绝不安全的 CSS URL；Markdown 的 `unsafe = false` 无需调整，普通代码块的高亮和复制不受影响。生成清单 `data/xeu/d2.json` 与缓存 `.cache/xeu-d2/` 均被 Git 忽略；可单独运行 `npm run d2`，编辑图表时可运行 `npm run d2:watch`。
 
-`node scripts/check-build.mjs` 包含源码转义、资源路径、按页加载及 RSS 回归；在预览服务启动后，可运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-mermaid.mjs`，验证实际渲染、多图、主题切换、手机布局、源码复制及失败回退。`node scripts/check-mermaid-viewport.mjs` 使用同一组环境变量验证缩放锚点、拖拽、真实触屏捏合、键盘、缩放边界、状态保留与多图隔离。可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` 指定 Chromium 路径。
+`node scripts/check-build.mjs` 包含预渲染、压缩、安全清理、客户端体积、零引擎请求及 RSS 回归；在预览服务启动后，可运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-d2.mjs`，验证双主题静态 SVG、手机布局、源码复制和无 JavaScript。`node scripts/check-d2-viewport.mjs` 使用同一组环境变量验证缩放锚点、拖拽、真实触屏捏合、键盘、缩放边界、状态保留与多图隔离。可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` 指定 Chromium 路径。
 
-## X 帖子嵌入
+## X 帖子静态引用
 
-文章中使用 `x` 短代码接入 [X 官方嵌入组件](https://help.x.com/en/using-x/how-to-embed-a-post)，支持 `x.com` 和 `twitter.com` 的 HTTPS 帖子链接：
+文章中使用 `x` 短代码生成静态引用卡片，支持 `x.com` 和 `twitter.com` 的 HTTPS 帖子链接：
 
 ```markdown
 {{< x url="https://x.com/nftechie_/status/2098532090874560815" >}}
-> 帖子的文字引用，供加载失败和 RSS 阅读时显示。
+> 帖子的文字引用，会直接进入静态 HTML 和 RSS。
 {{< /x >}}
 ```
 
-不需要文字引用时可写成 `{{< x url="https://x.com/nftechie_/status/2098532090874560815" />}}`。短代码校验帖子地址，使用 X 官方 `widgets.js` 生成 iframe；接近视口时才加载脚本，同页共用一次加载，并随博客外观切换浅色或深色。原帖链接始终保留；关闭 JavaScript、网络失败或帖子不可用时显示文字引用。构建不请求 X，RSS 保留静态引用，Markdown 的 `unsafe = false` 保持开启。无需在正文粘贴 `<script>` 或原始 iframe。
+文字引用是必填内容；短代码会校验帖子地址，再由 Hugo 在 SSG 阶段输出卡片与原帖链接。页面和构建都不请求 X，不加载 `widgets.js`、iframe、图片或其他第三方资源，关闭 JavaScript 时显示完全一致；代价是原帖后续修改不会自动同步，需要在 Markdown 中手动更新引用。Markdown 的 `unsafe = false` 保持开启，无需粘贴 `<script>` 或原始 iframe。
 
-嵌入区域沿用正文间距和字体，最大宽度为 550px，小屏幕随正文收缩。浏览器回归可运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-x-embeds.mjs`。
+引用卡片沿用正文间距和字体，最大宽度为 550px，小屏幕随正文收缩。浏览器回归可运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-x-embeds.mjs`，验证零第三方请求、浅深色、手机布局、无 JavaScript 和 RSS。
 
 ## 主题
 
@@ -61,7 +63,7 @@ flowchart LR
 
 动画主要使用 `transform` 和 `opacity`，仅在运行期间提示图层提升。瀑布流缓存卡片尺寸，只在容器宽度或卡片实际尺寸变化时重排；滚动只在越过页头阈值时更新样式。BlurHash 仅在接近视口时分帧解码，并复用有限缓存；图片解码完成后释放占位画布，搜索更新时释放旧图片观察器。页头和预览遮罩不使用持续的背景模糊滤镜。
 
-样式令牌集中在 `themes/xeu/assets/css/tokens.css`，布局和文章排版分别在 `layout.css`、`content.css`；交互位于 `assets/js/`。Hugo 按文章列表、搜索、文章、友链/审核和普通静态页分别构建 JavaScript，首页不携带评论、搜索、友链申请、正文预览或 X 嵌入代码；首屏颜色初始化直接内联，严格 CSP 的审核页仍使用同源外部脚本。主题使用 Hugo 模板、原生 CSS 与 JavaScript；Node.js 用于构建时的图片处理和友链维护，部署产物仍是静态文件。Cantarell 字体随主题本地提供，许可见 `static/fonts/OFL.txt`。头像与 favicon 使用每次部署在线获取的 GitHub 头像，不保存到 Git 仓库。
+样式令牌集中在 `themes/xeu/assets/css/tokens.css`，布局和文章排版分别在 `layout.css`、`content.css`；交互位于 `assets/js/`。Hugo 按文章列表、搜索、文章、友链/审核和普通静态页分别构建 JavaScript，首页不携带评论、搜索、友链申请或正文预览代码，文章包也不包含 X 组件；首屏颜色初始化直接内联，严格 CSP 的审核页仍使用同源外部脚本。主题使用 Hugo 模板、原生 CSS 与 JavaScript；Node.js 用于构建时的图片处理、D2 预渲染和友链维护，部署产物仍是静态文件。Cantarell 字体随主题本地提供，许可见 `static/fonts/OFL.txt`。头像与 favicon 使用每次部署在线获取的 GitHub 头像，不保存到 Git 仓库。
 
 主题默认使用纯白背景与黑灰文字，控件主色为 `#222`，按钮悬停、键盘焦点和按压逐级加深至 `#111`、`#000`。粉色仅用于普通链接、选中的目录项和 CC 许可链接；卡片、标签、代码高亮、焦点框及文本选区使用中性色或对应的语义色。页面共用间距、圆角和宽度令牌，正文最大宽度为 760px。卡片摘要最多两行，外观切换器直接位于 footer 内，选中样式与顶部导航一致；可选择浅色、深色或跟随系统并记住偏好。搜索仅在提交或输入后显示状态，移动端目录保留按需展开。评论直接展示，点击标题栏「评论」或留言行「回复」后在按钮旁展开编辑器，按文章和回复对象在浏览器本地保存草稿。评论时间使用浏览器时区，三天内可点击切换相对与绝对时间。提交表单沿用同一套字体、颜色和焦点样式。
 
@@ -120,16 +122,16 @@ npm run friend:add -- https://example.com \
 
 ## 本地构建
 
-安装 Node.js 22.9 或更新版本，以及 [.hugo-version](.hugo-version) 指定版本的 [Hugo Extended](https://gohugo.io/installation/)，在仓库根目录执行：
+安装 Node.js 22.12 LTS 或 24 及更新版本，以及 [.hugo-version](.hugo-version) 指定版本的 [Hugo Extended](https://gohugo.io/installation/)，在仓库根目录执行：
 
 ```bash
 npm ci
 npm run build
 ```
 
-`npm run build` 与 `npm run deploy` 是同一个入口：环境检查 → Hugo 准备 → 在线获取站点图标 → 友链检测 → 图片预处理 → 静态构建 → 产物检查。每步显示进度、日志与耗时，结束后汇总，结构化报告写入 `.cache/deploy/report.json`。产物位于 `public/`，脚本不会自行上传或触发线上发布。
+`npm run build` 与 `npm run deploy` 是同一个入口：环境检查 → Hugo 准备 → 在线获取站点图标 → 友链检测 → 图片预处理 → D2 预渲染与压缩 → 静态构建 → 产物检查。每步显示进度、日志与耗时，结束后汇总，结构化报告写入 `.cache/deploy/report.json`。产物位于 `public/`，脚本不会自行上传或触发线上发布。
 
-离线构建使用 `npm run build -- --offline`，需要已有 Hugo 和站点图标产物，不请求外网。本地预览使用 `npm run dev`，下载头像、准备图片并启动开发服务器，不检测友链；也可先执行 `npm run identity` 和 `npm run images`，再直接运行 `hugo --minify` 或 `hugo server`。正常部署若无法获取最新头像会失败，不会自动退回旧头像。主题已在配置中启用，无需额外指定 `--theme`。架构、扩展步骤、错误策略和每日刷新配置见 [部署流程](docs/deployment.md)。
+离线构建使用 `npm run build -- --offline`，需要已有 Hugo 和站点图标产物，不请求外网。本地预览使用 `npm run dev`，下载头像、准备图片与 D2 SVG 后启动开发服务器，不检测友链；编辑图表时可另开终端运行 `npm run d2:watch`。也可先执行 `npm run identity`、`npm run images` 和 `npm run d2`，再直接运行 `hugo --minify` 或 `hugo server`。正常部署若无法获取最新头像会失败，不会自动退回旧头像。主题已在配置中启用，无需额外指定 `--theme`。架构、扩展步骤、错误策略和每日刷新配置见 [部署流程](docs/deployment.md)。
 
 Linux x86_64 也可执行 `bash scripts/hugo.sh --minify`，会进入同一部署流程；自动下载指定版本的官方 Extended 发行包并校验 SHA-256，二进制缓存在 `.cache/deploy/hugo/`。已安装相同版本时直接复用。
 

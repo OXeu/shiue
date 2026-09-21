@@ -1,0 +1,25 @@
+{{- $source := strings.TrimSpace .Inner -}}
+{{- .Page.Store.Set "hasD2" true -}}
+{{- $key := crypto.SHA256 $source -}}
+{{- $diagram := index hugo.Data.xeu.d2 $key -}}
+{{- if not $diagram }}{{ errorf "D2 图表缺少 SSG 产物，请先运行 npm run d2：%s (%s)" (substr $key 0 12) .Position }}{{ end -}}
+{{- $instance := printf "xeu-d2-%s-%d" (substr $key 0 12) .Ordinal -}}
+{{- $light := replaceRE `xeu-d2-[a-f0-9]+-light` (printf "%s-light" $instance) $diagram.light -}}
+{{- $dark := replaceRE `xeu-d2-[a-f0-9]+-dark` (printf "%s-dark" $instance) $diagram.dark -}}
+<figure class="d2-block" data-d2 data-d2-theme="light">
+  <span data-d2-rss-start hidden></span>
+  <div class="d2-controls" data-d2-controls hidden role="group" aria-label="图表缩放">
+    <button type="button" data-d2-action="out" aria-label="缩小图表" title="缩小">−</button>
+    <output data-d2-zoom aria-label="缩放比例" aria-live="off">100%</output>
+    <button type="button" data-d2-action="in" aria-label="放大图表" title="放大">+</button>
+    <button type="button" data-d2-action="actual" title="原始大小（1）">原始大小</button>
+    <button type="button" data-d2-action="fit" title="适应窗口（0）">适应窗口</button>
+  </div>
+  <div class="d2-diagram" data-d2-output tabindex="0" role="region" aria-label="D2 图表，可拖拽移动；加减键缩放，方向键移动，0 适应窗口，1 原始大小">{{ $light | safeHTML }}{{ $dark | safeHTML }}</div>
+  <p class="d2-hint" data-d2-hint hidden>拖拽移动 · Ctrl/⌘ + 滚轮缩放 · 触屏双指缩放</p>
+  <span data-d2-rss-end hidden></span>
+  <details class="d2-source">
+    <summary>图表源码</summary>
+    <div class="code-block"><div class="code-toolbar"><span>d2</span><button type="button" class="copy-code">复制</button></div><pre><code class="language-d2">{{ .Inner }}</code></pre></div>
+  </details>
+</figure>

@@ -8,6 +8,6 @@
   {{ partial "footer.html" . }}
   {{ $scripts := partial "script-bundle.html" . }}
   <script src="{{ $scripts.RelPermalink }}" integrity="{{ $scripts.Data.Integrity }}" defer></script>
-  {{ partial "mermaid.html" . }}
+  {{ partial "d2.html" . }}
 </body>
 </html>

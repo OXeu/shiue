@@ -168,7 +168,7 @@ test('health snapshot is separate from friend data and bounds concurrency', asyn
 });
 
 test('deploy CLI and registered steps have a single entry and an explicit offline mode', async () => {
-  assert.deepEqual(deploymentSteps().map(step => step.id), ['preflight', 'hugo-tool', 'identity', 'friends', 'images', 'mermaid', 'hugo-build', 'artifacts']);
+  assert.deepEqual(deploymentSteps().map(step => step.id), ['preflight', 'hugo-tool', 'identity', 'friends', 'images', 'd2', 'hugo-build', 'artifacts']);
   assert.equal(parseOptions([]).offline, false);
   const options = parseOptions(['--offline', '--destination=/var/tmp/output', '--baseURL', 'https://example.com/blog/']);
   assert.equal(options.offline, true);
@@ -187,19 +187,28 @@ test('deploy CLI and registered steps have a single entry and an explicit offlin
   assert.doesNotMatch(ci, /npm run (deploy|check:friends|check:deploy)|schedule:/, 'CI 不执行友链检测或每日更新');
 });
 
-test('Workers static build removes restored route and legacy remote-cache artifacts', async () => {
+test('Workers static build removes restored route, legacy cache and retired diagram/X bundles', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-worker-output-'));
   const destination = path.join(root, 'public');
   const stale = path.join(destination, '_routes.json');
   const legacyIndex = path.join(destination, 'xeu-images/image-cache-v3.json');
   const legacyBundle = path.join(destination, 'xeu-images/image-cache-v3.bin');
+  const legacyMermaid = path.join(destination, 'js/mermaid-engine.0123456789abcdef.js');
+  const legacyLoader = path.join(destination, 'js/mermaid.0123456789abcdef.js');
+  const staleD2 = path.join(destination, 'js/d2.0123456789abcdef.js');
+  const legacyPost = path.join(destination, 'js/post.0123456789abcdef.js');
   await mkdir(path.dirname(legacyIndex), { recursive: true });
+  await mkdir(path.dirname(legacyMermaid), { recursive: true });
   await writeFile(stale, '{"include":["/api/*"]}\n');
   await writeFile(legacyIndex, '{}\n');
   await writeFile(legacyBundle, 'legacy');
+  await writeFile(legacyMermaid, 'legacy');
+  await writeFile(legacyLoader, 'legacy');
+  await writeFile(staleD2, 'legacy');
+  await writeFile(legacyPost, 'legacy');
   const step = deploymentSteps().find(item => item.id === 'hugo-build');
   await step.run({ root, destination, hugo: '/bin/true', hugoArgs: [], env: {} }, { log: () => {} });
-  for (const file of [stale, legacyIndex, legacyBundle]) await assert.rejects(readFile(file), { code: 'ENOENT' });
+  for (const file of [stale, legacyIndex, legacyBundle, legacyMermaid, legacyLoader, staleD2, legacyPost]) await assert.rejects(readFile(file), { code: 'ENOENT' });
 });
 
 test('daily workflow pushes an empty commit and preserves a concurrent update when retrying', async () => {

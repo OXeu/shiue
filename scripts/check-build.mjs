@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepareImages } from './prepare-images.mjs';
-import { prepareMermaid } from './prepare-mermaid.mjs';
+import { extractD2, prepareD2 } from './prepare-d2.mjs';
 import { isBlurhashValid } from 'blurhash';
 import sharp from 'sharp';
 import { load } from 'cheerio';
@@ -13,6 +13,7 @@ import { prepareIdentity, readIdentity, identityAssets } from './deploy/identity
 import { openCommentEmail, sealComment } from '../server/comments/email.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+assert.deepEqual(extractD2('````markdown\n```d2\nA -> B\n```\n````\n~~~d2\nC -> D\n~~~'), ['C -> D'], '文档示例中的嵌套围栏不能误触发预渲染');
 for (const relative of ['hugo.toml', 'config/_default/config.toml']) {
   assert.match(readFileSync(path.join(root, relative), 'utf8'), /^baseURL\s*=\s*["']https:\/\/xeu\.life\/["']/m, `${relative} 必须声明正式站点绝对地址`);
 }
@@ -38,16 +39,17 @@ const baseURL = process.env.SHIUE_TEST_BASE_URL || 'https://example.org/';
 // 测试留言只写入临时文章副本，不改写真实仓库或发布数据。
 const testContent = path.join(output, 'content');
 cpSync(path.join(root, 'content'), testContent, { recursive: true });
-const mermaidDirectory = path.join(testContent, 'post/mermaid-render-check');
-mkdirSync(mermaidDirectory, { recursive: true });
-const mermaidSource = 'flowchart LR\n  A["<img src=x onerror=alert(1)> & 示例"] --> B["完成"]';
-writeFileSync(path.join(mermaidDirectory, 'index.md'), [
-  '---', 'title: Mermaid 渲染验证', 'slug: mermaid-render-check', 'date: 2020-01-01',
+const d2Directory = path.join(testContent, 'post/d2-render-check');
+mkdirSync(d2Directory, { recursive: true });
+const d2Source = 'direction: right\nA: "<img src=x onerror=alert(1)> & 示例"\nB: "完成"\nA -> B';
+writeFileSync(path.join(d2Directory, 'index.md'), [
+  '---', 'title: D2 渲染验证', 'slug: d2-render-check', 'date: 2020-01-01',
   'description: 验证图表源码转义与按页加载。', '---', '',
-  '```mermaid', mermaidSource, '```', '',
+  '```d2', d2Source, '```', '',
   '```javascript', 'console.log("普通代码块仍可高亮和复制");', '```', '',
+  '```d2', d2Source, '```', '',
 ].join('\n'));
-await prepareMermaid(root, { contentDirectory: testContent, log: () => {} });
+await prepareD2(root, { contentDirectory: testContent, log: () => {} });
 const commentDirectory = path.join(testContent, 'post/ai-random-thoughts/comments');
 mkdirSync(commentDirectory, { recursive: true });
 const fixtureComment = { id: 'e2ae8335-89b2-4f10-97db-cdb4603d23f4', path: new URL('p/ai-random-thoughts/', baseURL).pathname, name: '<img src=x onerror=alert(1)>', message: '<script>alert(1)</script>\n纯文本评论', createdAt: '2026-09-17T20:00:00.000Z' };
@@ -123,36 +125,39 @@ assert.match(feedBundle, /site-nav-toggle/);
 for (const unusedFeature of ['data-search', 'data-comment-form', 'data-friend-form', 'data-zoomable', 'data-x-embed', 'turnstile']) {
   assert.doesNotMatch(feedBundle, new RegExp(unusedFeature), `首页脚本不应包含 ${unusedFeature} 功能`);
 }
-assert.equal($home('[data-mermaid-script]').length, 0, '没有图表的首页不得加载 Mermaid');
-const $mermaid = load(read('p/mermaid-render-check/index.html'));
-assert.equal($mermaid('[data-mermaid]').length, 1);
-assert.equal($mermaid('.mermaid-source code').text().trim(), mermaidSource, '图表源码应逐字保留');
-assert.equal($mermaid('.mermaid-source[open]').length, 0, 'SSG 图表成功时默认收起源码');
-assert.equal($mermaid('.mermaid-source img, .mermaid-source script').length, 0, '图表源码必须转义');
-assert.equal($mermaid('[data-mermaid-output][hidden]').length, 0, 'SSG 图表无需等待 JavaScript 即可显示');
-assert.equal($mermaid('[data-mermaid-output] > svg').length, 2, '应内联已压缩的浅色和深色 SVG');
-assert.equal($mermaid('[data-mermaid-render-theme="light"]').length, 1);
-assert.equal($mermaid('[data-mermaid-render-theme="dark"]').length, 1);
-assert.equal(new Set($mermaid('[data-mermaid-output] > svg').map((_, svg) => $mermaid(svg).attr('id')).get()).size, 2, '浅深色 SVG ID 必须隔离');
-assert.equal($mermaid('[data-mermaid-output] script, [data-mermaid-output] [onerror]').length, 0, '静态 SVG 不能包含可执行内容');
-assert.equal($mermaid('[data-mermaid-controls][hidden]').length, 1, '缩放控件只在图表可交互时显示');
-assert.equal($mermaid('[data-mermaid-controls] button[type="button"][aria-label]').length, 2);
-assert.equal($mermaid('[data-mermaid-action="fit"]').length, 1);
-assert.equal($mermaid('.mermaid-source .copy-code').length, 1);
-assert.equal($mermaid('.prose > .code-block .copy-code').length, 1, '普通代码块不受影响');
-const mermaidScript = $mermaid('script[data-mermaid-script][type="module"]');
-assert.equal(mermaidScript.length, 1);
-localAsset(mermaidScript.attr('src'));
-const loader = readFileSync(outputPath(mermaidScript.attr('src')), 'utf8');
-assert.ok(Buffer.byteLength(loader) < 8_000, 'Mermaid 客户端只能保留轻量缩放增强');
-assert.doesNotMatch(loader, /mermaid-engine|platform\.twitter|import\(/, '客户端不得再下载 Mermaid 引擎或 X 组件');
-const $rssMermaid = load(read('index.xml'), { xmlMode: true });
-const mermaidItem = $rssMermaid('item').filter((_, item) => $rssMermaid(item).find('link').text().endsWith('/p/mermaid-render-check/'));
-assert.equal(mermaidItem.length, 1);
-const rssDiagram = load(mermaidItem.find('description').text());
+assert.equal($home('[data-d2-script]').length, 0, '没有图表的首页不得加载 D2 增强脚本');
+const $d2 = load(read('p/d2-render-check/index.html'));
+assert.equal($d2('[data-d2]').length, 2);
+assert.ok($d2('.d2-source code').toArray().every(code => $d2(code).text().trim() === d2Source), '图表源码应逐字保留');
+assert.equal($d2('.d2-source[open]').length, 0, 'SSG 图表成功时默认收起源码');
+assert.equal($d2('.d2-source img, .d2-source script').length, 0, '图表源码必须转义');
+assert.equal($d2('[data-d2-output][hidden]').length, 0, 'SSG 图表无需等待 JavaScript 即可显示');
+assert.equal($d2('[data-d2-output] > svg').length, 4, '每个图表应内联已压缩的浅色和深色 SVG');
+assert.equal($d2('[data-d2-render-theme="light"]').length, 2);
+assert.equal($d2('[data-d2-render-theme="dark"]').length, 2);
+assert.equal(new Set($d2('[data-d2-output] > svg').map((_, svg) => $d2(svg).attr('id')).get()).size, 4, '同页重复源码和浅深主题的 SVG ID 必须隔离');
+assert.equal($d2('[data-d2-output] script, [data-d2-output] [onerror]').length, 0, '静态 SVG 不能包含可执行内容');
+assert.doesNotMatch($d2.html(), /@font-face|data:application\/font-woff/, '静态 SVG 不应重复内嵌字体');
+assert.match($d2.html(), /font-family:var\(--font-body\)/, '静态 SVG 应继承站点中文字体栈');
+assert.equal($d2('[data-d2-controls][hidden]').length, 2, '缩放控件只在图表可交互时显示');
+assert.equal($d2('[data-d2-controls] button[type="button"][aria-label]').length, 4);
+assert.equal($d2('[data-d2-action="fit"]').length, 2);
+assert.equal($d2('.d2-source .copy-code').length, 2);
+assert.equal($d2('.prose > .code-block .copy-code').length, 1, '普通代码块不受影响');
+const d2Script = $d2('script[data-d2-script][type="module"]');
+assert.equal(d2Script.length, 1);
+localAsset(d2Script.attr('src'));
+const loader = readFileSync(outputPath(d2Script.attr('src')), 'utf8');
+assert.ok(Buffer.byteLength(loader) < 8_000, 'D2 客户端只能保留轻量缩放增强');
+assert.doesNotMatch(loader, /@d2lang|\.wasm|platform\.twitter|import\(/, '客户端不得下载 D2 渲染器、WASM 或 X 组件');
+const $rssD2 = load(read('index.xml'), { xmlMode: true });
+const d2Item = $rssD2('item').filter((_, item) => $rssD2(item).find('link').text().endsWith('/p/d2-render-check/'));
+assert.equal(d2Item.length, 1);
+const rssDiagram = load(d2Item.find('description').text());
 const rssLines = text => text.trim().split('\n').map(line => line.trimStart());
-assert.deepEqual(rssLines(rssDiagram('.language-mermaid').text()), rssLines(mermaidSource), 'RSS 应保留可读的图表语句');
-assert.equal(rssDiagram('[data-mermaid-render-theme]').length, 0, 'RSS 不应重复内联双主题 SVG');
+assert.equal(rssDiagram('.language-d2').length, 2);
+assert.ok(rssDiagram('.language-d2').toArray().every(code => rssLines(rssDiagram(code).text()).join('\n') === rssLines(d2Source).join('\n')), 'RSS 应保留可读的图表语句');
+assert.equal(rssDiagram('[data-d2-render-theme]').length, 0, 'RSS 不应重复内联双主题 SVG');
 assert.equal(rssDiagram('script').length, 0, 'RSS 不加载图表脚本');
 const authorLink = $home('.site-footer > p > a').first();
 assert.equal(authorLink.text(), 'Xeu', '版权信息中的作者名称应保留');
