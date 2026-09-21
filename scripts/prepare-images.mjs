@@ -4,6 +4,7 @@ import { readFile, writeFile, readdir, mkdir, access, rename, copyFile, stat, rm
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import cacache from 'cacache';
 import sharp from 'sharp';
 import { encode, isBlurhashValid } from 'blurhash';
 
@@ -12,6 +13,9 @@ const widths = [320, 480, 640, 768, 960, 1440];
 // 保持画质，使用更充分的构建时压缩；配置变化自动使旧缩略图缓存失效。
 const webpOptions = { quality: 78, effort: 6 };
 const recipe = JSON.stringify({ version: 2, widths, webp: webpOptions, blurhash: [4, 3] });
+const recipeId = createHash('sha256').update(recipe).digest('hex').slice(0, 16);
+const workerCachePrefix = `xeu-images:${recipeId}`;
+const workerIndexKey = `${workerCachePrefix}:index`;
 const isCandidate = name => /\.(avif|gif|jpe?g|png|webp|tiff?)$/i.test(name) || !path.extname(name);
 const exists = file => access(file).then(() => true, () => false);
 const hasImage = file => stat(file).then(info => info.isFile() && info.size > 0, error => {
@@ -19,17 +23,6 @@ const hasImage = file => stat(file).then(info => info.isFile() && info.size > 0,
   throw error;
 });
 const variantWidths = width => [...new Set(widths.map(size => Math.min(size, width)))];
-
-function defaultCacheRoots(root, buildEnv, homeDirectory) {
-  // Workers Builds and Pages persist the package manager's global .npm cache.
-  // Vercel's Other builder instead persists node_modules between builds.
-  if (buildEnv.WORKERS_CI === '1' || buildEnv.CF_PAGES === '1') {
-    const configured = buildEnv.NPM_CONFIG_CACHE || buildEnv.npm_config_cache;
-    const npmCache = configured ? path.resolve(root, configured) : path.join(homeDirectory, '.npm');
-    return [path.join(npmCache, 'xeu-images')];
-  }
-  return [path.join(root, 'node_modules/.cache/xeu-images')];
-}
 
 async function readManifest(file) {
   try {
@@ -60,6 +53,35 @@ async function copyImage(source, target) {
   }
 }
 
+async function writeImage(data, target) {
+  const temp = `${target}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temp, data);
+    await rename(temp, target);
+  } finally {
+    await rm(temp, { force: true });
+  }
+}
+
+async function readContentCache(cache, key) {
+  try {
+    return (await cacache.get(cache, key)).data;
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'EINTEGRITY') return;
+    throw error;
+  }
+}
+
+async function readContentCacheJSON(cache, key, fallback) {
+  const data = await readContentCache(cache, key);
+  if (!data) return fallback;
+  try { return JSON.parse(data.toString('utf8')); }
+  catch { return fallback; }
+}
+
+const workerEntryKey = fingerprint => `${workerCachePrefix}:entry:${fingerprint}`;
+const workerVariantKey = (fingerprint, width) => `${workerCachePrefix}:variant:${fingerprint}:${width}`;
+
 async function sources(root, directory) {
   const folder = path.join(root, directory);
   const found = [];
@@ -78,23 +100,27 @@ export async function prepareImages(root = projectRoot, {
   onProgress,
   buildEnv = process.env,
   homeDirectory = homedir(),
-  cacheRoots = defaultCacheRoots(root, buildEnv, homeDirectory),
 } = {}) {
   const manifestPath = path.join(root, 'data/xeu/images.json');
   const destination = path.join(root, 'static/xeu-images');
-  const caches = [...new Set(cacheRoots.map(cache => path.resolve(cache)))].map(cache => ({
-    manifest: path.join(cache, 'images.json'),
-    files: path.join(cache, 'files'),
-  }));
-  if (!caches.length) throw new Error('图片构建缓存目录不能为空');
+  const workerBuild = buildEnv.WORKERS_CI === '1';
+  const configuredNpmCache = buildEnv.NPM_CONFIG_CACHE || buildEnv.npm_config_cache;
+  const npmCache = configuredNpmCache ? path.resolve(root, configuredNpmCache) : path.join(homeDirectory, '.npm');
+  const workerCache = path.join(npmCache, '_cacache');
+  // Vercel 的 Other 构建器默认保存 node_modules；安装入口会在 npm ci 前后保留此目录。
+  const cache = path.join(root, 'node_modules/.cache/xeu-images');
+  const cacheManifestPath = path.join(cache, 'images.json');
+  const cacheFiles = path.join(cache, 'files');
   await mkdir(destination, { recursive: true });
   await mkdir(path.dirname(manifestPath), { recursive: true });
-  await Promise.all(caches.map(cache => mkdir(cache.files, { recursive: true })));
+  if (!workerBuild) await mkdir(cacheFiles, { recursive: true });
   const previousText = await readFile(manifestPath, 'utf8').catch(() => '{}');
   const previous = await readManifest(manifestPath);
-  const persisted = await Promise.all(caches.map(cache => readManifest(cache.manifest)));
-  const persistedEntries = persisted.reduce((total, value) => total + Object.keys(value).length, 0);
-  const byFingerprint = new Map(persisted.flatMap(value => Object.values(value)).filter(entry => /^[a-f0-9]{24}$/.test(entry?.fingerprint))
+  const persisted = workerBuild ? {} : await readManifest(cacheManifestPath);
+  const workerIndex = workerBuild
+    ? await readContentCacheJSON(workerCache, workerIndexKey, { fingerprints: [], keys: [] })
+    : { fingerprints: [], keys: [] };
+  const byFingerprint = new Map(Object.values(persisted).filter(entry => /^[a-f0-9]{24}$/.test(entry?.fingerprint))
     .map(entry => [entry.fingerprint, entry]));
   const manifest = {};
   let generated = 0;
@@ -104,21 +130,33 @@ export async function prepareImages(root = projectRoot, {
   const processImage = async source => {
     const input = await readFile(path.join(root, source));
     const fingerprint = createHash('sha256').update(recipe).update(input).digest('hex').slice(0, 24);
-    for (const cached of [previous[source], byFingerprint.get(fingerprint)]) {
+    const workerEntry = workerBuild
+      ? await readContentCacheJSON(workerCache, workerEntryKey(fingerprint), undefined)
+      : undefined;
+    for (const cached of [previous[source], byFingerprint.get(fingerprint), workerEntry]) {
       if (!validEntry(cached, fingerprint)) continue;
       let complete = true;
       let recovered = false;
       for (const item of cached.variants) {
         const target = path.join(root, 'static', item.src);
         if (await hasImage(target)) continue;
-        let saved;
-        for (const cache of caches) {
-          const candidate = path.join(cache.files, path.basename(item.src));
-          if (await hasImage(candidate)) { saved = candidate; break; }
+        if (workerBuild) {
+          const data = await readContentCache(workerCache, workerVariantKey(fingerprint, item.width));
+          if (data?.length) {
+            await writeImage(data, target);
+            recovered = true;
+            continue;
+          }
+        } else {
+          const saved = path.join(cacheFiles, path.basename(item.src));
+          if (await hasImage(saved)) {
+            await copyImage(saved, target);
+            recovered = true;
+            continue;
+          }
         }
-        if (!saved) { complete = false; break; }
-        await copyImage(saved, target);
-        recovered = true;
+        complete = false;
+        break;
       }
       if (complete) {
         manifest[source] = cached;
@@ -170,25 +208,49 @@ export async function prepareImages(root = projectRoot, {
     await rename(temp, manifestPath);
   }
   const activeFiles = new Set(Object.values(sorted).flatMap(entry => entry.variants.map(item => path.basename(item.src))));
-  for (const cache of caches) {
+  const totalImages = Object.keys(sorted).length;
+  if (workerBuild) {
+    // Workers Builds 明确恢复 npm 的全局缓存。把条目写进 npm 自身使用的
+    // _cacache，而不是旁挂自定义目录，确保它属于平台会保存的内容缓存。
+    const activeKeys = new Set([workerIndexKey]);
+    for (const entry of Object.values(sorted)) {
+      const entryKey = workerEntryKey(entry.fingerprint);
+      activeKeys.add(entryKey);
+      await cacache.put(workerCache, entryKey, JSON.stringify(entry));
+      for (const item of entry.variants) {
+        const variantKey = workerVariantKey(entry.fingerprint, item.width);
+        activeKeys.add(variantKey);
+        await cacache.put(workerCache, variantKey, await readFile(path.join(root, 'static', item.src)));
+      }
+    }
+    for (const key of Array.isArray(workerIndex.keys) ? workerIndex.keys : []) {
+      if (typeof key === 'string' && key.startsWith(`${workerCachePrefix}:`) && !activeKeys.has(key)) {
+        await cacache.rm.entry(workerCache, key);
+      }
+    }
+    await cacache.put(workerCache, workerIndexKey, JSON.stringify({
+      images: totalImages,
+      fingerprints: [...new Set(Object.values(sorted).map(entry => entry.fingerprint))],
+      keys: [...activeKeys],
+    }));
+  } else {
     for (const name of activeFiles) {
-      const saved = path.join(cache.files, name);
+      const saved = path.join(cacheFiles, name);
       if (!await hasImage(saved)) await copyImage(path.join(destination, name), saved);
     }
-    if (await readFile(cache.manifest, 'utf8').catch(() => '') !== text) {
-      const temp = `${cache.manifest}.${process.pid}.tmp`;
+    if (await readFile(cacheManifestPath, 'utf8').catch(() => '') !== text) {
+      const temp = `${cacheManifestPath}.${process.pid}.tmp`;
       await writeFile(temp, text);
-      await rename(temp, cache.manifest);
+      await rename(temp, cacheManifestPath);
     }
     // 只保留当前图片使用的缓存，避免内容更新后旧指纹无限累积。
-    for (const name of await readdir(cache.files)) {
-      if (/^[a-f0-9]{24}-\d+\.webp$/.test(name) && !activeFiles.has(name)) await rm(path.join(cache.files, name));
+    for (const name of await readdir(cacheFiles)) {
+      if (/^[a-f0-9]{24}-\d+\.webp$/.test(name) && !activeFiles.has(name)) await rm(path.join(cacheFiles, name));
     }
   }
-  const totalImages = Object.keys(sorted).length;
-  const cacheProvider = buildEnv.WORKERS_CI === '1' ? 'Cloudflare Workers'
-    : buildEnv.CF_PAGES === '1' ? 'Cloudflare Pages' : buildEnv.VERCEL === '1' ? 'Vercel' : '本机构建';
-  log(`图片准备完成：${totalImages} 张图片，缓存复用 ${totalImages - generated} 张（从构建缓存恢复 ${restored} 张），${generated} 张新生成缩略图与 BlurHash；缓存目标：${cacheProvider}，恢复索引 ${persistedEntries} 条，目录 ${caches.map(cache => path.dirname(cache.manifest)).join(', ')}。`);
+  const summary = `图片准备完成：${totalImages} 张图片，缓存复用 ${totalImages - generated} 张（从构建缓存恢复 ${restored} 张），${generated} 张新生成缩略图与 BlurHash。`;
+  const workerIndexSize = Number.isInteger(workerIndex.images) ? workerIndex.images : 0;
+  log(workerBuild ? `${summary} Cloudflare npm 内容缓存恢复索引 ${workerIndexSize} 张，目录 ${workerCache}。` : summary);
   return sorted;
 }
 

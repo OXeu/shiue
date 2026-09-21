@@ -1,13 +1,12 @@
 # Serverless 部署
 
-项目支持 Vercel Functions、Netlify Functions、Cloudflare Workers 和 Pages Functions。所有入口共用 `server/submissions.js`，提供同源 `POST /api/submissions`；评论、友链、Turnstile 验证、审批签名、邮箱加密与通知重试采用同一实现。
+项目支持 Vercel Functions、Netlify Functions，以及带 Static Assets 的 Cloudflare Workers。所有入口共用 `server/submissions.js`，提供同源 `POST /api/submissions`；评论、友链、Turnstile 验证、审批签名、邮箱加密与通知重试采用同一实现。
 
 | 平台 | 函数入口 | 部署配置 | 评论白名单 |
 | --- | --- | --- | --- |
 | Vercel | `api/submissions.js` | `vercel.json` | 打包 `public/comment-pages.json`，由 Node 文件系统读取 |
 | Netlify | `netlify/functions/submissions.mjs` | `netlify.toml` | `included_files` 随函数打包，由 Node 文件系统读取 |
 | Cloudflare Workers | `cloudflare/worker.js` | `wrangler.jsonc` 仅描述部署结构；业务变量在控制台管理 | 使用当前部署的 `env.ASSETS` 读取静态文件 |
-| Cloudflare Pages | `functions/api/submissions.js` | Cloudflare 控制台 | 使用当前部署的 `env.ASSETS` 读取静态文件 |
 
 共享模块接收标准 `Request` 并返回 `Response`，平台入口注入 `env`、`deployment` 和 `pages()`。核心模块不读取 `process.env` 或文件系统。Node Crypto 用于保持既有签名和邮箱密文兼容，Cloudflare 启用 `nodejs_compat`；新平台需要支持相同的 Crypto API。对 Turnstile、邮件与 GitHub 的请求使用 `redirect: manual`，拒绝非成功响应，不携带凭据跟随重定向。
 
@@ -26,7 +25,6 @@ Turnstile 在上述所有平台上都可使用，无需 Cloudflare DNS/CDN。在
 | Vercel | 平台提供的 `VERCEL_ENV=production`；保留现有 Node 单元测试的无平台配置调用方式 |
 | Netlify | 平台请求上下文 `context.deploy.context=production`；缺失上下文时拒绝 |
 | Cloudflare Workers | 控制台设置 `COMMENTS_ENV=production`，且请求地址的 origin 必须与 `COMMENTS_SITE_URL` 相同；版本预览地址即使继承生产变量也拒绝 |
-| Cloudflare Pages | 控制台 Production 设置 `COMMENTS_ENV=production`，Preview 设置 `COMMENTS_ENV=preview`；缺失时拒绝 |
 
 审核页面的 `no-store`、`no-referrer`、`noindex` 和 CSP 在 Vercel 使用 `vercel.json`，Netlify 与 Cloudflare 使用 Hugo 复制到发布目录的 `static/_headers`。API 响应头由共享处理器统一设置。
 
@@ -46,14 +44,14 @@ Netlify 会按 `.node-version` 选择构建 Node 版本；如曾单独覆盖函�
 
 ## Cloudflare Workers
 
-如果部署日志出现 `Create wrangler.jsonc`、`assets.directory` 和 `[build] Running: npx hugo`，说明走的是 Workers 自动配置，而不是 Pages。自动检测选出的 `npx hugo` 没有运行项目的 Node 构建流程，还遗漏了 API 入口。仓库现在提供明确的 Workers 配置，阻止自动检测；不需要安装名为 `hugo` 的 npm 包。[Wrangler 自动配置](https://developers.cloudflare.com/workers/wrangler/commands/workers/)
+如果部署日志出现自动创建 Wrangler 配置及 `[build] Running: npx hugo`，说明平台没有采用仓库配置。自动检测选出的 `npx hugo` 没有运行项目的 Node 构建流程，还遗漏了 API 入口。仓库提供明确的 Workers 配置，阻止自动检测；不需要安装名为 `hugo` 的 npm 包。[Wrangler 自动配置](https://developers.cloudflare.com/workers/wrangler/commands/workers/)
 
-在 **Workers & Pages → shiue → Settings → Build** 设置：
+在 Cloudflare 控制台打开 Worker `shiue`，进入 **Settings → Build** 设置：
 
 | 设置 | 值 |
 | --- | --- |
 | Build command | `npm run build`（原来的 `npm run deploy` 也可，两者都是构建脚本） |
-| Deploy command | `npx wrangler deploy`（或 `npm run deploy:cloudflare:workers`） |
+| Deploy command | `npm run deploy:cloudflare`（等价于 `npx wrangler deploy`） |
 | Root directory | 仓库根目录 |
 | Production branch | 仓库默认分支 |
 
@@ -61,50 +59,13 @@ Netlify 会按 `.node-version` 选择构建 Node 版本；如曾单独覆盖函�
 
 生产 Worker 必须设置 `COMMENTS_ENV=production`、准确的 `COMMENTS_SITE_URL` 和 `.env.example` 中的业务配置。不要只填在 **Build variables** 中：构建环境与运行时环境不同，API 需要运行时变量。`COMMENTS_SECRET`、`RESEND_API_KEY`、`COMMENTS_GITHUB_TOKEN` 及旧密钥覆盖项使用 Secrets。若部署到另一个 Worker，可通过 `--name YOUR_WORKER` 覆盖仓库默认名称 `shiue`。
 
-`/api/*` 总是进入 Worker；`/api/submissions` 接入共享 API，其他 API 路径返回 404。文章、图片和审核页面由静态资源服务提供，保留 `_headers`，不存在的页面使用 `404.html`。评论白名单通过 `ASSETS` 绑定读取。Workers 不使用 Pages 的 `_routes.json`。[Workers 静态资源配置](https://developers.cloudflare.com/workers/static-assets/binding/)
+`/api/*` 总是进入 Worker；`/api/submissions` 接入共享 API，其他 API 路径返回 404。文章、图片和审核页面由 Static Assets 提供，保留 `_headers`，不存在的页面使用 `404.html`。评论白名单通过 `ASSETS` 绑定读取；路由由 `assets.run_worker_first` 固定，不需要额外路由文件。[Workers 静态资源配置](https://developers.cloudflare.com/workers/static-assets/binding/)
 
-本地运行 `npm run build -- --offline`（需已有缓存）后执行 `npm run dev:cloudflare:workers`，本地强制 `COMMENTS_ENV=development`。命令行发布时先运行 `npm run build`，再运行 `npm run deploy:cloudflare:workers`。部署命令不重复构建；不要将 Build command 写成 `npx hugo`。
+本地运行 `npm run build -- --offline`（需已有缓存）后执行 `npm run dev:cloudflare`，本地强制 `COMMENTS_ENV=development`。命令行发布时先运行 `npm run build`，再运行 `npm run deploy:cloudflare`。部署命令不重复构建；不要将 Build command 写成 `npx hugo`。
 
 Workers 版本预览地址即使继承生产变量，也不能写入 API。独立预览 Worker 应设置 `COMMENTS_ENV=preview`，不配置生产密钥；不要将非生产分支部署到生产 Worker。
 
-## Cloudflare Pages
-
-Pages 的配置、变量和 Secrets 全部由控制台管理。根目录 `wrangler.jsonc` 是 Workers 专用配置，刻意不设置 `pages_build_output_dir`；Pages 发布会提示忽略该文件，并继续使用控制台配置。不要为消除提示而添加这个字段，否则会重新把 Pages 配置管理权交给文件。已被此前部署清除的变量需要重新填写一次。[Pages 配置管理规则](https://developers.cloudflare.com/pages/functions/wrangler-configuration/#projects-with-existing-wrangler-file)
-
-在 **Workers & Pages → 对应的 Pages 项目 → Settings** 设置：
-
-| 设置 | 值 |
-| --- | --- |
-| Framework preset | Hugo（使用下面的自定义构建命令） |
-| Build command | `npm run deploy` |
-| Build output directory | `public` |
-| Root directory | 仓库根目录 |
-| Production branch | 仓库默认分支 |
-| Compatibility date | Production 与 Preview 均设为 `2026-03-01` 或更新版本 |
-| Compatibility flags | Production 与 Preview 均添加 `nodejs_compat` |
-| Production 变量 | `COMMENTS_ENV=production`，以及 `.env.example` 中的业务配置 |
-| Preview 变量 | `COMMENTS_ENV=preview`，不配置生产密钥 |
-
-在 Variables and Secrets 中，网址、仓库名、分支等可使用普通变量；`COMMENTS_SECRET`、`RESEND_API_KEY`、`COMMENTS_GITHUB_TOKEN` 及旧密钥覆盖项使用 Secrets（Encrypt）。这些值只在控制台保存，不再回写 Wrangler 文件。[Pages 变量与 Secrets](https://developers.cloudflare.com/pages/functions/bindings/#secrets)
-
-Pages Git 集成负责发布，并自动编译根目录的 `functions/`，不需要配置 `npx wrangler deploy`。如果当前界面要求填写 **Deploy command** 且默认值为 `npx wrangler deploy`，使用上面的 Workers 配置流程；两种入口不能混用。
-
-需要从命令行发布到已有 Pages 项目时，先构建，再明确使用 Pages 命令：
-
-```sh
-npm run build
-npm run deploy:cloudflare -- --project-name YOUR_PAGES_PROJECT --branch master
-```
-
-项目名和分支替换为控制台实际值。该命令上传产物，并从已有 Pages 项目读取配置，不生成 Wrangler 配置文件。[Pages 部署命令](https://developers.cloudflare.com/workers/wrangler/commands/pages/#pages-deploy)
-
 根目录 Hugo 配置已从 `config.toml` 改名为 `hugo.toml`，构建脚本同步读取新文件。这消除了自动检测器将同一个 `config.toml` 同时识别为 Hugo 和 Zola 的冲突；Hugo 原生支持新文件名。[Hugo 配置文件](https://gohugo.io/configuration/introduction/#configuration-file)
-
-白名单通过 `env.ASSETS.fetch()` 读取当前部署的 `comment-pages.json`，不访问公开网络、不依赖可写磁盘；文件缺失或损坏时返回 503。[Pages Functions API](https://developers.cloudflare.com/pages/functions/api-reference/#envassetsfetch)
-
-`static/_routes.json` 只让 `/api/submissions` 进入函数，文章、图片及审核 HTML 直接由静态服务提供。本地可先运行 `npm run build -- --offline`（需已有缓存），再运行 `npm run dev:cloudflare`。该脚本通过命令行传入本地兼容日期、`nodejs_compat` 和 `COMMENTS_ENV=development`，不会改写远端设置；开发环境拒绝写入 API。本地 `.dev.vars` / `.env` 不自动同步到控制台。
-
-Pages 会对零文件变化的推送跳过路径筛选并启动构建，因此现有每日空提交工作流可继续使用。[Pages 构建路径规则](https://developers.cloudflare.com/pages/configuration/build-watch-paths/)
 
 ## 发布与验证
 

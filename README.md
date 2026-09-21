@@ -1,10 +1,10 @@
 # 🍧Shiue - Xeu's mini world
 
-基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel、Netlify 和 Cloudflare Workers / Pages 的静态站点与 Serverless Functions 部署，配置见[多平台部署](docs/serverless.md)。
+基于 Hugo 和独立 **Xeu** 主题的个人博客，支持 Vercel、Netlify 和带 Static Assets 的 Cloudflare Workers 部署，配置见[多平台部署](docs/serverless.md)。
 
 ## 新建文章
 
-在仓库根目录执行交互式脚本（只需 Node.js 22 或更新版本，无需先安装依赖或 Hugo）：
+在仓库根目录执行交互式脚本（只需 Node.js 22.9 或更新版本，无需先安装依赖或 Hugo）：
 
 ```bash
 npm run post:new
@@ -83,7 +83,7 @@ flowchart LR
 
 `data/xeu/images.json` 与 `static/xeu-images/` 是自动生成并被 Git 忽略的文件。更新图片后执行 `npm run images`；预览时可另开终端运行 `npm run images:watch` 自动更新。BlurHash 解码器采用 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`。
 
-缩略图和 BlurHash 清单会保存到托管平台可持久化的构建缓存：Vercel 使用 `node_modules/.cache/xeu-images/`，Cloudflare Workers Builds / Pages 使用全局 npm 缓存中的 `.npm/xeu-images/`。未变化的图片直接恢复产物，新增或变更图片才重新处理；首次构建、缓存未启用或缓存已过期时正常全量生成。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
+缩略图和 BlurHash 清单按平台保存：Vercel 使用 `node_modules/.cache/xeu-images/`；Cloudflare Workers Builds 把稳定键条目写入 npm 全局缓存自身的 `_cacache`，由 Workers Build cache 跨构建恢复，而不是在 `.npm` 旁挂平台可能忽略的自定义目录。未变化的图片直接恢复，新增或变更图片才重新处理；首次构建或平台未提供缓存时正常全量生成。详见 [图片构建缓存](docs/deployment.md#图片构建缓存)。
 
 ## 站点头像与图标
 
@@ -120,7 +120,7 @@ npm run friend:add -- https://example.com \
 
 ## 本地构建
 
-安装 Node.js 22 或更新版本，以及 [.hugo-version](.hugo-version) 指定版本的 [Hugo Extended](https://gohugo.io/installation/)，在仓库根目录执行：
+安装 Node.js 22.9 或更新版本，以及 [.hugo-version](.hugo-version) 指定版本的 [Hugo Extended](https://gohugo.io/installation/)，在仓库根目录执行：
 
 ```bash
 npm ci
@@ -166,7 +166,7 @@ SHIUE_HUGO_VERSION=latest HUGO_BIN=./scripts/hugo.sh node scripts/check-build.mj
 
 ## Serverless 部署
 
-Vercel、Netlify 和 Cloudflare Workers / Pages 共用 `/api/submissions`，平台入口只负责运行环境与评论白名单读取。Vercel、Netlify 分别使用 `vercel.json`、`netlify.toml`；Cloudflare 业务变量由控制台管理，Workers 使用不含变量的最小 `wrangler.jsonc` 和 `keep_vars`，Pages 使用控制台配置。各平台均可通过 Git 集成响应评论、友链及每日空提交。Hugo 根配置使用 `hugo.toml`，避免被自动识别为 Zola。Workers 控制台构建命令设为 `npm run build`，部署命令设为 `npx wrangler deploy`。环境变量、预览隔离、构建和迁移步骤见 [Serverless 部署](docs/serverless.md)。`npm run check:functions` 验证所有平台入口。
+Vercel、Netlify 和 Cloudflare Workers 共用 `/api/submissions`，平台入口只负责运行环境与评论白名单读取。Vercel、Netlify 分别使用 `vercel.json`、`netlify.toml`；Cloudflare 使用 `cloudflare/worker.js`、根 `wrangler.jsonc` 和 Static Assets，业务变量由 Workers 控制台管理。各平台均可通过 Git 集成响应评论、友链及每日空提交。Hugo 根配置使用 `hugo.toml`，避免被自动识别为 Zola。Workers 控制台构建命令设为 `npm run build`，部署命令设为 `npm run deploy:cloudflare` 或 `npx wrangler deploy`。环境变量、预览隔离、构建和迁移步骤见 [Serverless 部署](docs/serverless.md)。`npm run check:functions` 验证所有平台入口。
 
 ### Vercel
 

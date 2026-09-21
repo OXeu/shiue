@@ -1,4 +1,4 @@
-import { access, readFile, readdir, stat } from 'node:fs/promises';
+import { access, readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { command } from './process.mjs';
 import { updateFriendHealth } from './friends.mjs';
@@ -9,7 +9,8 @@ export function deploymentSteps() {
     {
       id: 'preflight', title: '环境检查',
       async run(context, { log }) {
-        if (Number(process.versions.node.split('.')[0]) < 22) throw new Error('部署脚本需要 Node.js 22 或更新版本');
+        const [major, minor] = process.versions.node.split('.').map(Number);
+        if (major < 22 || (major === 22 && minor < 9)) throw new Error('部署脚本需要 Node.js 22.9 或更新版本');
         for (const file of ['.hugo-version', 'hugo.toml', 'data/friends.json']) await access(path.join(context.root, file));
         log(`Node.js ${process.versions.node} · ${process.platform}/${process.arch}`);
         log(`输出目录：${context.destination}`);
@@ -55,6 +56,8 @@ export function deploymentSteps() {
     {
       id: 'hugo-build', title: '构建静态站点',
       async run(context, io) {
+        // Workers Builds 可能恢复旧 public/；避免已删除的 Pages 路由文件混入 Static Assets。
+        await rm(path.join(context.destination, '_routes.json'), { force: true });
         await command(context.hugo, ['--minify', '--destination', context.destination, ...context.hugoArgs], {
           ...io, cwd: context.root, env: { ...context.env, SHIUE_IMAGES_READY: '1' },
         });

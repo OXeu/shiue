@@ -187,6 +187,17 @@ test('deploy CLI and registered steps have a single entry and an explicit offlin
   assert.doesNotMatch(ci, /npm run (deploy|check:friends|check:deploy)|schedule:/, 'CI 不执行友链检测或每日更新');
 });
 
+test('Workers static build removes a restored Pages route artifact', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-worker-output-'));
+  const destination = path.join(root, 'public');
+  const stale = path.join(destination, '_routes.json');
+  await mkdir(destination, { recursive: true });
+  await writeFile(stale, '{"include":["/api/*"]}\n');
+  const step = deploymentSteps().find(item => item.id === 'hugo-build');
+  await step.run({ root, destination, hugo: '/bin/true', hugoArgs: [], env: {} }, { log: () => {} });
+  await assert.rejects(readFile(stale), { code: 'ENOENT' });
+});
+
 test('daily workflow pushes an empty commit and preserves a concurrent update when retrying', async () => {
   const workflow = await readFile(new URL('../.github/workflows/daily-deploy.yml', import.meta.url), 'utf8');
   const script = workflow.match(/        run: \|\n([\s\S]+)$/)[1].replace(/^ {10}/gm, '');

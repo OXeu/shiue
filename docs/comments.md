@@ -46,7 +46,7 @@
 
 在 Resend 验证发件域名并创建仅允许发送邮件的 API Key。建议为审核邮件关闭点击和打开跟踪，保留原始 URL fragment。发件地址必须属于已验证域名；审核邮件收件人由服务端固定，读者通知收件人只能取自已签名的留言邮箱或已发布父留言的邮箱密文。
 
-在所选平台的生产函数环境设置以下变量（Vercel、Netlify、Cloudflare Workers / Pages 的具体入口见[多平台部署](serverless.md)）：
+在所选平台的生产函数环境设置以下变量（Vercel、Netlify、Cloudflare Workers 的具体入口见[多平台部署](serverless.md)）：
 
 | 变量 | 含义 |
 | --- | --- |
@@ -72,7 +72,7 @@
 
 ## 2. 配置 Turnstile 与防滥用
 
-评论和友链使用 Cloudflare Turnstile，已移除浏览器 SHA-256 PoW Worker。Vercel、Netlify、Cloudflare Workers / Pages 共用同一个服务端验证器；无需迁移托管平台、DNS 或开启 Cloudflare CDN。
+评论和友链使用 Cloudflare Turnstile，已移除浏览器 SHA-256 PoW Worker。Vercel、Netlify、Cloudflare Workers 共用同一个服务端验证器；无需迁移托管平台、DNS 或开启 Cloudflare CDN。
 
 1. 在 Cloudflare 控制台的 **Turnstile → Add widget** 创建组件，选择 **Managed**，添加实际生产域名，例如 `blog.lab.xeu.life`，不填写协议或路径。
 2. 将同一组件的 **Site Key** 和 **Secret Key** 分别保存为生产函数环境变量 `TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET_KEY`。Netlify 的作用域需包含 Functions；Cloudflare 将 Secret Key 设为 Secret。两项均在运行时读取，不需要加入 Hugo 配置或 GitHub Actions。
