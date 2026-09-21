@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
-import { copyFile, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -11,11 +11,55 @@ import { command } from './deploy/process.mjs';
 import { probeFriend, updateFriendHealth } from './deploy/friends.mjs';
 import { deploymentSteps } from './deploy/steps.mjs';
 import { parseOptions } from './deploy.mjs';
+import { cacheProbeEnabled, captureBuildCaches, formatBuildCacheDelta, formatBuildCacheProbe, formatBuildCacheSnapshot, placeBuildCacheProbe } from './deploy/cache-probe.mjs';
 
 function output() {
   let text = '';
   return { get text() { return text; }, write(value) { text += value; }, isTTY: false };
 }
+
+test('build cache probe reports Cloudflare candidates before and after without following links', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-cache-probe-root-'));
+  const home = await mkdtemp(path.join(tmpdir(), 'xeu-cache-probe-home-'));
+  await mkdir(path.join(home, '.npm/_cacache/content-v2'), { recursive: true });
+  await writeFile(path.join(home, '.npm/_cacache/content-v2/item'), '1234');
+  await symlink(home, path.join(home, '.npm/_cacache/recursive-link'));
+  await mkdir(path.join(root, 'node_modules/.cache/xeu-images/files'), { recursive: true });
+  await writeFile(path.join(root, 'node_modules/.cache/xeu-images/files/image.webp'), '123456');
+  const before = await captureBuildCaches({ root, env: { HOME: home } });
+  const npm = before.snapshots.find(item => item.label === 'npm 全局缓存');
+  const images = before.snapshots.find(item => item.path === path.join(root, 'node_modules/.cache'));
+  assert.equal(npm.counts.files, 1);
+  assert.equal(npm.counts.bytes, 4);
+  assert.equal(npm.counts.links, 1);
+  assert.deepEqual(npm.entries.map(entry => entry.name), ['_cacache']);
+  assert.equal(images.counts.files, 1);
+  assert.equal(images.counts.bytes, 6);
+  assert.match(formatBuildCacheSnapshot(before, '构建前'), /\[目录\] _cacache · 1 个文件/);
+  await writeFile(path.join(root, 'node_modules/.cache/xeu-images/files/second.webp'), '12');
+  const after = await captureBuildCaches({ root, env: { HOME: home } });
+  assert.match(formatBuildCacheDelta(before, after), /Docusaurus \/ 通用 node_modules 缓存：文件 \+1 · 目录 \+0 · 大小 \+2 B/);
+  assert.equal(cacheProbeEnabled({ WORKERS_CI: '1' }), true);
+  assert.equal(cacheProbeEnabled({ WORKERS_CI: '1', SHIUE_CACHE_PROBE: '0' }), false);
+  assert.equal(cacheProbeEnabled({ SHIUE_CACHE_PROBE: '1' }), true);
+});
+
+test('build cache probe places one unique marker directly under $PWD/.cache', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xeu-cache-marker-'));
+  const firstId = '00000000-0000-4000-8000-000000000001';
+  const secondId = '00000000-0000-4000-8000-000000000002';
+  const first = await placeBuildCacheProbe({ root, env: { WORKERS_CI: '1' }, id: firstId, now: new Date('2026-09-21T00:00:00.000Z') });
+  assert.equal(JSON.parse(await readFile(first.file, 'utf8')).environment, 'cloudflare-workers-builds');
+  assert.match(formatBuildCacheProbe(first), new RegExp(firstId));
+  const second = await placeBuildCacheProbe({ root, env: {}, id: secondId, now: new Date('2026-09-21T00:01:00.000Z') });
+  const names = await readdir(path.join(root, '.cache'));
+  assert.deepEqual(names, [`cloudflare-build-probe-${secondId}.json`]);
+  assert.equal(JSON.parse(await readFile(second.file, 'utf8')).environment, 'manual');
+  const snapshot = await captureBuildCaches({ root, env: { HOME: path.join(root, 'home') } });
+  const projectCache = snapshot.snapshots.find(item => item.path === path.join(root, '.cache'));
+  assert.deepEqual(projectCache.entries.map(entry => entry.name), names);
+  await assert.rejects(placeBuildCacheProbe({ root, id: '../outside' }), /UUID/);
+});
 
 test('pipeline records timing, warnings, skips, and an atomic JSON report', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'xeu-pipeline-'));

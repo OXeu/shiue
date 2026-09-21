@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runPipeline } from './deploy/pipeline.mjs';
 import { deploymentSteps } from './deploy/steps.mjs';
+import { cacheProbeEnabled, captureBuildCaches, formatBuildCacheDelta, formatBuildCacheProbe, formatBuildCacheSnapshot, placeBuildCacheProbe } from './deploy/cache-probe.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Xeu 部署构建
@@ -44,12 +45,23 @@ export async function deploy(options) {
   const cache = path.join(root, '.cache/deploy');
   const lockFile = path.join(cache, 'run.lock');
   let lock;
+  let cacheBefore;
   try {
     await mkdir(cache, { recursive: true });
     try { lock = await open(lockFile, 'wx'); }
     catch (error) {
       if (error.code === 'EEXIST') throw new Error(`另一个部署构建正在运行；若上次被强制中断，确认没有运行中的任务后删除 ${lockFile}`);
       throw error;
+    }
+    if (cacheProbeEnabled(process.env)) {
+      try {
+        cacheBefore = await captureBuildCaches({ root, env: process.env });
+        console.log(formatBuildCacheSnapshot(cacheBefore, '构建前'));
+        const probe = await placeBuildCacheProbe({ root, env: process.env });
+        console.log(formatBuildCacheProbe(probe));
+      } catch (error) {
+        console.warn(`[构建缓存探测] 构建前统计失败，将继续部署：${error.message}`);
+      }
     }
     return await runPipeline({
       steps: deploymentSteps(),
@@ -61,6 +73,15 @@ export async function deploy(options) {
     if (controller.signal.aborted) process.exitCode = 130;
     throw error;
   } finally {
+    if (cacheBefore) {
+      try {
+        const cacheAfter = await captureBuildCaches({ root, env: process.env });
+        console.log(formatBuildCacheSnapshot(cacheAfter, '构建后'));
+        console.log(formatBuildCacheDelta(cacheBefore, cacheAfter));
+      } catch (error) {
+        console.warn(`[构建缓存探测] 构建后统计失败：${error.message}`);
+      }
+    }
     if (lock) { await lock.close(); await rm(lockFile, { force: true }); }
     process.removeListener('SIGINT', cancel);
     process.removeListener('SIGTERM', cancel);

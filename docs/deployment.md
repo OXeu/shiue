@@ -80,6 +80,10 @@ npm run check:deploy                    # 本地回归，不访问真实友链�
 
 Cloudflare Workers Builds 的 [Build cache](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/) 只有在项目 **Settings → Build → Build cache** 启用后才工作，构建环境会注入 `WORKERS_CI=1`。平台明确列出的 npm 缓存用途是全局 `.npm` 依赖缓存，保留期为最后读取后 7 天、每项目最多 10GB；实测写入 npm `_cacache` 的自定义图片键不会在下一次 Workers Build 中恢复，因此图片流水线不再把它当作持久化接口。任意 `node_modules/.cache`、`.npm` 旁挂目录或 Hugo `public/` 也不属于本项目可依赖的框架缓存目录。
 
+为确认平台实际恢复与保存的目录，`WORKERS_CI=1` 时部署脚本会在完整构建前后分别打印 Cloudflare 文档中与本仓库有关的 npm 全局缓存，以及全部框架缓存候选目录。每项包含递归文件数、目录数、逻辑大小和首层条目，并在末尾汇总前后增量；不存在或无权读取的目录也会明确显示。首层超过 200 项时只展开前 200 项。符号链接只计数，不跟随目标。
+
+构建前快照完成后，脚本会删除旧探针并在 `$PWD/.cache/` 直接写入唯一的 `cloudflare-build-probe-<UUID>.json`，日志同时打印完整路径和 UUID。Cloudflare 在构建命令退出后保存缓存，所以应比较“本次构建后”与“下一次构建前”的探针文件名：完全相同才表示 `$PWD/.cache` 被跨构建恢复；下一次脚本随后换成新的 UUID，目录中始终只保留一个探针。可在本地用 `SHIUE_CACHE_PROBE=1 npm run build -- --offline` 复现，或用 `SHIUE_CACHE_PROBE=0` 暂时关闭线上探测日志。
+
 Cloudflare 图片缓存改为复用上一版 Workers Static Assets：每次构建把不含密钥和原图的 `image-cache-v3.json` 与 `image-cache-v3.bin` 发布到 `/xeu-images/`。索引以处理配方和原图内容指纹定位不可变 WebP，并记录 bundle 内每个文件的偏移、长度和 SHA-256；下一次 Workers Build 只需两次请求即可恢复全部匹配派生图，逐文件校验后再写入构建目录。默认来源是 `https://xeu.life/`，可用 `SHIUE_IMAGE_CACHE_ORIGIN` 覆盖。首次部署当前配方会全量生成并发布索引；后续构建应显示“已部署资源缓存索引 N 份”“远端恢复 M 张”和 `0 张新生成`。远端不可达、索引不匹配或 bundle/文件校验失败时安全回退为本地生成。
 
 `vercel.json` 的 Install Command 使用 `node scripts/vercel-install.mjs`。脚本先把图片缓存移动到 `.cache/deploy/` 下的临时目录，执行原有 `npm ci` 后再放回，避免 npm 清空 `node_modules` 时删除缓存；安装失败也尝试恢复，并仍以失败状态退出。无需新增平台变量。如果控制台曾覆盖 Install Command，应与仓库配置保持一致。
