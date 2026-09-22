@@ -102,14 +102,7 @@ COMMENTS_GITHUB_BRANCH=master
 
 ## 验证与故障处理
 
-```bash
-npm run check:comments    # Turnstile、签名、邮件幂等、审批、并发写入
-npm run check             # 完整回归
-PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
-  SHIUE_TEST_URL=http://127.0.0.1:1313/ node scripts/check-comments.mjs
-```
-
-浏览器检查覆盖桌面/手机布局、Turnstile 交互、失败保留草稿、无 JS 展示；全部使用模拟外部服务，不发送真实邮件或触发部署。上线后手动验收一次：真实提交 → 收审核邮件 → 批准 → Action 成功 → 页面展示。
+本项目已移除测试用例与回归脚本，上线后手动验收一次：真实提交 → 收审核邮件 → 批准 → Action 成功 → 页面展示。
 
 | 现象 | 处理 |
 | --- | --- |

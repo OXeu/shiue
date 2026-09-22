@@ -61,11 +61,3 @@
 ## 发布与验证
 
 各平台通过 Git 集成跟随默认分支：评论、友链和每日空提交推送后自动构建。生产分支需一致；只启用实际使用的平台，避免同一次推送触发多个部署。
-
-```sh
-npm run check:functions
-npm run check:comments
-npm run check:friend-applications
-```
-
-适配测试覆盖所有入口的完整流程、邮箱密文兼容、预览隔离与 Workers 路由；外部请求全部模拟，不触发真实发布。

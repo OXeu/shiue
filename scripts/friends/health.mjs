@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { writeJSON } from './files.mjs';
+import { writeJSON } from '../deploy/files.mjs';
 
 function requestURL(value) {
   const url = new URL(value);

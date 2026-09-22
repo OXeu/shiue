@@ -30,7 +30,7 @@ jobs:
           COMMENTS_SECRET: ${{ secrets.COMMENTS_SECRET }}
           # 兼容已上线的旧配置；新安装只需 COMMENTS_SECRET。
           COMMENTS_WORKFLOW_SECRET: ${{ secrets.COMMENTS_WORKFLOW_SECRET }}
-        run: node scripts/publish-comment.mjs
+        run: node scripts/comments/publish.mjs
       - name: 安全推送评论（并发时重试）
         env:
           COMMENT_FILE: ${{ steps.comment.outputs.comment_file }}
@@ -38,4 +38,4 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          node scripts/push-comment.mjs
+          node scripts/comments/push.mjs

@@ -24,9 +24,8 @@
     }
   });
   const header = document.querySelector('.site-header');
-  const navigation = header.querySelector('.site-navigation');
-  const navToggle = navigation?.querySelector('.site-nav-toggle');
-  const nav = navigation?.querySelector('.site-nav');
+  const navToggle = header?.querySelector('.site-nav-toggle');
+  const nav = header?.querySelector('.site-nav');
   if (navToggle && nav) {
     const mobileNav = matchMedia('(max-width: 600px)');
     const setNavOpen = open => {
@@ -37,17 +36,17 @@
       nav.setAttribute('aria-hidden', String(nav.inert));
     };
     navToggle.hidden = false;
-    navigation.classList.add('is-menu-ready');
+    header.classList.add('is-menu-ready');
     setNavOpen(false);
     navToggle.addEventListener('click', () => {
-      navigation.classList.add('is-menu-animated');
+      header.classList.add('is-menu-animated');
       setNavOpen(navToggle.getAttribute('aria-expanded') !== 'true');
     });
     nav.addEventListener('click', event => {
       if (event.target.closest('a')) setNavOpen(false);
     });
     document.addEventListener('click', event => {
-      if (!navigation.contains(event.target)) setNavOpen(false);
+      if (!navToggle.contains(event.target) && !nav.contains(event.target)) setNavOpen(false);
     });
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape' || navToggle.getAttribute('aria-expanded') !== 'true') return;
@@ -55,8 +54,8 @@
       setNavOpen(false);
       navToggle.focus({ preventScroll: true });
     });
-    navigation.addEventListener('focusout', event => {
-      if (navigation.contains(event.relatedTarget)) return;
+    header.addEventListener('focusout', event => {
+      if (navToggle.contains(event.relatedTarget) || nav.contains(event.relatedTarget)) return;
       // CSS 断点可能先隐藏链接，再触发媒体查询事件。
       const restoreFocus = mobileNav.matches && nav.contains(event.target) &&
         !event.relatedTarget && getComputedStyle(nav).visibility === 'hidden' && document.hasFocus();
@@ -65,12 +64,12 @@
     });
     mobileNav.addEventListener('change', () => {
       const restoreFocus = mobileNav.matches && nav.contains(document.activeElement);
-      navigation.classList.remove('is-menu-animated');
+      header.classList.remove('is-menu-animated');
       setNavOpen(false);
       if (restoreFocus) navToggle.focus({ preventScroll: true });
     });
     window.addEventListener('pagehide', () => {
-      navigation.classList.remove('is-menu-animated');
+      header.classList.remove('is-menu-animated');
       setNavOpen(false);
     });
   }

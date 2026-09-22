@@ -1,8 +1,8 @@
 import { access, readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { command } from './process.mjs';
-import { updateFriendHealth } from './friends.mjs';
-import { prepareIdentity, readIdentity, identityAssets } from './identity.mjs';
+import { updateFriendHealth } from '../friends/health.mjs';
+import { prepareIdentity, readIdentity, identityAssets } from '../assets/identity.mjs';
 
 export function deploymentSteps() {
   return [
@@ -42,7 +42,7 @@ export function deploymentSteps() {
     {
       id: 'images', title: '准备小图、中图与 BlurHash',
       async run(context, io) {
-        const { prepareImages } = await import('../prepare-images.mjs');
+        const { prepareImages } = await import('../assets/images.mjs');
         const manifest = await prepareImages(context.root, {
           log: io.log,
           onProgress({ completed, total }) {
@@ -56,7 +56,7 @@ export function deploymentSteps() {
     {
       id: 'd2', title: '预渲染并压缩 D2 图表',
       async run(context, io) {
-        const { prepareD2 } = await import('../prepare-d2.mjs');
+        const { prepareD2 } = await import('../assets/d2.mjs');
         const manifest = await prepareD2(context.root, { log: io.log, signal: io.signal });
         return { diagrams: Object.keys(manifest).length };
       },

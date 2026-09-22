@@ -15,7 +15,7 @@ html { scrollbar-gutter: stable; }
 @keyframes page-leave { to { opacity: 0; } }
 @keyframes page-arrive { from { opacity: 0; transform: translateY(6px); } }
 @keyframes section-arrive { from { opacity: .35; transform: translateY(8px); } }
-.page-heading, .friend-grid, .timeline { animation: section-arrive var(--motion-enter) var(--ease-out) backwards; }
+.page-heading, .friend-grid, .timeline-year { animation: section-arrive var(--motion-enter) var(--ease-out) backwards; }
 /* 浏览器在旧卡片和新文章之间插值真实位置与尺寸；不拦截导航或复制页面。 */
 html[data-article-transition]::view-transition-old(root) { animation: page-leave 120ms ease-out both; }
 html[data-article-transition]::view-transition-new(root) { animation: article-page-arrive 280ms 160ms ease-out both; }
@@ -51,8 +51,8 @@ html[data-article-transition="close"]::view-transition-old(article-cover) { anim
   .site-nav-icon { transition: background-color 160ms; }
   .site-nav-icon::before, .site-nav-icon::after { transform-origin: center; transition: transform 280ms var(--ease-spring); }
   /* 退出完成后再隐藏面板；关闭时由 inert 立即阻止点击和键盘访问。 */
-  .site-navigation.is-menu-ready.is-menu-animated .site-nav { transition: opacity 180ms ease-out, transform 240ms var(--ease-out), visibility 0s 240ms; }
-  .site-navigation.is-menu-ready.is-menu-animated .site-nav-toggle[aria-expanded="true"] + .site-nav { transition-delay: 0s; }
+  .site-header.is-menu-ready.is-menu-animated .site-nav { transition: opacity 180ms ease-out, transform 240ms var(--ease-out), visibility 0s 240ms; }
+  .site-header.is-menu-ready.is-menu-animated .site-nav-toggle[aria-expanded="true"] + .site-nav { transition-delay: 0s; }
 }
 @media (hover: hover) and (pointer: fine) {
   .post-card:hover, .friend-card:hover { translate: 0 -4px; }

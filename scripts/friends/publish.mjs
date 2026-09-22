@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { APPROVAL_TTL, CommentError, commentSecret, verify } from '../server/comments/core.js';
 import { PUBLISH_PURPOSE, validateFriend } from '../server/friends/core.js';
-import { addFriend, websiteKey } from './add-friend.mjs';
+import { addFriend, websiteKey } from './add.mjs';
 
 export function readFriendEnvelope({ envelope, secret, repository, now = Date.now() }) {
   const claim = verify(envelope, secret, PUBLISH_PURPOSE);

@@ -6,24 +6,18 @@
     "node": "^22.12.0 || >=24.0.0"
   },
   "scripts": {
-    "images": "node scripts/prepare-images.mjs",
-    "d2": "node scripts/prepare-d2.mjs",
-    "identity": "node scripts/deploy/identity.mjs",
-    "images:watch": "node scripts/prepare-images.mjs --watch",
-    "d2:watch": "node scripts/prepare-d2.mjs --watch",
+    "images": "node scripts/assets/images.mjs",
+    "d2": "node scripts/assets/d2.mjs",
+    "identity": "node scripts/assets/identity.mjs",
+    "images:watch": "node scripts/assets/images.mjs --watch",
+    "d2:watch": "node scripts/assets/d2.mjs --watch",
     "build": "node scripts/deploy.mjs",
     "deploy": "node scripts/deploy.mjs",
     "dev": "bash scripts/hugo.sh server --disableFastRender",
     "dev:cloudflare": "npx wrangler dev --var COMMENTS_ENV:development",
     "deploy:cloudflare": "npx wrangler deploy",
-    "post:new": "node scripts/new-post.mjs",
-    "friend:add": "node scripts/add-friend.mjs",
-    "check:friends": "node scripts/check-friends.mjs",
-    "check:deploy": "node --test scripts/deploy.test.mjs scripts/identity.test.mjs",
-    "check:comments": "node --test scripts/comments.test.mjs scripts/comment-time.test.mjs scripts/turnstile.test.mjs",
-    "check:friend-applications": "node --test scripts/friend-applications.test.mjs",
-    "check:functions": "node --test scripts/functions.test.mjs",
-    "check": "npm run check:deploy && npm run check:comments && npm run check:friend-applications && npm run check:functions && node scripts/check-friends.mjs && node scripts/check-images.mjs && node scripts/check-build.mjs"
+    "post:new": "node scripts/posts/new.mjs",
+    "friend:add": "node scripts/friends/add.mjs"
   },
   "dependencies": {
     "@d2lang/d2": "0.1.34",

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import sharp from 'sharp';
-import { writeJSON } from './files.mjs';
+import { writeJSON } from '../deploy/files.mjs';
 
 export const AVATAR_SOURCE = 'https://avatars.githubusercontent.com/u/36541432';
 export const AVATAR_SIZES = [48, 80, 96, 160, 192, 240, 320, 512];

@@ -49,20 +49,7 @@ npm run build   # 完整构建，产物在 public/
 
 ## 验证
 
-```bash
-npm run check              # 完整回归：部署流程、评论、友链、图片、构建产物
-npm run check:functions    # 各 Serverless 平台入口
-```
-
-另有一组基于 Playwright 的浏览器检查（需先另开终端 `npm run dev`）：
-
-```bash
-node scripts/check-theme.mjs             # 布局、搜索、主题切换、无 JS 回退
-node scripts/check-comments.mjs          # 评论交互
-node scripts/check-readability.mjs       # 文字对比度与溢出
-```
-
-更多检查脚本见 `scripts/` 目录，统一通过 `PLAYWRIGHT_MODULE` 和 `SHIUE_TEST_URL` 指定环境。
+本项目已移除测试用例与回归脚本，正确性以线上部署结果为准。
 
 ## 文档
 

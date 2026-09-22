@@ -46,19 +46,17 @@ import { initializeImages, releaseImages } from './images.js';
       cover.append(img);
       card.append(cover);
     }
-    const body = element('div', 'card-body');
-    body.append(element('div', 'card-taxonomy', item.tags.slice(0, 2).map(tag => `# ${tag}`).join('  ')));
+    card.append(element('div', 'card-taxonomy', item.tags.slice(0, 2).map(tag => `# ${tag}`).join('  ')));
     const title = element('h2', 'card-title');
     const link = element('a', '', item.title);
     link.href = item.permalink;
     title.append(link);
-    body.append(title, element('p', 'card-summary', item.description));
+    card.append(title, element('p', 'card-summary', item.description));
     const meta = element('div', 'card-meta');
     const date = element('time', '', item.date);
     date.dateTime = item.date;
     meta.append(date, element('span', '', `${item.readingTime} 分钟阅读`));
-    body.append(meta);
-    card.append(body);
+    card.append(meta);
     return card;
   };
   const run = async () => {

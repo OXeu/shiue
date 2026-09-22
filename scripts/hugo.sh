@@ -6,9 +6,9 @@ case "${1:-}" in
   --resolve|version|env|help|completion) ;;
   server)
     if [[ "${SHIUE_IMAGES_READY:-0}" != 1 ]]; then
-      node "$project_dir/scripts/deploy/identity.mjs"
-      node "$project_dir/scripts/prepare-images.mjs"
-      node "$project_dir/scripts/prepare-d2.mjs"
+      node "$project_dir/scripts/assets/identity.mjs"
+      node "$project_dir/scripts/assets/images.mjs"
+      node "$project_dir/scripts/assets/d2.mjs"
     fi
     ;;
   *)

@@ -23,11 +23,17 @@ Hugo 构建 → 产物检查 → 耗时汇总 + JSON 报告
 | `scripts/deploy/pipeline.mjs` | 步骤生命周期、错误边界、计时及报告 |
 | `scripts/deploy/reporter.mjs` | 终端展示、进度与耗时汇总 |
 | `scripts/deploy/process.mjs` | 子进程输出流、退出码和取消处理 |
-| `scripts/deploy/friends.mjs` | 有限并发的友链健康检测、重试和快照 |
-| `scripts/deploy/identity.mjs` | 联网拉取 GitHub 头像、生成站点图标 |
-| `scripts/prepare-d2.mjs` | D2 图表预渲染与压缩 |
+| `scripts/friends/health.mjs` | 有限并发的友链健康检测、重试和快照 |
+| `scripts/assets/identity.mjs` | 联网拉取 GitHub 头像、生成站点图标 |
+| `scripts/assets/d2.mjs` | D2 图表预渲染与压缩 |
+| `scripts/assets/images.mjs` | 图片缩略图与 BlurHash 生成 |
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
 | `scripts/hugo.sh` | Hugo 版本解析、校验和、工具缓存 |
+| `scripts/friends/add.mjs` | 添加友链：抓取站点信息与图标 |
+| `scripts/friends/publish.mjs` | 友链审批发布（GitHub Action） |
+| `scripts/comments/publish.mjs` | 评论验签与写入（GitHub Action） |
+| `scripts/comments/push.mjs` | 评论安全推送（GitHub Action） |
+| `scripts/posts/new.mjs` | 新建文章脚手架 |
 
 步骤按注册顺序执行。新增预处理只需在 `deploymentSteps()` 中注册一步：
 
@@ -58,7 +64,6 @@ npm run d2:watch                             # 监听 D2 代码块变化
 npm run dev                                  # 开发服务器
 npm run deploy -- --list                     # 列出注册步骤
 npm run deploy -- --destination /tmp/out --baseURL https://example.com/blog/
-npm run check:deploy                         # 本地回归，不触发真实部署
 ```
 
 `HUGO_BIN` 可指定 Hugo 二进制；Linux x86_64 未安装时自动下载官方 Extended 发行包并验证 SHA-256，缓存在 `.cache/deploy/hugo/`。
@@ -73,11 +78,9 @@ npm run check:deploy                         # 本地回归，不触发真实部
 
 构建日志显示「缓存复用 N 张，K 张新生成」；首次构建全量生成，命中缓存后应为 `0 张新生成`。
 
-`node scripts/check-images.mjs` 验证冷/热缓存、跨工作区恢复、改名/更新、损坏清单与旧缓存清理。
-
 ## D2 构建缓存
 
-`scripts/prepare-d2.mjs` 扫描 `content/` 中的 D2 代码块，按内容指纹缓存于 `.cache/xeu-d2/`。源码未变时不重新渲染，直接重建清单；语法错误终止构建。缓存与清单缺失时 `npm run build` 自动补齐；绕过统一入口直接执行 Hugo 前，必须先运行 `npm run d2`。
+`scripts/assets/d2.mjs` 扫描 `content/` 中的 D2 代码块，按内容指纹缓存于 `.cache/xeu-d2/`。源码未变时不重新渲染，直接重建清单；语法错误终止构建。缓存与清单缺失时 `npm run build` 自动补齐；绕过统一入口直接执行 Hugo 前，必须先运行 `npm run d2`。
 
 ## 友链检测
 
