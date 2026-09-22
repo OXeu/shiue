@@ -5,7 +5,7 @@ publish = "public"
 ignore = "exit 1"
 
 [functions]
-directory = "netlify/functions"
+directory = "functions/netlify"
 node_bundler = "esbuild"
 
 [functions.submissions]

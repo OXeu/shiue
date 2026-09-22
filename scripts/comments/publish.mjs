@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile, appendFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APPROVAL_TTL, CommentError, commentSecret, sameStoredComment, validateStoredComment, verify } from '../server/comments/core.js';
-import { checkCommentDirectory, checkCommentParent, commentFile } from '../server/comments/storage.js';
+import { APPROVAL_TTL, CommentError, commentSecret, sameStoredComment, validateStoredComment, verify } from '../../functions/comments/core.js';
+import { checkCommentDirectory, checkCommentParent, commentFile } from '../../functions/comments/storage.js';
 
 export async function appendApprovedComment({ root, envelope, secret, repository, now = Date.now() }) {
   const claim = verify(envelope, secret, 'comment-publish-v1');

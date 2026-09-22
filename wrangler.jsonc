@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "shiue",
-  "main": "cloudflare/worker.js",
+  "main": "functions/cloudflare/worker.js",
   "compatibility_date": "2026-03-01",
   "compatibility_flags": ["nodejs_compat"],
   "keep_vars": true,

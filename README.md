@@ -1,12 +1,8 @@
-<div align="center">
-  <h1>Shiue</h1>
-  <p>Xeu 的个人博客。基于 Hugo 与独立主题 Xeu，纯静态产物。</p>
-  <p>
-    <a href="https://xeu.life/">在线访问</a> ·
-    <a href="docs/serverless.md">部署指南</a> ·
-    <a href="docs/comments.md">评论系统</a>
-  </p>
-</div>
+# Shiue
+
+Xeu 的个人博客。基于 Hugo 与独立主题 Xeu，纯静态产物。
+
+[在线访问](https://xeu.life/) · [部署指南](docs/serverless.md) · [评论系统](docs/comments.md)
 
 ## 写作
 
@@ -45,11 +41,7 @@ npm run dev     # 预览（不检测友链）
 npm run build   # 完整构建，产物在 public/
 ```
 
-`npm run build` 流程：环境检查 → Hugo 准备 → 获取站点图标 → 友链检测 → 图片处理 → D2 预渲染 → 静态构建 → 产物检查，报告写入 `.cache/deploy/report.json`。离线构建加 `-- --offline`；Linux x86_64 未装 Hugo 时会自动下载并校验官方发行包。
-
-## 验证
-
-本项目已移除测试用例与回归脚本，正确性以线上部署结果为准。
+`npm run build` 流程：环境检查 → Hugo 准备 → 获取站点图标 → 友链检测 → 图片处理 → D2 预渲染 → 静态构建 → 产物检查，报告写入 `.cache/deploy/report.json`。离线构建加 `-- --offline`；Linux x86\_64 未装 Hugo 时会自动下载并校验官方发行包。
 
 ## 文档
 
@@ -57,4 +49,8 @@ npm run build   # 完整构建，产物在 public/
 
 ## 许可证
 
-主题代码采用 MIT License，见 `themes/xeu/LICENSE`。BlurHash 解码器为 MIT 许可，见 `themes/xeu/static/licenses/blurhash.txt`；Cantarell 字体为 SIL OFL，见 `static/fonts/OFL.txt`。
+主题代码: [MIT License](themes/xeu/LICENSE)
+
+BlurHash 解码器: [MIT License](themes/xeu/static/licenses/blurhash.txt)
+
+Cantarell 字体: [SIL OFL](static/fonts/OFL.txt)

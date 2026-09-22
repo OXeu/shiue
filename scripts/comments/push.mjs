@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sameStoredComment, validateStoredComment } from '../server/comments/core.js';
-import { parseCommentFile } from '../server/comments/storage.js';
+import { sameStoredComment, validateStoredComment } from '../../functions/comments/core.js';
+import { parseCommentFile } from '../../functions/comments/storage.js';
 
 export function pushComment({ file, branch, cwd = process.cwd() }) {
   parseCommentFile(file);

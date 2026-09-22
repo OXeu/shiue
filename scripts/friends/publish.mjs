@@ -3,8 +3,8 @@ import { lstat, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APPROVAL_TTL, CommentError, commentSecret, verify } from '../server/comments/core.js';
-import { PUBLISH_PURPOSE, validateFriend } from '../server/friends/core.js';
+import { APPROVAL_TTL, CommentError, commentSecret, verify } from '../../functions/comments/core.js';
+import { PUBLISH_PURPOSE, validateFriend } from '../../functions/friends/core.js';
 import { addFriend, websiteKey } from './add.mjs';
 
 export function readFriendEnvelope({ envelope, secret, repository, now = Date.now() }) {

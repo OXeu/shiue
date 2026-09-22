@@ -5,7 +5,7 @@
   "buildCommand": "npm run deploy",
   "outputDirectory": "public",
   "functions": {
-    "api/submissions.js": { "maxDuration": 30, "includeFiles": "public/comment-pages.json" }
+    "functions/vercel/submissions.js": { "maxDuration": 30, "includeFiles": "public/comment-pages.json" }
   },
   "headers": [
     {

@@ -1,14 +1,14 @@
 # Serverless 部署
 
-支持 Vercel Functions、Netlify Functions 与带 Static Assets 的 Cloudflare Workers。所有入口共用 `server/submissions.js`，提供同源 `POST /api/submissions`。
+支持 Vercel Functions、Netlify Functions 与带 Static Assets 的 Cloudflare Workers。所有入口共用 `functions/submissions.js`，提供同源 `POST /api/submissions`。平台适配代码统一在 [`functions/`](functions/) 目录。
 
 | 平台 | 函数入口 | 部署配置 | 评论白名单 |
 | --- | --- | --- | --- |
-| Vercel | `api/submissions.js` | `vercel.json` | `public/comment-pages.json` 由 Node 文件系统读取 |
-| Netlify | `netlify/functions/submissions.mjs` | `netlify.toml` | `included_files` 随函数打包 |
-| Cloudflare Workers | `cloudflare/worker.js` | `wrangler.jsonc`；业务变量在控制台管理 | `env.ASSETS` 读取静态文件 |
+| Vercel | `functions/vercel/submissions.js` | `vercel.json` | `public/comment-pages.json` 由 Node 文件系统读取 |
+| Netlify | `functions/netlify/submissions.mjs` | `netlify.toml` | `included_files` 随函数打包 |
+| Cloudflare Workers | `functions/cloudflare/worker.js` | `wrangler.jsonc`；业务变量在控制台管理 | `env.ASSETS` 读取静态文件 |
 
-共享模块接收标准 `Request` / `Response`，不读取 `process.env` 或文件系统；平台入口注入 `env` 与 `pages()`。对 Turnstile、Resend、GitHub 的请求一律 `redirect: manual`，拒绝非成功响应。
+共享模块位于 `functions/` 根部（提交处理、评论、友链、运行时适配），接收标准 `Request` / `Response`，不读取 `process.env` 或文件系统；平台入口注入 `env` 与 `pages()`。对 Turnstile、Resend、GitHub 的请求一律 `redirect: manual`，拒绝非成功响应。
 
 ## 通用配置
 
