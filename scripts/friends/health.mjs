@@ -1,14 +1,23 @@
+// 友链健康检测：构建时逐站探测可用性，结果写入 data/xeu/friend-health.json。
+//
+// 检测只看 HTTP 响应头：用 GET + 手动跟随重定向（部分站点拒绝 HEAD），
+// 收到响应立即取消 body，不下载整页。5xx/429 自动重试一次。
+
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { writeJSON } from '../deploy/files.mjs';
 
+/** 校验友链网址：无凭据的 HTTP(S)。 */
 function requestURL(value) {
   const url = new URL(value);
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('友链必须是无凭据的 HTTP(S) 网址');
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    throw new Error('友链必须是无凭据的 HTTP(S) 网址');
+  }
   return url;
 }
 
+/** 把网络异常分类为可读的中文状态。 */
 function networkStatus(error) {
   const codes = [error, error?.cause, ...(error?.cause?.errors || [])].filter(Boolean).map(item => item.code || item.name);
   if (codes.some(code => ['TimeoutError', 'UND_ERR_CONNECT_TIMEOUT', 'ETIMEDOUT'].includes(code))) return '连接超时';
@@ -19,6 +28,7 @@ function networkStatus(error) {
   return '连接失败';
 }
 
+/** 把 HTTP 状态码分类；2xx 视为正常（空字符串）。 */
 function httpStatus(status) {
   if (status >= 200 && status < 300) return '';
   if (status === 401 || status === 403) return `访问受限（HTTP ${status}）`;
@@ -27,8 +37,7 @@ function httpStatus(status) {
   return `HTTP ${status}`;
 }
 
-// Only GET response headers are needed. Some sites reject HEAD even though
-// visitors can open them; cancel the body immediately to avoid full downloads.
+/** 探测单个站点；手动跟随至多 5 次重定向，失败重试一次。 */
 export async function probeFriend(website, { signal, timeoutMs = 8_000, retries = 1, retryDelayMs = 350, fetchImpl = fetch } = {}) {
   requestURL(website);
   const started = performance.now();
@@ -43,7 +52,9 @@ export async function probeFriend(website, { signal, timeoutMs = 8_000, retries 
       for (let redirects = 0; ; redirects++) {
         requestURL(current);
         const response = await fetchImpl(current, {
-          method: 'GET', redirect: 'manual', signal: requestSignal,
+          method: 'GET',
+          redirect: 'manual',
+          signal: requestSignal,
           headers: { 'user-agent': 'Xeu-Link-Health/1.0', accept: 'text/html,application/xhtml+xml,*/*;q=0.8' },
         });
         receivedResponse = true;
@@ -65,12 +76,14 @@ export async function probeFriend(website, { signal, timeoutMs = 8_000, retries 
       result = { health: timeout.aborted ? '连接超时' : networkStatus(error), statusCode: null, receivedResponse, finalURL: current };
     }
     result.attempts = attempt + 1;
+    // 正常、客户端错误（站点自己返回的）不重试；只有网络异常、5xx、429 重试。
     if (!result.health || (result.statusCode !== null && result.statusCode < 500 && result.statusCode !== 429)) break;
     if (attempt < retries) await delay(retryDelayMs, undefined, { signal });
   }
   return { ...result, durationMs: Math.round(performance.now() - started), checkedAt: new Date().toISOString() };
 }
 
+/** 检测全部友链并写报告；输入先整体校验（重复网址视为配置错误）。 */
 export async function updateFriendHealth({ root, signal, concurrency = 3, log = console.log, warn = console.warn, ...probeOptions }) {
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 10) throw new Error('友链检测并发必须在 1–10 之间');
   const friends = JSON.parse(await readFile(path.join(root, 'data/friends.json'), 'utf8'));
@@ -81,6 +94,7 @@ export async function updateFriendHealth({ root, signal, concurrency = 3, log = 
     if (seen.has(friend.website)) throw new Error(`重复友链：${friend.website}`);
     seen.add(friend.website);
   }
+
   const results = new Array(friends.length);
   let next = 0;
   let completed = 0;
@@ -96,12 +110,14 @@ export async function updateFriendHealth({ root, signal, concurrency = 3, log = 
     }
   }));
   signal?.throwIfAborted();
+
   const unhealthy = results.filter(result => result.health).length;
-  // A broken build runner network must not move the entire directory to Away.
+  // 构建机自身断网时不能把所有站点都标记为失联；保留上次检测结果。
   if (friends.length > 1 && results.every(result => !result.receivedResponse)) {
     warn('所有站点均未收到 HTTP 响应，疑似检测环境网络异常；保留上次检测结果（无缓存时使用仓库初始状态）。');
     return { total: friends.length, unhealthy, preserved: true };
   }
+
   const report = {
     checkedAt: new Date().toISOString(),
     sites: Object.fromEntries(friends.map((friend, index) => [friend.website, results[index]])),

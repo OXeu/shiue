@@ -1,3 +1,9 @@
+// 新建文章向导（npm run post:new）。
+//
+// 交互式创建 content/post/<slug>/index.md，无任何依赖；标题必填，
+// 其余可回车跳过。front matter 用 JSON 语法书写（JSON 是合法的 YAML），
+// 天然安全引用用户输入。已有目录不会被覆盖。
+
 import { lstat, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
@@ -12,6 +18,7 @@ async function exists(file) {
   catch (error) { if (error.code === 'ENOENT') return false; throw error; }
 }
 
+/** 中英文逗号、顿号分隔的列表，去重去空。 */
 function list(value) {
   return [...new Set(value.split(/[,，、]/).map(item => item.trim()).filter(Boolean))];
 }
@@ -34,13 +41,14 @@ Ctrl+C 或输入结束时取消；已有文章目录不会被覆盖。`);
   if (positionals.length > 1) throw new Error('只接受一个标题参数；带空格的标题请用引号包裹。');
 
   const rl = createInterface({ input: process.stdin, output: process.stdout, crlfDelay: Infinity });
-  // Keep pasted or piped answers queued, including lines entered between prompts.
+  // 异步迭代器：粘贴或管道输入的多行答案也能按序消费。
   const lines = rl[Symbol.asyncIterator]();
   let cancelled = false;
   const cancel = () => { cancelled = true; rl.close(); };
   rl.on('SIGINT', cancel);
   process.once('SIGINT', cancel);
 
+  /** 单个提问：显示默认值，validate 返回错误文案则重新提问。 */
   async function ask(label, fallback = '', validate = () => '') {
     while (true) {
       rl.setPrompt(`${label}${fallback ? ` [${fallback}]` : ''}：`);
@@ -63,6 +71,8 @@ Ctrl+C 或输入结束时取消；已有文章目录不会被覆盖。`);
   try {
     console.log('新建文章 · 回车使用默认值或跳过可选项，Ctrl+C 取消。\n');
     const title = positionals[0]?.trim() || await ask('文章标题', '', value => value ? '' : '标题不能为空。');
+
+    // slug 默认从标题转写；无英文字符时退回时间戳。
     const suggestedSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       || `post-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`;
     const slug = await ask('网址名 slug（小写英文、数字、连字符）', suggestedSlug, async value => {
@@ -70,9 +80,12 @@ Ctrl+C 或输入结束时取消；已有文章目录不会被覆盖。`);
       if (await exists(path.join(posts, value))) return '该文章目录已存在，请换一个网址名。';
       return '';
     });
+
     const description = await ask('文章摘要（可选）');
+    // 分类与标签必须是英文标识；中文显示名在对应 _index.md 的 title 设置。
     const validateTerms = value => list(value).every(term => /^[a-z0-9]+(?:[ -][a-z0-9]+)*$/i.test(term))
-      ? '' : '分类与标签请填写英文标识，例如 tech、essays、blog；中文显示名称在对应 _index.md 的 title 中设置。';
+      ? ''
+      : '分类与标签请填写英文标识，例如 tech、essays、blog；中文显示名称在对应 _index.md 的 title 中设置。';
     const categories = list(await ask('分类（英文标识，可选，逗号分隔）', '', validateTerms));
     const tags = list(await ask('标签（英文标识，可选，逗号分隔）', '', validateTerms));
     const image = await ask('封面（可选，如 cover.jpg）');
@@ -80,7 +93,7 @@ Ctrl+C 或输入结束时取消；已有文章目录不会被覆盖。`);
       /^(y|yes|n|no|是|否)$/i.test(value) ? '' : '请输入 y（草稿）或 n（发布）。');
     draft = /^(y|yes|是)$/i.test(answer);
 
-    // JSON strings and arrays are valid YAML and safely quote user input.
+    // front matter 用 JSON 语法：合法 YAML 且自动安全引用。
     const metadata = {
       title,
       date: new Date().toISOString(),
@@ -92,6 +105,8 @@ Ctrl+C 或输入结束时取消；已有文章目录不会被覆盖。`);
       draft,
     };
     const content = `---\n${Object.entries(metadata).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n')}\n---\n\n<!-- 在这里开始写正文 -->\n`;
+
+    // 目录必须新建（EEXIST 即拒绝），文件也以 wx 创建，双保险不覆盖。
     const directory = path.join(posts, slug);
     await mkdir(posts, { recursive: true });
     try { await mkdir(directory); }

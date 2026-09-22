@@ -1,3 +1,10 @@
+// D2 图表的静态预渲染。
+//
+// 从 Markdown 提取 ```d2 代码块，用 d2.js 编译渲染为 SVG（浅色 + 深色
+// 两套主题），经 SVGO 压缩与安全过滤后写入 data/xeu/d2.json 清单，
+// 由 Hugo 模板内联到页面。渲染结果按「配方 + 源码」指纹缓存在
+// .cache/xeu-d2/，未变化的图表不重渲染。
+
 import { createHash, randomUUID } from 'node:crypto';
 import { watch } from 'node:fs';
 import { access, mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
@@ -8,6 +15,7 @@ import { loadNotoSansSCBold, loadNotoSansSCRegular } from '@reogrid/font-sc';
 import { optimize } from 'svgo';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 配方标识：D2 版本或字体变化时递增，使缓存整体失效。
 const recipe = 'd2-ssg-v7-d2js-0.1.34-noto-sc-2.0.0';
 const modes = {
   light: { themeID: 0 },
@@ -15,7 +23,9 @@ const modes = {
 };
 
 const exists = file => access(file).then(() => true, () => false);
+/** 源码指纹：清单键（完整 64 位），同一图表多处引用共用一份。 */
 const sourceKey = source => createHash('sha256').update(source).digest('hex');
+/** 缓存指纹：配方 + 源码，前 24 位。 */
 const cacheKey = source => createHash('sha256').update(recipe).update('\0').update(source).digest('hex').slice(0, 24);
 
 async function markdownFiles(directory) {
@@ -29,6 +39,7 @@ async function markdownFiles(directory) {
   return files;
 }
 
+/** 从 Markdown 提取全部 D2 代码块源码；支持围栏缩进与波浪线围栏。 */
 export function extractD2(markdown) {
   const lines = markdown.replaceAll('\r\n', '\n').split('\n');
   const diagrams = [];
@@ -41,6 +52,7 @@ export function extractD2(markdown) {
     const body = [];
     let closed = false;
     for (index += 1; index < lines.length; index++) {
+      // 结束围栏：与开启同字符、长度不小于开启、无尾随内容。
       if (new RegExp(`^ {0,3}${marker}{${minimum},}[ \\t]*$`).test(lines[index])) {
         closed = true;
         break;
@@ -56,7 +68,9 @@ export function extractD2(markdown) {
   return diagrams;
 }
 
+/** 压缩 SVG 并做安全过滤。 */
 function minifySVG(input, id, fingerprint, mode) {
+  // 自定义插件：剥离所有能加载外部内容或执行脚本的元素。
   const removeExternalContent = {
     name: 'removeExternalContent',
     fn: () => ({
@@ -73,22 +87,27 @@ function minifySVG(input, id, fingerprint, mode) {
     multipass: true,
     plugins: [
       removeExternalContent,
+      // cleanupIds 关闭：D2 的 id 被后续字体替换与主题选择器引用。
       { name: 'preset-default', params: { overrides: { cleanupIds: false } } },
       'removeScripts',
       { name: 'removeAttrs', params: { attrs: ['on.*'] } },
     ],
   });
   if (result.error) throw new Error(`SVG 压缩失败：${result.error}`);
+
   const prefix = `xeu-d2-${fingerprint}-${mode}`;
   let svg = result.data.replace(/^<\?xml[^>]*>\s*/i, '').replaceAll(/d2-\d+/g, prefix);
-  // SVGO serializes quotes in style text as XML entities; CSS raw-text parsing
-  // does not decode those entities, so restore them before inlining the SVG.
+  // SVGO 会把 <style> 内的引号转义为 XML 实体；CSS 原文解析不解码实体，
+  // 内联前必须还原，否则字体规则失效。
   svg = svg.replaceAll(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,
     (_match, opening, css, closing) => `${opening}${css.replaceAll('&quot;', '"')}${closing}`);
   svg = svg.replace('<svg ', `<svg id="${prefix}-root" data-d2-render-theme="${mode}" `);
+  // 无障碍标签缺失时补一个兜底。
   if (!/\saria-(?:label|labelledby)=/.test(svg.slice(0, svg.indexOf('>')))) {
     svg = svg.replace('<svg ', '<svg role="img" aria-label="D2 图表" ');
   }
+
+  // 输出前安全复查：只允许锚点引用与内嵌 WOFF 字体 data: URL。
   const urls = [...svg.matchAll(/url\(\s*["']?([^"')\s]+)["']?\s*\)/gi)].map(match => match[1]);
   const unsafeURL = urls.find(url => !url.startsWith('#') && !/^data:application\/font-woff;base64,[a-z0-9+/=]+$/i.test(url));
   if (/<(?:script|foreignObject|img|image|iframe|object|embed|audio|video)\b|<[^>]*\s(?:src|on[a-z]+)\s*=|<[^>]*(?:href|xlink:href)=["']\s*javascript:|@import\b|expression\s*\(/i.test(svg) || unsafeURL) {
@@ -97,6 +116,7 @@ function minifySVG(input, id, fingerprint, mode) {
   return svg;
 }
 
+/** 剥离 D2 内嵌的 Noto Sans SC @font-face（约数 MB），改用站点 CSS 变量。 */
 function stripEmbeddedFonts(svg, fingerprint, mode) {
   const pattern = /@font-face\s*\{[^}]*\}/g;
   const faces = [...svg.matchAll(pattern)].map(match => match[0]);
@@ -108,6 +128,7 @@ function stripEmbeddedFonts(svg, fingerprint, mode) {
     .replaceAll(`font-family:"${family}italic"`, 'font-family:var(--font-body);font-style:italic');
 }
 
+/** 读取缓存 SVG；损坏或非 SVG 内容（错误消息等）视为未命中。 */
 async function cachedSVG(file) {
   try {
     const info = await stat(file);
@@ -126,24 +147,30 @@ async function atomicWrite(file, value) {
   await rename(temporary, file);
 }
 
+/** 把 d2.js 的编译错误翻译成带图表指纹的中文信息。 */
 function compileError(error, item) {
   let detail = error.message;
   try {
     const diagnostics = JSON.parse(error.message);
     if (Array.isArray(diagnostics)) detail = diagnostics.map(diagnostic => diagnostic.errmsg || String(diagnostic)).join('; ');
-  } catch {}
+  } catch { /* 非结构化错误消息：原样保留。 */ }
   return new Error(`D2 ${item.mode} 主题预渲染失败（${item.key.slice(0, 12)}）：${detail}`, { cause: error });
 }
 
 async function fontOptions() {
   const [regular, bold] = await Promise.all([loadNotoSansSCRegular(), loadNotoSansSCBold()]);
-  // d2.js serializes compile options as JSON; Go's []byte decoder therefore
-  // expects base64 even though the JavaScript declaration currently says Uint8Array.
-  const fontRegular = Buffer.from(regular).toString('base64');
-  const fontBold = Buffer.from(bold).toString('base64');
-  return { fontRegular, fontBold };
+  // d2.js 以 JSON 序列化编译选项；Go 的 []byte 解码因此要求 base64，
+  // 尽管 JavaScript 声明写的是 Uint8Array。
+  return {
+    fontRegular: Buffer.from(regular).toString('base64'),
+    fontBold: Buffer.from(bold).toString('base64'),
+  };
 }
 
+/**
+ * 预渲染全部 D2 图表并更新清单。
+ * 缓存命中的主题跳过；只有 miss 的条目才初始化 d2.js 渲染器。
+ */
 export async function prepareD2(root = projectRoot, {
   contentDirectory = path.join(root, 'content'),
   log = console.log,
@@ -157,6 +184,7 @@ export async function prepareD2(root = projectRoot, {
   const cacheDirectory = path.join(root, '.cache/xeu-d2');
   const manifestFile = path.join(root, 'data/xeu/d2.json');
   await Promise.all([mkdir(cacheDirectory, { recursive: true }), mkdir(path.dirname(manifestFile), { recursive: true })]);
+
   const manifest = {};
   const missing = [];
   const retainedCacheFiles = new Set();
@@ -179,6 +207,7 @@ export async function prepareD2(root = projectRoot, {
       log(`预渲染 ${sources.size} 个 D2 图表（${missing.length} 个主题缓存未命中）`);
       const fonts = await fontOptions();
       renderer = new D2();
+      // 同一图表浅深两主题只编译一次，渲染两次。
       const compiledDiagrams = new Map();
       for (const item of missing) {
         signal?.throwIfAborted();
@@ -217,6 +246,7 @@ export async function prepareD2(root = projectRoot, {
     await renderer?.dispose();
   }
 
+  // 清理不再被引用的缓存文件。
   await Promise.all((await readdir(cacheDirectory))
     .filter(file => file.endsWith('.svg') && !retainedCacheFiles.has(file))
     .map(file => unlink(path.join(cacheDirectory, file))));
@@ -230,6 +260,7 @@ async function main() {
   const watching = process.argv.includes('--watch');
   await prepareD2();
   if (!watching) return;
+  // 防抖：150ms 内的连续文件变更只触发一次重渲染。
   let pending;
   watch(path.join(projectRoot, 'content'), { recursive: true }, (_event, filename) => {
     if (!/\.(?:md|markdown)$/i.test(filename || '')) return;

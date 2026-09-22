@@ -1,3 +1,5 @@
+// JSON 原子写入：先写临时文件再 rename，读者不会观察到半截内容。
+
 import { randomUUID } from 'node:crypto';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';

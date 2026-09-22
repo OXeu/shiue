@@ -1,3 +1,6 @@
+// 部署流水线的步骤表。顺序即依赖顺序：
+// 环境 → Hugo 工具 → 站点图标 → 友链健康 → 文章图片 → D2 图表 → Hugo 构建 → 产物检查。
+
 import { access, readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { command } from './process.mjs';
@@ -11,17 +14,27 @@ export function deploymentSteps() {
       async run(context, { log }) {
         const [major, minor] = process.versions.node.split('.').map(Number);
         if (!((major === 22 && minor >= 12) || major >= 24)) throw new Error('部署脚本需要 Node.js 22.12 LTS 或 24 及更新版本');
-        for (const file of ['.hugo-version', 'hugo.toml', 'data/friends.json']) await access(path.join(context.root, file));
+        for (const file of ['.hugo-version', 'hugo.toml', 'data/friends.json']) {
+          await access(path.join(context.root, file));
+        }
         log(`Node.js ${process.versions.node} · ${process.platform}/${process.arch}`);
         log(`输出目录：${context.destination}`);
-        log(context.offline ? '离线构建：复用本机图标并跳过外网友链检测' : '部署构建：在线刷新站点图标与友链状态，不修改 Git 数据');
+        log(context.offline
+          ? '离线构建：复用本机图标并跳过外网友链检测'
+          : '部署构建：在线刷新站点图标与友链状态，不修改 Git 数据');
         return { node: process.versions.node, destination: context.destination, offline: context.offline };
       },
     },
     {
       id: 'hugo-tool', title: '准备 Hugo Extended',
       async run(context, io) {
-        context.hugo = await command('bash', [path.join(context.root, 'scripts/hugo.sh'), '--resolve'], { ...io, cwd: context.root, env: { ...context.env, SHIUE_HUGO_OFFLINE: context.offline ? '1' : '0' }, capture: true });
+        // hugo.sh 负责定位/下载 Hugo Extended；--resolve 只输出二进制路径。
+        context.hugo = await command('bash', [path.join(context.root, 'scripts/hugo.sh'), '--resolve'], {
+          ...io,
+          cwd: context.root,
+          env: { ...context.env, SHIUE_HUGO_OFFLINE: context.offline ? '1' : '0' },
+          capture: true,
+        });
         const version = await command(context.hugo, ['version'], { ...io, cwd: context.root, env: context.env, capture: true });
         io.log(version);
         return { version };
@@ -31,7 +44,12 @@ export function deploymentSteps() {
       id: 'identity', title: '获取 GitHub 头像与站点图标',
       async run(context, io) {
         const manifest = await prepareIdentity({ root: context.root, offline: context.offline, ...io });
-        return { fingerprint: manifest.fingerprint, generatedAt: manifest.generatedAt, assets: identityAssets(manifest).length, offline: context.offline };
+        return {
+          fingerprint: manifest.fingerprint,
+          generatedAt: manifest.generatedAt,
+          assets: identityAssets(manifest).length,
+          offline: context.offline,
+        };
       },
     },
     {
@@ -42,6 +60,7 @@ export function deploymentSteps() {
     {
       id: 'images', title: '准备小图、中图与 BlurHash',
       async run(context, io) {
+        // 动态 import：sharp 体积大，只在需要时加载。
         const { prepareImages } = await import('../assets/images.mjs');
         const manifest = await prepareImages(context.root, {
           log: io.log,
@@ -64,22 +83,28 @@ export function deploymentSteps() {
     {
       id: 'hugo-build', title: '构建静态站点',
       async run(context, io) {
-        // Workers Builds 可能恢复旧 public/；避免已删除的路由、缓存及图表/X 旧包继续发布。
+        // Workers Builds 可能恢复旧 public/ 目录；构建前清掉已下线的路由、
+        // 缓存文件与旧版 JS bundle，避免它们继续随部署发布。
         const scriptDirectory = path.join(context.destination, 'js');
-        const retiredBundles = await readdir(scriptDirectory).then(files => files
-          .filter(file => /^(?:d2|mermaid(?:-engine)?|post)\.[a-f0-9]+\.js$/.test(file))
-          .map(file => path.join(scriptDirectory, file)), error => {
+        const retiredBundles = await readdir(scriptDirectory).then(
+          files => files
+            .filter(file => /^(?:d2|mermaid(?:-engine)?|post)\.[a-f0-9]+\.js$/.test(file))
+            .map(file => path.join(scriptDirectory, file)),
+          error => {
             if (error.code === 'ENOENT') return [];
             throw error;
-          });
-        await Promise.all([
-          '_routes.json',
-          'xeu-images/image-cache-v3.json',
-          'xeu-images/image-cache-v3.bin',
-        ].map(file => path.join(context.destination, file)).concat(retiredBundles)
-          .map(file => rm(file, { force: true })));
+          },
+        );
+        await Promise.all(
+          ['_routes.json', 'xeu-images/image-cache-v3.json', 'xeu-images/image-cache-v3.bin']
+            .map(file => path.join(context.destination, file))
+            .concat(retiredBundles)
+            .map(file => rm(file, { force: true })),
+        );
         await command(context.hugo, ['--minify', '--destination', context.destination, ...context.hugoArgs], {
-          ...io, cwd: context.root, env: { ...context.env, SHIUE_IMAGES_READY: '1' },
+          ...io,
+          cwd: context.root,
+          env: { ...context.env, SHIUE_IMAGES_READY: '1' },
         });
         return { destination: context.destination };
       },
@@ -87,26 +112,34 @@ export function deploymentSteps() {
     {
       id: 'artifacts', title: '检查部署产物',
       async run(context, { log }) {
+        // 产物路径不得含中文（含别名页），避免托管平台 CDN 编码问题。
         for (const file of await readdir(context.destination, { recursive: true })) {
           if (/\.(?:html|xml|json)$/i.test(file) && /\p{Script=Han}/u.test(decodeURIComponent(file))) {
             throw new Error(`部署产物禁止中文路径（含别名页）：${file}`);
           }
         }
+
+        // 关键页面必须存在且非空。
         for (const file of ['index.html', '404.html', 'index.xml', 'links/index.html', 'comment-pages.json', 'comment-review/index.html']) {
           const info = await stat(path.join(context.destination, file));
           if (!info.isFile() || !info.size) throw new Error(`部署产物为空：${file}`);
         }
+
+        // 每个友链的图标必须已生成。
         const friends = JSON.parse(await readFile(path.join(context.root, 'data/friends.json'), 'utf8'));
         for (const friend of friends) {
           if (!/^\/friends\/[a-z0-9.-]+\.(webp|ico)$/.test(friend.image)) throw new Error(`友链图标路径无效：${friend.title}`);
           const icon = await stat(path.join(context.destination, friend.image));
           if (!icon.isFile() || !icon.size) throw new Error(`缺少友链图标：${friend.title}`);
         }
+
+        // 站点图标（favicon、头像及各尺寸）必须齐备。
         const identity = await readIdentity(context.root);
         for (const src of [...identityAssets(identity).map(asset => asset.src), 'favicon.ico', 'avatar.jpg']) {
           const icon = await stat(path.join(context.destination, src));
           if (!icon.isFile() || !icon.size) throw new Error(`缺少站点图标：${src}`);
         }
+
         log(`首页、404、RSS、友链页、站点图标及 ${friends.length} 个友链图标已就绪`);
         return { localIcons: friends.length };
       },

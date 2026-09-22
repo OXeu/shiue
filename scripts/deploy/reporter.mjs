@@ -1,6 +1,13 @@
+// 终端进度渲染：步骤标题、转圈动画、汇总报表。
+// 非 TTY 或 CI 环境自动降级为纯文本行输出。
+
 import { clearLine, cursorTo } from 'node:readline';
 
-const plain = text => String(text).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
+/** 去除 ANSI 转义序列与控制字符，用于不可信文本进入终端。 */
+const plain = text => String(text)
+  .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+  .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
+
 export function duration(ms) {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(2)}s`;
@@ -13,19 +20,35 @@ export class Reporter {
     this.tty = Boolean(output.isTTY && !env.CI);
     this.color = this.tty && !('NO_COLOR' in env) && env.TERM !== 'dumb';
   }
-  paint(code, text) { return this.color ? `\x1b[${code}m${text}\x1b[0m` : text; }
-  clear() { if (this.timer) { clearLine(this.output, 0); cursorTo(this.output, 0); } }
-  line(message = '') { this.clear(); this.output.write(`${message}\n`); }
+
+  paint(code, text) {
+    return this.color ? `\x1b[${code}m${text}\x1b[0m` : text;
+  }
+
+  clear() {
+    if (this.timer) {
+      clearLine(this.output, 0);
+      cursorTo(this.output, 0);
+    }
+  }
+
+  line(message = '') {
+    this.clear();
+    this.output.write(`${message}\n`);
+  }
+
   start(name, steps) {
     this.line(this.paint('1;36', `┌ ${plain(name)}`));
     this.line(`│ ${steps.length} 个步骤 · ${new Date().toISOString()}`);
     this.line('└');
   }
+
   step(index, total, title) {
     this.stop();
     this.label = `[${index + 1}/${total}] ${plain(title)}`;
     this.line(`\n${this.paint('36', '▶')} ${this.paint('1', this.label)}`);
     if (this.tty) {
+      // TTY 上显示转圈动画与已耗时；非 TTY 留静态标题即可。
       const started = performance.now();
       const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
       let frame = 0;
@@ -36,29 +59,43 @@ export class Reporter {
       this.timer.unref();
     }
   }
+
   log(message, warning = false) {
     for (const line of plain(message).split(/\r?\n/)) {
       this.line(`  ${this.paint(warning ? '33' : '90', warning ? '!' : '│')} ${line}`);
     }
   }
+
   stop() {
     if (!this.timer) return;
     this.clear();
     clearInterval(this.timer);
     this.timer = undefined;
   }
+
   result(step) {
     this.stop();
-    const symbols = { success: ['32', '✓'], warning: ['33', '!'], failed: ['31', '✗'], cancelled: ['33', '■'], skipped: ['90', '–'] };
+    const symbols = {
+      success: ['32', '✓'],
+      warning: ['33', '!'],
+      failed: ['31', '✗'],
+      cancelled: ['33', '■'],
+      skipped: ['90', '–'],
+    };
     const [color, symbol] = symbols[step.status];
     this.line(`${this.paint(color, symbol)} ${plain(step.title)} · ${duration(step.durationMs)}${step.reason ? ` · ${plain(step.reason)}` : ''}`);
   }
+
   finish(report) {
     this.stop();
     this.line(`\n${this.paint('1', '── 部署构建汇总 ──')}`);
     for (const step of report.steps) this.result(step);
-    const slowest = report.steps.filter(step => step.status !== 'skipped').sort((a, b) => b.durationMs - a.durationMs)[0];
+    const slowest = report.steps
+      .filter(step => step.status !== 'skipped')
+      .sort((a, b) => b.durationMs - a.durationMs)[0];
     this.line(`总耗时 ${duration(report.durationMs)}${slowest ? ` · 最耗时：${plain(slowest.title)} ${duration(slowest.durationMs)}` : ''}`);
-    this.line(report.status === 'success' ? '构建完成，静态产物已就绪；线上发布由托管平台执行。' : '构建未完成，不应发布本次产物。');
+    this.line(report.status === 'success'
+      ? '构建完成，静态产物已就绪；线上发布由托管平台执行。'
+      : '构建未完成，不应发布本次产物。');
   }
 }
