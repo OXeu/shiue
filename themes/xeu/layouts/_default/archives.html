@@ -1,12 +1,10 @@
 {{ define "main" }}
   {{ $posts := partial "posts.html" . }}
-  <div class="page-heading"><h1>{{ .Title }}</h1></div>
-  <div class="timeline">
-    {{ range $posts.GroupByDate "2006" }}
-    <section class="timeline-year" id="year-{{ .Key }}">
-      <h2>{{ .Key }}<span>{{ len .Pages }} 篇文章</span></h2>
-      <ul>{{ range .Pages }}<li><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "01/02" }}</time><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>{{ end }}</ul>
-    </section>
-    {{ end }}
-  </div>
+  <h1 class="page-heading">{{ .Title }}</h1>
+  {{ range $posts.GroupByDate "2006" }}
+  <section class="timeline-year" id="year-{{ .Key }}">
+    <h2>{{ .Key }}<span>{{ len .Pages }} 篇文章</span></h2>
+    <ul>{{ range .Pages }}<li><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "01/02" }}</time><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>{{ end }}</ul>
+  </section>
+  {{ end }}
 {{ end }}

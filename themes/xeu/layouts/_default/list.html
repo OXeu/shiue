@@ -1,7 +1,7 @@
 {{ define "main" }}
   {{ $pages := where .RegularPages "Params.hidden" "ne" true }}
   {{ $cards := (.Paginate $pages.ByDate.Reverse).Pages }}
-  <div class="page-heading"><h1>{{ if eq .Kind "term" }}<span class="heading-hash">#</span> {{ end }}{{ .Title }}</h1>{{ with .Description }}<p>{{ . }}</p>{{ end }}</div>
+  {{ with .Description }}<header class="page-heading"><h1>{{ if eq $.Kind "term" }}<span class="heading-hash">#</span> {{ end }}{{ $.Title }}</h1><p>{{ . }}</p></header>{{ else }}<h1 class="page-heading">{{ if eq $.Kind "term" }}<span class="heading-hash">#</span> {{ end }}{{ $.Title }}</h1>{{ end }}
   {{ with .Content }}<div class="prose section-intro">{{ . }}</div>{{ end }}
   <div class="article-list" data-masonry aria-label="文章列表">
     {{ $eagerAssigned := false }}

@@ -1,5 +1,5 @@
 {{ define "main" }}
-<div class="page-heading"><h1>{{ .Title }}</h1></div>
+<h1 class="page-heading">{{ .Title }}</h1>
 <section class="search" data-search data-index="{{ (.OutputFormats.Get "JSON").RelPermalink }}">
   <form class="search-form" role="search" action="{{ .RelPermalink }}">
     <label class="sr-only" for="search-input">搜索文章</label>

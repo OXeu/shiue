@@ -1,7 +1,7 @@
 {{ define "main" }}
   {{ $posts := partial "posts.html" . }}
   {{ $cards := (.Paginate $posts).Pages }}
-  <div class="page-heading"><h1>文章</h1></div>
+  <h1 class="page-heading">文章</h1>
   <div class="article-list" data-masonry aria-label="文章列表">
     {{ $eagerAssigned := false }}
     {{ range $page := $cards }}

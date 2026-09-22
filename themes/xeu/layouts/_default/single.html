@@ -1,6 +1,6 @@
 {{ define "main" }}
 {{ if .Params.links }}
-  <div class="page-heading"><h1>{{ .Title }}</h1></div>
+  <h1 class="page-heading">{{ .Title }}</h1>
   <div class="friend-grid">
   {{ range .Params.links }}
     <a class="friend-card" href="{{ .website }}" target="_blank" rel="noopener noreferrer" aria-label="{{ .title }}{{ with .description }}：{{ . }}{{ end }}（在新窗口打开）">
