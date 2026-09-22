@@ -4,14 +4,14 @@ aliases:
 date: 2024-05-25T18:10:50.000Z
 description: 已经不记得这是第几次重新开始搓博客了  自已之前的博客用的是静态站点生成器那一套东西  好处就是不需要服务器，随便找个静态站点托管就能搞定
 draft: false
-image: /images/a8b2c9bc18ad6236cf9e2fa4.jpg
+image: a8b2c9bc18ad6236cf9e2fa4.jpg
 lastmod: 2026-01-15T15:28:14.000Z
 slug: blog-renewal
 tags:
 - blog
 title: 博客焕新
 ---
-![鱼群环绕的水下白发少女插画](/images/a8b2c9bc18ad6236cf9e2fa4.jpg)
+![鱼群环绕的水下白发少女插画](a8b2c9bc18ad6236cf9e2fa4.jpg)
 
 已经不记得这是第几次重新开始搓博客了
 

@@ -6,7 +6,7 @@ categories:
 date: 2022-10-28T03:28:03.000Z
 description: ''
 draft: false
-image: /images/e4f3d27c57ae282aaec66982.png
+image: effect.png
 lastmod: 2024-06-26T14:48:33.000Z
 slug: compose-bottom-sheet
 tags:
@@ -23,7 +23,7 @@ Compose 其实是提供了 BottomSheet 的实现方式的，就是用官方的 `
 
 按规矩先上效果图：
 
-![手机界面中从底部展开的 BottomSheetDialog 效果](/images/e4f3d27c57ae282aaec66982.png)
+![手机界面中从底部展开的 BottomSheetDialog 效果](effect.png)
 
 以下是文件结构：
 
@@ -851,4 +851,4 @@ BottomSheetDialog(
 
 
 
-![BottomSheetDialog 展开后的手机界面效果](/images/d887f14961a53bfa33eab2ce.png)
+![BottomSheetDialog 展开后的手机界面效果](d887f14961a53bfa33eab2ce.png)

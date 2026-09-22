@@ -20,7 +20,7 @@ data/friends.json.*.tmp
 # Generated image manifests, site identity and friend-health snapshots.
 /data/xeu/
 
-# Generated image assets; keep static/images/ and static/friends/ tracked.
+# Generated image assets; keep static/friends/ tracked.
 /static/xeu-images/
 /static/site-identity/
 /static/favicon.ico

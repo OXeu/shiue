@@ -4,7 +4,7 @@ aliases:
 date: 2024-06-08T06:24:01.000Z
 description: ''
 draft: false
-image: /images/35574ee931703a008d882ea3.png
+image: 35574ee931703a008d882ea3.png
 lastmod: 2026-01-15T13:03:17.000Z
 slug: cloudflare-pages-cdn
 tags: []
@@ -28,7 +28,7 @@ concat("https://<你的国内加速域名>", http.request.uri.path)
 > http.request.uri.path 是默认以 `/` 开头的，因此如果前面的域名最后多写了一个 `/` 会导致重定向链接出现两个 `/` 的情况，导致访问失败
 
 参考配置：
-![Cloudflare 重定向规则：匹配中国大陆访问并动态改写目标网址](/images/35574ee931703a008d882ea3.png)
+![Cloudflare 重定向规则：匹配中国大陆访问并动态改写目标网址](35574ee931703a008d882ea3.png)
 
 这里重定向目标地址使用动态来确保重定向跳转到国内加速域名后仍然访问的是指定路径，而不是出现访问 `https://xeu.life/about` 却跳转到 `https://cn.xeu.life` 的情况
 

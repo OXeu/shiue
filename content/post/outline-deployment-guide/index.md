@@ -7,7 +7,7 @@ categories:
 date: 2024-03-22T00:38:00.000Z
 description: 由于经常折腾，扬系统跟吃饭喝水一样频繁，而我之前的 Obsidian 配合 Git 同步使用，虽然不用担心数据丢失，但是每次扬完系统后都需要拉取仓库 & 下载 Obsidian 客户端...
 draft: false
-image: /images/34cd8a8df338b2dbde4e1fd8.png
+image: 34cd8a8df338b2dbde4e1fd8.png
 lastmod: 2026-01-15T15:58:14.000Z
 slug: outline-deployment-guide
 tags: []
@@ -23,7 +23,7 @@ title: Outline 部署指南
 
 # [Outline](https://github.com/outline/outline)
 
-![Outline 文档编辑界面](/images/34cd8a8df338b2dbde4e1fd8.png)
+![Outline 文档编辑界面](34cd8a8df338b2dbde4e1fd8.png)
 
 
 现在，三款产品已经排除了两个已经没有可以选择的了
@@ -35,7 +35,7 @@ title: Outline 部署指南
 * 支持 Markdown，可以引用一些外部块，以及一堆好用的快捷键
 * Web UI，适配了移动端与桌面端，随走随用，支持PWA，不用下载客户端（[不过也有桌面客户端提供](https://www.getoutline.com/download)）
 
-![Outline 在手机端的文档列表与编辑界面](/images/89f31968dcb8b1f589229e84.png)
+![Outline 在手机端的文档列表与编辑界面](89f31968dcb8b1f589229e84.png)
 
 
 * 支持简体中文，拥有完整的本地化支持
@@ -147,7 +147,7 @@ https://<你的Outline地址>/auth/oidc.callback
 ```
 
 这里附上我的参数 
-![GitHub 新建 OAuth App 的名称、主页和回调地址配置](/images/9537de0a9827d266616dc41c.png)
+![GitHub 新建 OAuth App 的名称、主页和回调地址配置](9537de0a9827d266616dc41c.png)
 
 
 
@@ -179,7 +179,7 @@ OIDC_SCOPES=read:user user:email
 
 到这里按理说就基本上可用了，但是我在使用 Github OAuth 时登录失败，网页只出现一个`!`，并没有错误信息，在日志中查看发现出现`An email field was not returned in the profile parameter, but is required.`错误
 
-![Outline 登录日志提示用户资料缺少 email 字段](/images/6e142b0264986a7efc534884.png)
+![Outline 登录日志提示用户资料缺少 email 字段](6e142b0264986a7efc534884.png)
 
 
 这个问题困扰了我好久，通过不断翻 issue 和 discussion 终于找到一个相关的讨论：<https://github.com/outline/outline/pull/2399#issuecomment-916036880>
@@ -189,7 +189,7 @@ OIDC_SCOPES=read:user user:email
 
 ### Github 关闭隐私邮箱
 
-打开 <https://github.com/settings/emails>，取消勾选 `Keep my email addresses private`。我最初以为这样就足够了，因为邮箱列表中已经有了如下提示：![GitHub 提示主邮箱将用于网页操作并可设为公开](/images/c393e7bf670eaddda4469af6.png)
+打开 <https://github.com/settings/emails>，取消勾选 `Keep my email addresses private`。我最初以为这样就足够了，因为邮箱列表中已经有了如下提示：![GitHub 提示主邮箱将用于网页操作并可设为公开](c393e7bf670eaddda4469af6.png)
 但是问题仍然存在，实际上还需要在 [Profile](https://github.com/settings/profile) 中第二项 `Public email` 选择你的邮箱，并 `Update Profile` 之后 Outline 才能够获取到你的邮箱。
 
 
@@ -231,7 +231,7 @@ Access Key 和 Secret Access Key 在 <https://ram.console.aliyun.com/users> 创�
 
 接下来在对象存储中配置 CORS ，存储桶 > 数据安全 > 跨域设置，创建规则，来源处填写你的 outline 地址，然后允许 Methods 全选确定即可
 
-![阿里云对象存储的跨域规则配置](/images/1f2b99194712fcb35103f343.png)
+![阿里云对象存储的跨域规则配置](1f2b99194712fcb35103f343.png)
 
 ### 文件迁移
 
@@ -242,7 +242,7 @@ cd ./storage-data
 zip -r image.zip *
 ```
 
-然后通过 scp 或者别的方法导出/下载到本地，随便解压到一个文件夹，前往阿里云对象存储的文件列表，点击**上传文件**，点击扫描文件夹，选中你解压出来的uploads或public文件夹（不要直接选中根目录，会导致上传后多一层文件夹），然后上传即可，上传成功后对象存储中的根目录文件列表应该长这样： ![对象存储根目录中的 public 与 uploads 文件夹](/images/0d31132034dffe9267d2ad42.png)
+然后通过 scp 或者别的方法导出/下载到本地，随便解压到一个文件夹，前往阿里云对象存储的文件列表，点击**上传文件**，点击扫描文件夹，选中你解压出来的uploads或public文件夹（不要直接选中根目录，会导致上传后多一层文件夹），然后上传即可，上传成功后对象存储中的根目录文件列表应该长这样： ![对象存储根目录中的 public 与 uploads 文件夹](0d31132034dffe9267d2ad42.png)
 
 
 
@@ -263,11 +263,11 @@ CDN 加速为可选项，可以加速访问 & 一定程度节省分发的流量�
 1. CDN 回源配置中**不需要开启**阿里云OSS**私有Bucket回源**
 2. 如果要配置访问控制中的 Referrer 过滤，需要把允许空 Referrer 勾选，因为 Outline 在实际展示图片时使用的是 no-referrer
 3. CDN 回源 HOST 选择加速域名
-![阿里云 CDN 回源 HOST 配置](/images/926ab680e11d99488e425f13.png)
+![阿里云 CDN 回源 HOST 配置](926ab680e11d99488e425f13.png)
 
 
 4. 对象存储域名管理中绑定 CDN 的加速域名（不需要设置 CNAME）（这一步主要是统一回源域名）
-![阿里云对象存储绑定自定义 CDN 域名](/images/e0d961b297f42ae8bfccc922.png)
+![阿里云对象存储绑定自定义 CDN 域名](e0d961b297f42ae8bfccc922.png)
 
 
 5. 配置文件中的域名配置为 CDN 的域名
@@ -290,4 +290,4 @@ CDN 加速为可选项，可以加速访问 & 一定程度节省分发的流量�
 ### 关闭新用户注册
 
 至此已经能够成功使用 Github OAuth 登录了，但是如果有其它用户获取到你的 Outline 链接，他也能够直接使用 OAuth 成功登录，如果不想要其他用户注册登录的话，在 Outline 设置中 > 安全性 > 域名白名单这里添加一个不存在的域名或者自己的域名即可，其他用户使用 OAuth 登录是只要 Outline 获取到用户的邮件地址没有在该域名白名单中就会禁止登录，已注册用户不受影响（注意白名单为空时会禁用白名单，而不是禁止所有用户注册）
-![Outline 登录页的 GitHub 登录按钮](/images/dfba58b54ad3d077e8adddf7.png)
+![Outline 登录页的 GitHub 登录按钮](dfba58b54ad3d077e8adddf7.png)

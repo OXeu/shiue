@@ -6,7 +6,7 @@ categories:
 date: 2024-03-27T07:28:58.000Z
 description: Binder 是什么，怎么用，是如何运作的？
 draft: false
-image: /images/07844401bab2b2815b3d8aaa.png
+image: binder.png
 lastmod: 2026-01-15T15:29:26.000Z
 slug: binder
 tags:
@@ -15,7 +15,7 @@ tags:
 title: Binder 是什么
 ---
 
-![“Binder 到底是什么”标题图](/images/07844401bab2b2815b3d8aaa.png)
+![“Binder 到底是什么”标题图](binder.png)
 
 # Binder 是什么
 
@@ -471,7 +471,7 @@ public class Binder implements IBinder {
 
 全流程图：
 
-![Binder 客户端、驱动与服务端之间的调用流程图](/images/099012818b3548ed61c1f6f0.png)
+![Binder 客户端、驱动与服务端之间的调用流程图](flow.png)
 
 
 # Binder 原理

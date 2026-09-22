@@ -5,14 +5,14 @@ aliases:
 date: 2025-02-13T12:45:09.000Z
 description: 基于 Cloudflare Pages + Workers + D1 + R2 全家桶的博客，无需服务器无需备案，只需要一个解析到 Cloudflare 的域名即可部署。
 draft: false
-image: /images/2068feaaa441cb1fabc09145.jpg
+image: 2068feaaa441cb1fabc09145.jpg
 lastmod: 2026-01-15T13:00:35.000Z
 slug: rin
 tags:
 - blog
 title: Rin - 全栈 Cloudflare 的个人博客项目
 ---
-![粉色调的 Rin 博客标题图](/images/2068feaaa441cb1fabc09145.jpg)
+![粉色调的 Rin 博客标题图](2068feaaa441cb1fabc09145.jpg)
 
 # 介绍
 
@@ -88,7 +88,7 @@ Rin 是一个基于 Cloudflare Pages + Workers + D1 + R2 全家桶的博客，�
 
 当时选择他的原因很简单：**它的官网比隔壁 [Hono](https://hono.dev/) 好看**
 
-![动漫人物被故障特效逐渐覆盖的动图](/images/99327ac64819cec8ff9f2315.gif)
+![动漫人物被故障特效逐渐覆盖的动图](99327ac64819cec8ff9f2315.gif)
 
 现在看来，当初选择 Bun 并使用 ElysiaJS 真的为我节省了很多时间
 
@@ -121,10 +121,10 @@ Rin 是一个基于 Cloudflare Pages + Workers + D1 + R2 全家桶的博客，�
 效果最好的是我在 V2EX [自荐的帖子](https://www.v2ex.com/t/1047473) ，收获了很多关注和 Star
 
 同时被其他专门做开源项目的博主看到了，进行了二次推荐，比如：[Geek](https://x.com/geekbb/status/1798723853704925421)
-![Geek 推荐 Rin 项目的社交媒体帖子截图](/images/3a3d4be03af60d7933fab5de.png)
+![Geek 推荐 Rin 项目的社交媒体帖子截图](3a3d4be03af60d7933fab5de.png)
 
 可以说目前整个项目大部分流量都来自于 Geek 的推：
-![Rin 站点访问来源统计，Geek 的链接位居首位](/images/e4b226d3e87f81154693ab03.png)
+![Rin 站点访问来源统计，Geek 的链接位居首位](e4b226d3e87f81154693ab03.png)
 
 万分感谢！
 
