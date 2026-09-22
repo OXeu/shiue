@@ -1,10 +1,10 @@
 # Serverless 部署
 
-支持 Vercel Functions、Netlify Functions 与带 Static Assets 的 Cloudflare Workers。所有入口共用 `functions/submissions.js`，提供同源 `POST /api/submissions`。平台适配代码统一在 [`functions/`](functions/) 目录。
+支持 Vercel Functions、Netlify Functions 与带 Static Assets 的 Cloudflare Workers。所有入口共用 `functions/submissions.js`，提供同源 `POST /api/submissions`。适配代码统一在 [`functions/`](functions/) 目录；Vercel 强制从 `api/` 发现函数，因此保留一个仅几行的桥接入口 `api/submissions.js`。
 
 | 平台 | 函数入口 | 部署配置 | 评论白名单 |
 | --- | --- | --- | --- |
-| Vercel | `functions/vercel/submissions.js` | `vercel.json` | `public/comment-pages.json` 由 Node 文件系统读取 |
+| Vercel | `api/submissions.js`（桥接 `functions/`） | `vercel.json` | `public/comment-pages.json` 由 Node 文件系统读取 |
 | Netlify | `functions/netlify/submissions.mjs` | `netlify.toml` | `included_files` 随函数打包 |
 | Cloudflare Workers | `functions/cloudflare/worker.js` | `wrangler.jsonc`；业务变量在控制台管理 | `env.ASSETS` 读取静态文件 |
 

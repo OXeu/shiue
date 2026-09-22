@@ -1,5 +1,5 @@
-import { handleSubmission as submit } from '../submissions.js';
-import { readPages } from '../runtime/node.js';
+import { handleSubmission as submit } from '../functions/submissions.js';
+import { readPages } from '../functions/runtime/node.js';
 
 export function handleSubmission(request, { env = process.env, ...options } = {}) {
   return submit(request, { env, pages: readPages, deployment: env.VERCEL_ENV || 'production', ...options });
