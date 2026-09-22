@@ -1,3 +1,6 @@
+// Cloudflare Workers 运行时适配：通过 ASSETS 绑定读取当前部署的
+// 白名单，而非公共网络请求。
+
 import { handleSubmission } from '../submissions.js';
 
 export function handleCloudflareSubmission(request, env, deployment = env.COMMENTS_ENV || 'development') {
@@ -5,9 +8,11 @@ export function handleCloudflareSubmission(request, env, deployment = env.COMMEN
     env,
     deployment,
     pages: async () => {
-      // Read this deployment's whitelist through the asset binding, never the public network.
       const response = await env.ASSETS.fetch(new URL('/comment-pages.json', request.url));
-      if (!response.ok) { await response.body?.cancel(); throw new Error('Comment pages unavailable'); }
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new Error('Comment pages unavailable');
+      }
       return response.json();
     },
   });
