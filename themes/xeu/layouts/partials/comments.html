@@ -23,6 +23,8 @@
     <h2 id="comments-title">评论</h2>
     <div class="comment-heading-actions"><span>{{ len $comments }} 条留言</span><button class="page-link" type="button" data-new-comment aria-haspopup="dialog" aria-controls="comment-editor" aria-expanded="false" hidden>评论</button></div>
   </div>
+  <p class="comment-status" data-comment-load-status role="status" aria-live="polite"></p>
+  {{ partialCached "lazy-feature.html" (dict "name" "comments" "script" "comments" "style" "comment-editor") "comments" }}
   {{ if $comments }}
   <ol class="comment-list">
     {{ range index $children "" }}{{ partial "comment-thread.html" (dict "comment" . "byId" $byId "children" $children "depth" 0) }}{{ end }}

@@ -1,4 +1,5 @@
-import { animateElement, revealCards, forgetCard } from './motion.js';
+import { animateElement } from './motion.js';
+import { revealCards, forgetCard } from './card-motion.js';
 
 document.querySelectorAll('[data-masonry]').forEach(container => {
   const records = new Map();

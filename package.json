@@ -14,6 +14,7 @@
     "d2:watch": "node scripts/assets/d2.mjs --watch",
     "shiki:watch": "node scripts/assets/shiki.mjs --watch",
     "test:shiki": "node --test scripts/assets/shiki.test.mjs",
+    "test:styles": "node --test scripts/assets/styles.test.mjs",
     "build": "node scripts/deploy.mjs",
     "deploy": "node scripts/deploy.mjs",
     "dev": "bash scripts/hugo.sh server --disableFastRender",
@@ -27,7 +28,9 @@
     "@reogrid/font-sc": "2.0.0",
     "blurhash": "2.0.5",
     "cheerio": "1.2.0",
+    "lightningcss": "1.33.0",
     "markdown-it": "15.0.2",
+    "purgecss": "7.0.2",
     "sharp": "0.35.4",
     "shiki": "4.5.0",
     "svgo": "4.1.0"
@@ -35,6 +38,9 @@
   "overrides": {
     "cheerio": {
       "encoding-sniffer": "1.0.2"
+    },
+    "purgecss": {
+      "postcss-selector-parser": "7.1.6"
     }
   }
 }

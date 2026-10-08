@@ -13,7 +13,7 @@ D2 SVG 预渲染与压缩
         ↓
 Shiki 代码高亮预渲染
         ↓
-Hugo 构建 → 产物检查 → 耗时汇总 + JSON 报告
+Hugo 构建 → CSS 裁剪与压缩 → 产物检查 → 耗时汇总 + JSON 报告
 ```
 
 ## 模块边界
@@ -29,6 +29,7 @@ Hugo 构建 → 产物检查 → 耗时汇总 + JSON 报告
 | `scripts/assets/identity.mjs` | 联网拉取 GitHub 头像、生成站点图标 |
 | `scripts/assets/d2.mjs` | D2 图表预渲染与压缩 |
 | `scripts/assets/shiki.mjs` | Shiki 双主题代码高亮预渲染与缓存 |
+| `scripts/assets/styles.mjs` | 根据页面及脚本裁剪 CSS、清理变量与动画、重写指纹及 SRI |
 | `scripts/assets/images.mjs` | 图片缩略图与 BlurHash 生成 |
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
 | `scripts/hugo.sh` | Hugo 版本解析、校验和、工具缓存 |
@@ -74,6 +75,16 @@ npm run deploy -- --destination /tmp/out --baseURL https://example.com/blog/
 `HUGO_BIN` 可指定 Hugo 二进制；Linux x86_64 未安装时自动下载官方 Extended 发行包并验证 SHA-256，缓存在 `.cache/deploy/hugo/`。
 
 同一工作区不能同时运行两个部署流程。进程被 SIGKILL 或断电后，需确认无运行中构建再删除 `.cache/deploy/run.lock`。
+
+## CSS 与浏览器脚本
+
+Hugo 构建后，`scripts/assets/styles.mjs` 根据 HTML 和页面引用的脚本（包括延迟加载模块）使用 PurgeCSS 裁剪样式，再用 Lightning CSS 合并、压缩。使用相同脚本和功能的页面共享 CSS，避免为每篇文章生成独立文件。动态外观、导航、目录、评论状态与 View Transition 样式保留；JavaScript 读取的变量以及延迟样式依赖的变量保留。
+
+CSS 内容变化后重新生成 SHA-256 文件名和 `integrity`，同步替换普通样式链接和延迟加载地址，支持 `--baseURL` 子目录。构建前清理主题生成的旧 CSS / JS 指纹文件，避免恢复旧 `public/` 时持续累积。
+
+文章入口保留图片占位、代码复制、目录和评论时间；首次点击评论或正文图片时才加载对应模块及样式，加载失败可再次点击重试。评论审核单独打包；卡片动效只随列表和搜索脚本加载。开发服务器使用完整样式，页面交互与生产构建一致。
+
+`npm run test:styles` 检查裁剪、动态状态、共享样式、延迟依赖、子目录地址及 SRI；`npm run test:shiki` 检查静态高亮。
 
 ## 图片构建缓存
 

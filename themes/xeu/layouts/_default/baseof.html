@@ -6,6 +6,9 @@
   {{ partial "header.html" . }}
   <main id="main" class="site-main{{ if or .IsHome .IsSection (eq .Kind "term") (eq .Params.layout "search") }} site-main--feed{{ end }}" tabindex="-1">{{ block "main" . }}{{ end }}</main>
   {{ partial "footer.html" . }}
+  {{ if and .IsPage (eq .Section "post") (findRE `data-zoomable` .Content) }}
+    {{ partialCached "lazy-feature.html" (dict "name" "image-preview" "script" "image-preview" "style" "image-preview") "image-preview" }}
+  {{ end }}
   {{ $scripts := partial "script-bundle.html" . }}
   <script src="{{ $scripts.RelPermalink }}" integrity="{{ $scripts.Data.Integrity }}" defer></script>
   {{ partial "d2.html" . }}

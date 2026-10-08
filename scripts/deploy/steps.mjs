@@ -1,5 +1,5 @@
 // 部署流水线的步骤表。顺序即依赖顺序：
-// 环境 → Hugo 工具 → 站点图标 → 友链健康 → 文章图片 → D2 图表 → Shiki 高亮 → Hugo 构建 → 产物检查。
+// 环境 → Hugo 工具 → 站点图标 → 友链健康 → 文章图片 → D2 图表 → Shiki 高亮 → Hugo 构建 → CSS 裁剪 → 产物检查。
 
 import { access, readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -93,11 +93,10 @@ export function deploymentSteps() {
       async run(context, io) {
         // Workers Builds 可能恢复旧 public/ 目录；构建前清掉已下线的路由、
         // 缓存文件与旧版 JS bundle，避免它们继续随部署发布。
-        const scriptDirectory = path.join(context.destination, 'js');
-        const retiredBundles = await readdir(scriptDirectory).then(
-          files => files
-            .filter(file => /^(?:d2|mermaid(?:-engine)?|post)\.[a-f0-9]+\.js$/.test(file))
-            .map(file => path.join(scriptDirectory, file)),
+        const generatedAssets = await readdir(context.destination, { recursive: true }).then(
+          files => files.filter(file =>
+            /^js\/(?:d2|mermaid(?:-engine)?|post|feed|site-page|search-page|friends-page|comment-review-page|comments|image-preview|article-transition(?:\.min)?|color-mode(?:\.min)?)\.[a-f0-9]+\.js$/.test(file) ||
+            /^css\/(?:xeu|comment-editor|image-preview)(?:\.min)?\.[a-f0-9]+\.css$/.test(file)),
           error => {
             if (error.code === 'ENOENT') return [];
             throw error;
@@ -106,7 +105,7 @@ export function deploymentSteps() {
         await Promise.all(
           ['_routes.json', 'xeu-images/image-cache-v3.json', 'xeu-images/image-cache-v3.bin']
             .map(file => path.join(context.destination, file))
-            .concat(retiredBundles)
+            .concat(generatedAssets.map(file => path.join(context.destination, file)))
             .map(file => rm(file, { force: true })),
         );
         await command(context.hugo, ['--minify', '--destination', context.destination, ...context.hugoArgs], {
@@ -115,6 +114,13 @@ export function deploymentSteps() {
           env: { ...context.env, SHIUE_IMAGES_READY: '1' },
         });
         return { destination: context.destination };
+      },
+    },
+    {
+      id: 'styles', title: '按页面功能裁剪并压缩 CSS',
+      async run(context, io) {
+        const { optimizeStyles } = await import('../assets/styles.mjs');
+        return optimizeStyles(context.destination, io);
       },
     },
     {

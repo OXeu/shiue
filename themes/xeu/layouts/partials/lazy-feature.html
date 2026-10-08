@@ -1,0 +1,4 @@
+{{- $path := printf "js/%s.js" .script -}}
+{{- $script := resources.Get $path | js.Build (dict "targetPath" $path "format" "esm" "minify" true "target" "es2020") | fingerprint -}}
+{{- $style := resources.Get (printf "css/%s.css" .style) | minify | fingerprint -}}
+<template data-lazy-feature="{{ .name }}" data-script="{{ $script.RelPermalink }}" data-integrity="{{ $script.Data.Integrity }}" data-stylesheet="{{ $style.RelPermalink }}" data-stylesheet-integrity="{{ $style.Data.Integrity }}"></template>

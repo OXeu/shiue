@@ -23,6 +23,7 @@ npm run post:new
 - **静态评论** — 无数据库。Turnstile 验证 → 邮件审批 → GitHub Action 提交评论 JSON → 自动构建，详见 [评论系统](docs/comments.md)。
 - **友链系统** — 一条命令添加友链并自动抓取站点信息与图标，部署时检测各站点健康状态。
 - **无 JS 可用** — 文章、评论、导航、分页关闭 JavaScript 后均可阅读；动效遵循系统"减少动态效果"设置。
+- **按需资源** — 构建时按页面功能裁剪 CSS、清理无用变量与动画，并保留动态状态；评论编辑器及图片预览的脚本和样式在首次使用时加载。
 
 主题为纯白背景、黑灰文字的极简风格，正文最大宽度 760px，支持浅色 / 深色 / 跟随系统三种外观。Cantarell 字体本地提供，见 `static/fonts/OFL.txt`。
 
@@ -42,7 +43,7 @@ npm run dev     # 预览（不检测友链）
 npm run build   # 完整构建，产物在 public/
 ```
 
-`npm run build` 流程：环境检查 → Hugo 准备 → 获取站点图标 → 友链检测 → 图片处理 → D2 预渲染 → Shiki 高亮 → 静态构建 → 产物检查，报告写入 `.cache/deploy/report.json`。离线构建加 `-- --offline`；Linux x86\_64 未装 Hugo 时会自动下载并校验官方发行包。
+`npm run build` 流程：环境检查 → Hugo 准备 → 获取站点图标 → 友链检测 → 图片处理 → D2 预渲染 → Shiki 高亮 → 静态构建 → CSS 裁剪与压缩 → 产物检查，报告写入 `.cache/deploy/report.json`。离线构建加 `-- --offline`；Linux x86\_64 未装 Hugo 时会自动下载并校验官方发行包。
 
 ## 文档
 
