@@ -14,7 +14,7 @@ import { D2 } from '@d2lang/d2';
 import { loadNotoSansSCBold, loadNotoSansSCRegular } from '@reogrid/font-sc';
 import { optimize } from 'svgo';
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 // 配方标识：D2 版本或字体变化时递增，使缓存整体失效。
 const recipe = 'd2-ssg-v7-d2js-0.1.34-noto-sc-2.0.0';
 const modes = {

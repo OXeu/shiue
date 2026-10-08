@@ -1,12 +1,10 @@
-.chroma { color: var(--text); background: transparent; }
-.chroma .c, .chroma .c1, .chroma .cm, .chroma .cs, .chroma .cp { color: var(--muted); font-style: italic; }
-.chroma .k, .chroma .kc, .chroma .kd, .chroma .kn, .chroma .kp, .chroma .kr, .chroma .nt { color: var(--text); font-weight: 600; }
-.chroma .s, .chroma .s1, .chroma .s2, .chroma .sb, .chroma .sc, .chroma .sd, .chroma .sh, .chroma .sx { color: #087a4b; }
-.chroma .m, .chroma .mi, .chroma .mf, .chroma .mh, .chroma .il, .chroma .se { color: #975300; }
-.chroma .nf, .chroma .nc, .chroma .nb, .chroma .na, .chroma .kt { color: #2463cc; }
-.chroma .gd { color: #b42318; background: rgb(180 35 24 / .08); }
-.chroma .gi { color: #237349; background: rgb(35 115 73 / .08); }
-:root[data-color-mode="dark"] .chroma :is(.s,.s1,.s2,.sb,.sc,.sd,.sh,.sx,.gi) { color: #a1d4ae; }
-:root[data-color-mode="dark"] .chroma :is(.m,.mi,.mf,.mh,.il,.se) { color: #e9ba85; }
-:root[data-color-mode="dark"] .chroma :is(.nf,.nc,.nb,.na,.kt) { color: #99bfef; }
-:root[data-color-mode="dark"] .chroma .gd { color: #ffb4a0; }
+.code-block .shiki { background: transparent !important; }
+.shiki span { --shiki-dark-bg: transparent; }
+:root[data-color-mode="dark"] .shiki,
+:root[data-color-mode="dark"] .shiki span {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style, normal) !important;
+  font-weight: var(--shiki-dark-font-weight, normal) !important;
+  text-decoration: var(--shiki-dark-text-decoration, none) !important;
+}
+:root[data-color-mode="dark"] .shiki span { background-color: var(--shiki-dark-bg, transparent) !important; }

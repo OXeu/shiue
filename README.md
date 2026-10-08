@@ -16,6 +16,7 @@ npm run post:new
 
 ## 特性
 
+- **Shiki 代码高亮** — 构建期生成 GitHub 浅色 / 深色双主题 HTML，随站点外观切换，保留代码复制功能。浏览器无需加载高亮库，关闭 JavaScript 后仍有高亮。
 - **D2 图表** — 正文写 `d2` 围栏代码块即可，构建期用 WebAssembly 预渲染浅/深双主题 SVG 内联进 HTML，浏览器零额外请求。支持拖拽、捏合缩放、键盘操作，无 JS 时静态图照常显示。
 - **X 帖子引用** — `x` 短代码生成静态引用卡片，构建和浏览均不请求 X 或任何第三方资源。
 - **图片流水线** — Sharp 构建期自动生成本地图片的 640px / 1600px 两档 WebP 与 BlurHash 占位，按 `srcset` 按需加载，点击才下载原图。
@@ -41,7 +42,7 @@ npm run dev     # 预览（不检测友链）
 npm run build   # 完整构建，产物在 public/
 ```
 
-`npm run build` 流程：环境检查 → Hugo 准备 → 获取站点图标 → 友链检测 → 图片处理 → D2 预渲染 → 静态构建 → 产物检查，报告写入 `.cache/deploy/report.json`。离线构建加 `-- --offline`；Linux x86\_64 未装 Hugo 时会自动下载并校验官方发行包。
+`npm run build` 流程：环境检查 → Hugo 准备 → 获取站点图标 → 友链检测 → 图片处理 → D2 预渲染 → Shiki 高亮 → 静态构建 → 产物检查，报告写入 `.cache/deploy/report.json`。离线构建加 `-- --offline`；Linux x86\_64 未装 Hugo 时会自动下载并校验官方发行包。
 
 ## 文档
 

@@ -1,5 +1,5 @@
 // 部署流水线的步骤表。顺序即依赖顺序：
-// 环境 → Hugo 工具 → 站点图标 → 友链健康 → 文章图片 → D2 图表 → Hugo 构建 → 产物检查。
+// 环境 → Hugo 工具 → 站点图标 → 友链健康 → 文章图片 → D2 图表 → Shiki 高亮 → Hugo 构建 → 产物检查。
 
 import { access, readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -78,6 +78,14 @@ export function deploymentSteps() {
         const { prepareD2 } = await import('../assets/d2.mjs');
         const manifest = await prepareD2(context.root, { log: io.log, signal: io.signal });
         return { diagrams: Object.keys(manifest).length };
+      },
+    },
+    {
+      id: 'shiki', title: '预渲染 Shiki 代码高亮',
+      async run(context, io) {
+        const { prepareShiki } = await import('../assets/shiki.mjs');
+        const manifest = await prepareShiki(context.root, { log: io.log, signal: io.signal });
+        return { codeBlocks: Object.keys(manifest).length };
       },
     },
     {

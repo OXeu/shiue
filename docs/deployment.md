@@ -11,6 +11,8 @@
         ↓
 D2 SVG 预渲染与压缩
         ↓
+Shiki 代码高亮预渲染
+        ↓
 Hugo 构建 → 产物检查 → 耗时汇总 + JSON 报告
 ```
 
@@ -26,6 +28,7 @@ Hugo 构建 → 产物检查 → 耗时汇总 + JSON 报告
 | `scripts/friends/health.mjs` | 有限并发的友链健康检测、重试和快照 |
 | `scripts/assets/identity.mjs` | 联网拉取 GitHub 头像、生成站点图标 |
 | `scripts/assets/d2.mjs` | D2 图表预渲染与压缩 |
+| `scripts/assets/shiki.mjs` | Shiki 双主题代码高亮预渲染与缓存 |
 | `scripts/assets/images.mjs` | 图片缩略图与 BlurHash 生成 |
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
 | `scripts/hugo.sh` | Hugo 版本解析、校验和、工具缓存 |
@@ -61,6 +64,8 @@ npm run build -- --offline                   # 离线，需已有 Hugo 与图标
 npm run identity                             # 重新生成站点图标
 npm run d2                                   # 预渲染 D2 SVG
 npm run d2:watch                             # 监听 D2 代码块变化
+npm run shiki                                # 预渲染 Shiki 代码高亮
+npm run shiki:watch                          # 单独监听代码块变化
 npm run dev                                  # 开发服务器
 npm run deploy -- --list                     # 列出注册步骤
 npm run deploy -- --destination /tmp/out --baseURL https://example.com/blog/
@@ -81,6 +86,14 @@ npm run deploy -- --destination /tmp/out --baseURL https://example.com/blog/
 ## D2 构建缓存
 
 `scripts/assets/d2.mjs` 扫描 `content/` 中的 D2 代码块，按内容指纹缓存于 `.cache/xeu-d2/`。源码未变时不重新渲染，直接重建清单；语法错误终止构建。缓存与清单缺失时 `npm run build` 自动补齐；绕过统一入口直接执行 Hugo 前，必须先运行 `npm run d2`。
+
+## Shiki 代码高亮
+
+`scripts/assets/shiki.mjs` 用 CommonMark 解析器扫描 `content/` 中的围栏代码块，按语言与源码生成 Shiki HTML，写入 `data/xeu/shiki.json`。主题为 `github-light` / `github-dark`，颜色随站点外观切换；代码文本与复制按钮保留，RSS 使用内联的浅色颜色。
+
+代码块缓存于 `.cache/xeu-shiki/code.json`，语言、源码、高亮库版本或主题变化时重新生成。未标注及未知语言回退为纯文本，支持大小写语言名及现有的 `shell` / `clike` 标记。高亮只在构建时执行，不向浏览器发送 Shiki 或语言语法文件。
+
+`npm run build` 自动准备高亮产物；`npm run dev` 同时监听代码块变化并更新高亮，退出后自动停止监听。绕过统一入口直接运行 Hugo 构建前，需先执行 `npm run shiki`。
 
 ## 友链检测
 

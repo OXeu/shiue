@@ -1,0 +1,12 @@
+{{- $language := .Type | lower -}}
+{{- $source := replaceRE "\r\n?" "\n" .Inner -}}
+{{- $key := crypto.SHA256 (printf "%s\n%s" $language $source) -}}
+{{- with index hugo.Data.xeu.shiki $key -}}
+  {{- . | safeHTML -}}
+{{- else -}}
+  {{- if hugo.IsServer -}}
+    <pre tabindex="0"><code>{{ .Inner }}</code></pre>
+  {{- else -}}
+    {{- errorf "代码块缺少 Shiki 静态产物，请先运行 npm run shiki：%s (%s)" (substr $key 0 12) .Position -}}
+  {{- end -}}
+{{- end -}}

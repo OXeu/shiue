@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { encode, isBlurhashValid } from 'blurhash';
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 const renditions = [
   {

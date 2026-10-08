@@ -20,6 +20,7 @@ case "${1:-}" in
       node "$project_dir/scripts/assets/images.mjs"
       node "$project_dir/scripts/assets/d2.mjs"
     fi
+    node "$project_dir/scripts/assets/shiki.mjs"
     ;;
   *)
     if [[ "${SHIUE_IMAGES_READY:-0}" != 1 ]]; then
@@ -48,6 +49,15 @@ fi
 run_hugo() {
   if [[ "${1:-}" == --resolve ]]; then
     printf '%s\n' "$hugo_binary"
+  elif [[ "${1:-}" == server ]]; then
+    node "$project_dir/scripts/assets/shiki.mjs" --watch &
+    shiki_watcher_pid=$!
+    "$hugo_binary" "$@" &
+    hugo_server_pid=$!
+    trap 'kill "$shiki_watcher_pid" "$hugo_server_pid" 2>/dev/null || true' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    wait "$hugo_server_pid"
   else
     exec "$hugo_binary" "$@"
   fi

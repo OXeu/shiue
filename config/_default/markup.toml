@@ -7,8 +7,6 @@ endLevel = 4
 ordered = false
 
 [highlight]
-noClasses = false
+# Hugo 需要启用 codeFences 才会调用自定义渲染钩子；高亮由 Shiki 产物提供。
 codeFences = true
-guessSyntax = true
-lineNos = false
-tabWidth = 4
+guessSyntax = false

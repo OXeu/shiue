@@ -16,6 +16,7 @@ data/friends.json.*.tmp
 .cache/deploy/
 .cache/xeu-images/
 .cache/xeu-d2/
+.cache/xeu-shiki/
 
 # Generated image manifests, site identity and friend-health snapshots.
 /data/xeu/
