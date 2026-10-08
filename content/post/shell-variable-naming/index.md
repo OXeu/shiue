@@ -49,8 +49,8 @@ done
 #!/bin/sh
 # .scripts/fast-source.sh
 rld() {
- # reload all scripts
- source ~/.scripts/loader.sh
+    # reload all scripts
+    source ~/.scripts/loader.sh
 }
 ```
 很简单的内容，谢师傅甚至可以用`alias`一行搞定，但谢师傅当时也许是有别的考虑，并未选择这种方式。
@@ -76,12 +76,12 @@ read -p "请输入远程仓库地址(https://github.com/ThankRain/shellove.git):
 
 # 如果用户输入为空，则使用默认仓库地址1
 if [ -z "$user_input" ]; then
-  repository_url="https://github.com/ThankRain/shellove.git"
+    repository_url="https://github.com/ThankRain/shellove.git"
 # 如果用户输入为"ssh"，则使用仓库地址2
 elif [ "$user_input" = "ssh" ]; then
-  repository_url="git@github.com:ThankRain/shellove.git"
+    repository_url="git@github.com:ThankRain/shellove.git"
 else
-  repository_url="$user_input"
+    repository_url="$user_input"
 fi
 
 # 输出最终选择的仓库地址

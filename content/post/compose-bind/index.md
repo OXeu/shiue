@@ -22,7 +22,7 @@ dialog.window?.decorView?.apply {
     ViewTreeLifecycleOwner.set(this, this@MainActivity)
     ViewTreeViewModelStoreOwner.set(this, this@MainActivity)
     ViewTreeSavedStateRegistryOwner.set(this, this@MainActivity)
-    }
+}
 ```
 
 在Compose 1.2.0-alpha08以后，`ViewTreeSavedStateRegistryOwner`的API发生了变更
@@ -33,7 +33,7 @@ dialog.window?.decorView?.apply {
     ViewTreeLifecycleOwner.set(this, this@MainActivity)
     ViewTreeViewModelStoreOwner.set(this, this@MainActivity)
     setViewTreeSavedStateRegistryOwner(this@MainActivity)
-    }
+}
 ```
 
 ## 参考内容

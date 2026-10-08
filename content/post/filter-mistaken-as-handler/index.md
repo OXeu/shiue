@@ -64,38 +64,38 @@ armv7-unknown-linux-musleabihf ？谢师傅突然想起来一些关于跨平台�
 于是自信的谢师傅洋洋洒洒写下以下代码：
 
 ```javascript
-let guard = Listener::listening_on_always(|e: FriendMessageEvent| async move {
-    let message = e.message();
-    let mut message_str = message.to_string();
-    if message_str.starts_with("收藏") {
-        let name = message_str.split_off("收藏".len());
-        let name = name.trim().to_string();
-        let mut chain = MessageChainBuilder::new();
-        chain.push_str("请发送表情");
-        let _ = e.friend().send_message(chain).await;
-        let v = Listener::next_event(Duration::from_secs(60), |e: &FriendMessageEvent| {
-            let msg = e.message().to_string();
-            println!("Message Element:{:?}", msg);
-            for element in e.message() {
-                if let MessageElement::Image(image) = element {
-                    let n = name.clone();
-                    storage(n.as_str(), image.url().as_ref());  // 下载图片并保存，内部使用 tokio 构建了一个阻塞式的方法，所以没有 await
-                    let mut chain = MessageChainBuilder::new();
-                    chain.push_str(format!("已保存").as_str());
-                    let ch = chain.build();
-                    match e.friend().send_message(ch).await {
-                        Ok(v) => {
-                            info!("发送成功✅:{:?}",v)
-                        }
-                        Err(err) => {
-                            error!("发送失败：{:?}",err)
-                        }
-                    }
-                }
-            }
-            true
-        }).await;
-    }
+let guard = Listener::listening_on_always(|e: FriendMessageEvent| async move {
+    let message = e.message();
+    let mut message_str = message.to_string();
+    if message_str.starts_with("收藏") {
+        let name = message_str.split_off("收藏".len());
+        let name = name.trim().to_string();
+        let mut chain = MessageChainBuilder::new();
+        chain.push_str("请发送表情");
+        let _ = e.friend().send_message(chain).await;
+        let v = Listener::next_event(Duration::from_secs(60), |e: &FriendMessageEvent| {
+            let msg = e.message().to_string();
+            println!("Message Element:{:?}", msg);
+            for element in e.message() {
+                if let MessageElement::Image(image) = element {
+                    let n = name.clone();
+                    storage(n.as_str(), image.url().as_ref());  // 下载图片并保存，内部使用 tokio 构建了一个阻塞式的方法，所以没有 await
+                    let mut chain = MessageChainBuilder::new();
+                    chain.push_str(format!("已保存").as_str());
+                    let ch = chain.build();
+                    match e.friend().send_message(ch).await {
+                        Ok(v) => {
+                            info!("发送成功✅:{:?}",v)
+                        }
+                        Err(err) => {
+                            error!("发送失败：{:?}",err)
+                        }
+                    }
+                }
+            }
+            true
+        }).await;
+    }
 });
 ```
 
@@ -108,13 +108,13 @@ let guard = Listener::listening_on_always(|e: FriendMessageEvent| async mo
 麻木的谢师傅后面经过测试发现似乎 atri 自己内部实现了一套运行时机制，并且与其他运行时不兼容，例如，以下代码就无法运行：
 
 ```javascript
-use atri_plugin::runtime::spawn;
+use atri_plugin::runtime::spawn;
 
 #[tokio::test]
-async fn test() {
-    spawn(async {
-        println!("Hello")
-    }).await.unwrap()
+async fn test() {
+    spawn(async {
+        println!("Hello")
+    }).await.unwrap()
 }
 ```
 

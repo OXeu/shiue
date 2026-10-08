@@ -71,20 +71,20 @@ Stack 默认的 Tag 样式个人觉得 padding 过大并且不是大圆角观感
     display: flex;
     gap: 10px;
 
-a {
-    color: var(--accent-color-text);
-    background-color: var(--accent-color);
-    padding: 4px 8px; ///修改padding
-    border-radius: 100px; ///圆角拉满
-    display: inline-block;
-    font-size: 1.4rem;
-    transition: background-color 0.5s ease;
+    a {
+        color: var(--accent-color-text);
+        background-color: var(--accent-color);
+        padding: 4px 8px; ///修改padding
+        border-radius: 100px; ///圆角拉满
+        display: inline-block;
+        font-size: 1.4rem;
+        transition: background-color 0.5s ease;
 
-&:hover {
-    color: var(--accent-color-text);
-    background-color: var(--accent-color-darker);
+        &:hover {
+            color: var(--accent-color-text);
+            background-color: var(--accent-color-darker);
+        }
     }
-  }
 }
 ```
 
@@ -111,10 +111,10 @@ Hugo自带的代码高亮总感觉有问题，特别是`Kotlin`高亮亮了等�
 ```html
 <!--themes/stack/layouts/partials/head/style.html-->
 {{ if eq .Site.Params.syntaxHighlighter "highlight.js" }}
-<link rel="stylesheet"
-href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/styles/default.min.css">
-<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/highlight.min.js"></script>
-<script>hljs.highlightAll();</script>
+    <link rel="stylesheet"
+        href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/styles/default.min.css">
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
 {{ end }}
 ```
 
@@ -124,11 +124,11 @@ href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.6.0/build/styles/default.
 
 ```
 static
-   ├── code-header.svg
-   ├── es
-   ├── highlight.min.js
-   ├── languages
-   └── styles
+   ├── code-header.svg
+   ├── es
+   ├── highlight.min.js
+   ├── languages
+   └── styles
 ```
 
 引入（已更改highlight.js代码主题为`Atom One Dark by Daniel Gamage`）：
@@ -137,86 +137,86 @@ static
 ```html
 <!--themes/stack/layouts/partials/head/style.html,在最前面添加，否则部分样式可能会被覆盖-->
 {{ if eq .Site.Params.syntaxHighlighter "highlight.js" }}
-<style id="code-theme">
-    .article-content pre code.hljs {
-        display: block;
-        overflow-x: auto;
-        padding: 16px;
-        color: #abb2bf;
-        background: #282c34;
+    <style id="code-theme">
+        .article-content pre code.hljs {
+            display: block;
+            overflow-x: auto;
+            padding: 16px;
+            color: #abb2bf;
+            background: #282c34;
         }
 
-.hljs-comment,
-.hljs-quote {
-    color: #5c6370;
-    font-style: italic;
-    }
+        .hljs-comment,
+        .hljs-quote {
+            color: #5c6370;
+            font-style: italic;
+        }
 
-.hljs-doctag,
-.hljs-keyword,
-.hljs-formula {
-    color: #c678dd;
-    }
+        .hljs-doctag,
+        .hljs-keyword,
+        .hljs-formula {
+            color: #c678dd;
+        }
 
-.hljs-section,
-.hljs-name,
-.hljs-selector-tag,
-.hljs-deletion,
-.hljs-subst {
-    color: #e06c75;
-    }
+        .hljs-section,
+        .hljs-name,
+        .hljs-selector-tag,
+        .hljs-deletion,
+        .hljs-subst {
+            color: #e06c75;
+        }
 
-.hljs-literal {
-    color: #56b6c2;
-    }
+        .hljs-literal {
+            color: #56b6c2;
+        }
 
-.hljs-string,
-.hljs-regexp,
-.hljs-addition,
-.hljs-attribute,
-.hljs-meta-string {
-    color: #98c379;
-    }
+        .hljs-string,
+        .hljs-regexp,
+        .hljs-addition,
+        .hljs-attribute,
+        .hljs-meta-string {
+            color: #98c379;
+        }
 
-.hljs-built_in,
-.hljs-class .hljs-title {
-    color: #e6c07b;
-    }
+        .hljs-built_in,
+        .hljs-class .hljs-title {
+            color: #e6c07b;
+        }
 
-.hljs-attr,
-.hljs-variable,
-.hljs-template-variable,
-.hljs-type,
-.hljs-selector-class,
-.hljs-selector-attr,
-.hljs-selector-pseudo,
-.hljs-number {
-    color: #d19a66;
-    }
+        .hljs-attr,
+        .hljs-variable,
+        .hljs-template-variable,
+        .hljs-type,
+        .hljs-selector-class,
+        .hljs-selector-attr,
+        .hljs-selector-pseudo,
+        .hljs-number {
+            color: #d19a66;
+        }
 
-.hljs-symbol,
-.hljs-bullet,
-.hljs-link,
-.hljs-meta,
-.hljs-selector-id,
-.hljs-title {
-    color: #61aeee;
-    }
+        .hljs-symbol,
+        .hljs-bullet,
+        .hljs-link,
+        .hljs-meta,
+        .hljs-selector-id,
+        .hljs-title {
+            color: #61aeee;
+        }
 
-.hljs-emphasis {
-    font-style: italic;
-    }
+        .hljs-emphasis {
+            font-style: italic;
+        }
 
-.hljs-strong {
-    font-weight: bold;
-    }
+        .hljs-strong {
+            font-weight: bold;
+        }
 
-.hljs-link {
-    text-decoration: underline;
-    }
+        .hljs-link {
+            text-decoration: underline;
+        }
     </style>
-<script src="/highlight.min.js"></script>
-<script>hljs.highlightAll();</script>
+    <script src="/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
 {{ end }
 ```
 
@@ -237,22 +237,22 @@ pre {
     [dir="rtl"] & {
         direction: ltr;
     }
-        code {
-            border: none;
-            padding: 0;
-            padding-top: 15px;
-            background: #282c34;
-            border-radius: 5px;
-            }
+    code {
+        border: none;
+        padding: 0;
+        padding-top: 15px;
+        background: #282c34;
+        border-radius: 5px;
+    }
 }
 
 .custom {
     border-radius: 5px;
-    }
+}
 
 .hljs-deletion, .hljs-number, .hljs-quote, .hljs-selector-class, .hljs-selector-id, .hljs-string, .hljs-template-tag, .hljs-type {
     color: #5daf34;
-    }
+}
 
 .custom:before {
     content: '';
@@ -288,14 +288,14 @@ pre {
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
-    }
+}
 ::-webkit-scrollbar-thumb {
     border-radius: 3px;
-    }
+}
 ::-webkit-scrollbar-track {
     border-radius: 3px;
     background: rgba(0,0,0,.06);
-    }
+}
 ```
 
 > 其实Stack的滚动条样式在`themes/stack/assets/scss/partials/base.scss`里，但是我懒得改了

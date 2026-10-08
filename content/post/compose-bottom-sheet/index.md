@@ -836,17 +836,17 @@ fun <T> Modifier.dialogSwipeable(
 ```kotlin
 val state = rememberBottomSheetDialogState(initialValue = BottomSheetDialogValue.Collapsed)//初始状态，这里设为折叠
 BottomSheetDialog(
-	modifier = Modifier.systemBarsPadding(),
+    modifier = Modifier.systemBarsPadding(),
     // Modifier 设置一下系统栏边距，防止展开的时候跑到状态栏内了
-	bottomSheetDialogState = state,
-	sheetPeekHeight = 200.dp,//折叠状态下高度
-	sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),//Sheet形状，这里设置顶部两个小圆角
-	sheetBackgroundColor = Color.White,//背景颜色
-	sheetGesturesEnabled = true,//是否允许用户拖拽
-	sheetElevation = 0.dp//设置Sheet阴影高度
-	) {
-		//BottomSheet 内的内容
-	}
+    bottomSheetDialogState = state,
+    sheetPeekHeight = 200.dp,//折叠状态下高度
+    sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),//Sheet形状，这里设置顶部两个小圆角
+    sheetBackgroundColor = Color.White,//背景颜色
+    sheetGesturesEnabled = true,//是否允许用户拖拽
+    sheetElevation = 0.dp//设置Sheet阴影高度
+) {
+    //BottomSheet 内的内容
+}
 ```
 
 

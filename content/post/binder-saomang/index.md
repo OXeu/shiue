@@ -159,136 +159,136 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 1. 我们可以使用 AIDL 定义一个接口，相当于 gRPC 使用 protobuf 定义接口：
    ```css
-        package my.package;
-        interface IFoo {
-            int doFoo();
-        }
+   package my.package;
+   interface IFoo {
+       int doFoo();
+   }
    ```
 2. 接着 Rebuild 一下项目后 IDE 就会自动生成 aidl 文件对应的中间代码，相当于 gRPC 中通过 protobuf 文件生成接口定义文件和抽象，其生成的代码大致为以下结构：
    ```java
-    public interface IFooService extends android.os.IInterface {
-   
-      public int doFoo() throws android.os.RemoteException { 
-        ...
-      }
-   
-      // Stub是一个Binder，相当于上一章中的GradeBinder
-      public static abstract class Stub extends android.os.Binder implements IFooService {
-   
-          public static IFooService asInterface(android.os.IBinder obj) {
-            if ((obj == null)) {
-              return null;
-            }
-            android.os.IInterface iin = obj.queryLocalInterface(DESCRIPTOR);
-            if (((iin != null) && (iin instanceof IFooService))) {
-              // 如果是当前进程则直接返回当前 Binder 对象
-              return ((IFooService) iin);
-            }
-            // 跨进程则返回Binder的代理对象
-            return new IFooService.Stub.Proxy(obj);
-          }
-   
-          @Override
-          public boolean onTransact(int code, android.os.Parcel data, android.os.Parcel reply, int flags){
-            ...
-          } 
-   
-          @Override 
-          public android.os.IBinder asBinder() {
-            return this;
-          }
-   
-      }
-   
-      private static class Proxy implements IFooService {
-        private android.os.IBinder mRemote;
-   
-        Proxy(android.os.IBinder remote) {
-          mRemote = remote;
-        }
-   
-        @Override 
-        public int doFoo() throws android.os.RemoteException { 
-          ...
-        }
-   
-        @Override 
-        public android.os.IBinder asBinder() {
-          return mRemote;
-        }
-      }
-    }
+   public interface IFooService extends android.os.IInterface {
+
+       public int doFoo() throws android.os.RemoteException {
+           ...
+       }
+
+       // Stub是一个Binder，相当于上一章中的GradeBinder
+       public static abstract class Stub extends android.os.Binder implements IFooService {
+
+           public static IFooService asInterface(android.os.IBinder obj) {
+               if ((obj == null)) {
+                   return null;
+               }
+               android.os.IInterface iin = obj.queryLocalInterface(DESCRIPTOR);
+               if (((iin != null) && (iin instanceof IFooService))) {
+                   // 如果是当前进程则直接返回当前 Binder 对象
+                   return ((IFooService) iin);
+               }
+               // 跨进程则返回Binder的代理对象
+               return new IFooService.Stub.Proxy(obj);
+           }
+
+           @Override
+           public boolean onTransact(int code, android.os.Parcel data, android.os.Parcel reply, int flags){
+               ...
+           }
+
+           @Override
+           public android.os.IBinder asBinder() {
+               return this;
+           }
+
+       }
+
+       private static class Proxy implements IFooService {
+           private android.os.IBinder mRemote;
+
+           Proxy(android.os.IBinder remote) {
+               mRemote = remote;
+           }
+
+           @Override
+           public int doFoo() throws android.os.RemoteException {
+               ...
+           }
+
+           @Override
+           public android.os.IBinder asBinder() {
+               return mRemote;
+           }
+       }
+   }
    ```
 3. 服务端继承实现 IFoo.Stub 抽象类，等价于 gRPC 实现接口具体的处理
    ```java
-        import my.package.IFoo;
-        public class MyFoo extends IFoo.Stub {
-            @Override
-            int doFoo() { ... }
-        }
+   import my.package.IFoo;
+   public class MyFoo extends IFoo.Stub {
+       @Override
+       int doFoo() { ... }
+   }
    ```
 4. 编写服务
    ```java
-    public class MyService extends Service {
-   
-        public static final int REQUEST_CODE=1000;
-   
-        @Nullable
-        @Override
-        public IBinder onBind(Intent intent) {
-            return new MyFoo();
-        }
-    }
+   public class MyService extends Service {
+
+       public static final int REQUEST_CODE=1000;
+
+       @Nullable
+       @Override
+       public IBinder onBind(Intent intent) {
+           return new MyFoo();
+       }
+   }
    ```
 5. 注册服务，等价于 gRPC 服务端监听端口提供服务
    ```java
-    import android.os.ServiceManager;
-    // registering
-    ServiceManager.addService("service-name", myService);
+   import android.os.ServiceManager;
+   // registering
+   ServiceManager.addService("service-name", myService);
    ```
 6. 客户端绑定 Service 并调用，绑定 Service 相当于 gRPC 中客户端连接服务端
    ```java
-    public class AidlActivity extends BaseViewBindingActivity<ActivityBinderBinding> {
-   
-        private IFooService mBinderProxy;
-   
-        private final ServiceConnection mServiceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-                // 连接服务后，根据是否跨进程获取Binder或者Binder的代理对象
-                mBinderProxy = IFooService.Stub.asInterface(iBinder);
-            }
-   
-            @Override
-            public void onServiceDisconnected(ComponentName componentName) {
-                mBinderProxy = null;
-            }
-        };
-   
-        @Override
-        protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            binding.btnBindService.setOnClickListener(view -> bindGradeService());
-            binding.btnFindGrade.setOnClickListener(view -> getFoo());
-        }
-   
-        // 绑定服务
-        private void bindGradeService() {
-            String action = "android.intent.action.server.aidl.gradeservice";
-            Intent intent = new Intent(action);
-            intent.setPackage(getPackageName());
-            bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
-        }
-   
-        private void getFoo() {
-            int grade = 0;
-            try {
-                bar = mBinderProxy.doFoo();
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-    }
+   public class AidlActivity extends BaseViewBindingActivity<ActivityBinderBinding> {
+
+       private IFooService mBinderProxy;
+
+       private final ServiceConnection mServiceConnection = new ServiceConnection() {
+           @Override
+           public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+               // 连接服务后，根据是否跨进程获取Binder或者Binder的代理对象
+               mBinderProxy = IFooService.Stub.asInterface(iBinder);
+           }
+
+           @Override
+           public void onServiceDisconnected(ComponentName componentName) {
+               mBinderProxy = null;
+           }
+       };
+
+       @Override
+       protected void onCreate(Bundle savedInstanceState) {
+           super.onCreate(savedInstanceState);
+           binding.btnBindService.setOnClickListener(view -> bindGradeService());
+           binding.btnFindGrade.setOnClickListener(view -> getFoo());
+       }
+
+       // 绑定服务
+       private void bindGradeService() {
+           String action = "android.intent.action.server.aidl.gradeservice";
+           Intent intent = new Intent(action);
+           intent.setPackage(getPackageName());
+           bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
+       }
+
+       private void getFoo() {
+           int grade = 0;
+           try {
+               bar = mBinderProxy.doFoo();
+           } catch (RemoteException e) {
+               e.printStackTrace();
+           }
+       }
+   }
    ```
 
 以上代码基本将 Binder 与 gRPC 中的内容对应起来，相信对于理解 Binder 以及 AIDL 是什么，怎么用已经有了一个初步的认识，接下来就是 AIDL 中生成的代码中各内容是什么
@@ -407,54 +407,54 @@ public class Binder implements IBinder {
 而 `transact` 方法实际上在 Proxy 类的 `doFoo` 方法中调用：
 
 ```java
-  private static class Proxy implements IFooService {
-    @Override 
-    public int doFoo() throws android.os.RemoteException { 
+private static class Proxy implements IFooService {
+    @Override
+    public int doFoo() throws android.os.RemoteException {
         android.os.Parcel _data = android.os.Parcel.obtain();
         android.os.Parcel _reply = android.os.Parcel.obtain();
         int _result;
         try {
-          _data.writeInterfaceToken(DESCRIPTOR);
-          // _data.writeString(something); 如果接口有传入参数的话会使用类似的方法将参数写入 _data
-          // 在此处调用
-          boolean _status = mRemote.transact(Stub.TRANSACTION_doFoo, _data, _reply, 0);
-          if (!_status && getDefaultImpl() != null) {
-            return getDefaultImpl().doFoo();
-          }
-          _reply.readException();
-          _result = _reply.readInt();
+            _data.writeInterfaceToken(DESCRIPTOR);
+            // _data.writeString(something); 如果接口有传入参数的话会使用类似的方法将参数写入 _data
+            // 在此处调用
+            boolean _status = mRemote.transact(Stub.TRANSACTION_doFoo, _data, _reply, 0);
+            if (!_status && getDefaultImpl() != null) {
+                return getDefaultImpl().doFoo();
+            }
+            _reply.readException();
+            _result = _reply.readInt();
         } finally {
-          _reply.recycle();
-          _data.recycle();
+            _reply.recycle();
+            _data.recycle();
         }
         return _result;
     }
-    
-    @Override 
+
+    @Override
     public android.os.IBinder asBinder() {
-      return mRemote;
+        return mRemote;
     }
-  }
+}
 ```
 
 而当跨进程调用时客户端通过 asInterface 获取到的 `IFooService` 对象正是 `Proxy`：
 
 ```java
-  public static abstract class Stub extends android.os.Binder implements IFooService {
-      
-      public static IFooService asInterface(android.os.IBinder obj) {
+public static abstract class Stub extends android.os.Binder implements IFooService {
+
+    public static IFooService asInterface(android.os.IBinder obj) {
         if ((obj == null)) {
-          return null;
+            return null;
         }
         android.os.IInterface iin = obj.queryLocalInterface(DESCRIPTOR);
         if (((iin != null) && (iin instanceof IFooService))) {
-          // 如果是当前进程则直接返回当前Binder对象
-          return ((IFooService) iin);
+            // 如果是当前进程则直接返回当前Binder对象
+            return ((IFooService) iin);
         }
         // 跨进程则返回Binder的代理对象
         return new IFooService.Stub.Proxy(obj);
-      }
-  }
+    }
+}
 ```
 
 至此，全流程已经跑通了。`IBinder` 的作用更像是建立了一个进程间的连接，所有的调用都经过 `Proxy` 类中的方法序列化(使用 Parcel)，然后由 IBinder 这个连接所提供的 `transact` 方法传递到服务端，服务端通过 Stub 方法的 `onTransact` 进行反序列化，并调用 Stub 方法下的 `doFoo()` 方法获取返回结果（该方法为抽象方法，需服务端继承实现），最后将返回值通过 `transact` 方法返回到客户端，由客户端 `Proxy.doFoo` 完成后续的返回值反序列化，最终返回给客户端。

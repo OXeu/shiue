@@ -36,22 +36,22 @@ import kotlin.math.sign
 @Composable
 fun pagerFlingBehavior(state: PagerState): FlingBehavior {
     val flingSpec = rememberSplineBasedDecay<Float>()
-        return remember(flingSpec) {
-            PagerFling(state)
-            }
-            }
+    return remember(flingSpec) {
+        PagerFling(state)
+    }
+}
 
 @ExperimentalPagerApi
 class PagerFling(
-val state: PagerState
+    val state: PagerState
 ) : FlingBehavior {
     private val childWidth = width()//Pager页面宽度，这里用屏幕宽度代替
     override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
         return if (abs(initialVelocity) >= 0f) {
             val stOffset = state.currentPageOffset - state.currentPageOffset.toInt()// 减去 offset 整数部分
             val targetPosition = determineTargetPage(
-            stOffset,
-            initialVelocity
+                stOffset,
+                initialVelocity
             ) // 计算目标页面
             val destValue: Float = (targetPosition - stOffset) * childWidth // 根据目标页面计算动画偏移的目标像素
             var deltaX: Float // 剩余速度,由大到小
@@ -62,13 +62,13 @@ val state: PagerState
                 deltaX = value - startPos
                 scrollBy(deltaX) // 滚动位移差
                 startPos = value // 设置开始位置
-                }
-                0f
-                } else {
-                    initialVelocity
-                    }
-                    }
-                    }
+            }
+            0f
+        } else {
+            initialVelocity
+        }
+    }
+}
 
 // 最小 Fling Offset 距离常数,单位:像素,从 ViewPager 复制而来
 private const val MIN_DISTANCE_FOR_FLING = 25 // dips
@@ -76,37 +76,37 @@ private const val MIN_DISTANCE_FOR_FLING = 25 // dips
 private const val MIN_FLING_VELOCITY = 400 // dips
 
 /**
-* 根据 offset 和 velocity 决定目标页面
-*
-* 经由原生 ViewPager 复制修改而来
-* @author [Xeu](http://blog.usfl.cn)
-* @param pageOffset 页面 offset ,介于 -1.0~1.0 之间,需减去由于 [PagerState.currentPage] 延迟更新
-* 或打断动画导致 offset 超过 -1~1 范围的整数部分
-* @param velocity 速度大小,大于0时速度指向下一页,小于0时指向上一页
-* @return Int 目标页面 -1上一页 0当前页面 1下一页
-*/
+ * 根据 offset 和 velocity 决定目标页面
+ *
+ * 经由原生 ViewPager 复制修改而来
+ * @author [Xeu](http://blog.usfl.cn)
+ * @param pageOffset 页面 offset ,介于 -1.0~1.0 之间,需减去由于 [PagerState.currentPage] 延迟更新
+ * 或打断动画导致 offset 超过 -1~1 范围的整数部分
+ * @param velocity 速度大小,大于0时速度指向下一页,小于0时指向上一页
+ * @return Int 目标页面 -1上一页 0当前页面 1下一页
+ */
 private fun determineTargetPage(
-pageOffset: Float,
-velocity: Float,
+    pageOffset: Float,
+    velocity: Float,
 ): Int {
     val density = Resources.getSystem().displayMetrics.density
     val currentPage = sign(pageOffset).toInt()
     val mMinimumVelocity = (MIN_FLING_VELOCITY * density).toInt()
     val mFlingDistance = (MIN_DISTANCE_FOR_FLING * density)
     var targetPage: Int =
-    if (abs(pageOffset * width()) > mFlingDistance && abs(velocity) > mMinimumVelocity) {
-        if (velocity * pageOffset < 0)
-        0
-        else
-        currentPage
+        if (abs(pageOffset * width()) > mFlingDistance && abs(velocity) > mMinimumVelocity) {
+            if (velocity * pageOffset < 0)
+                0
+            else
+                currentPage
         } else {
             val truncator = if (currentPage >= 0) 0.4f else 0.6f
             currentPage + (pageOffset + truncator).toInt()
-            }
-            // Only let the user target pages we have items for
-            targetPage = targetPage.coerceIn(-1, 1)
-            return targetPage
-            }
+        }
+    // Only let the user target pages we have items for
+    targetPage = targetPage.coerceIn(-1, 1)
+    return targetPage
+}
 ```
 
 
@@ -117,18 +117,18 @@ velocity: Float,
 implementation "com.google.accompanist:accompanist-pager:0.24.2-alpha"
 val state = rememberPagerState()
 HorizontalPager(
-count = 5,
-state = state,
-contentPadding = PaddingValues(0.dp),
-flingBehavior = pagerFlingBehavior(state = state),
+    count = 5,
+    state = state,
+    contentPadding = PaddingValues(0.dp),
+    flingBehavior = pagerFlingBehavior(state = state),
 ) { page ->
     Box(
-    Modifier.fillMaxSize(),
-    contentAlignment = Alignment.Center
+        Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
         Text(text = "Page:$page")
-        }
-        }
+    }
+}
 ```
 
 
