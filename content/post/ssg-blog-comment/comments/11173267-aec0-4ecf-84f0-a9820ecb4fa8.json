@@ -1,0 +1,10 @@
+{
+  "id": "11173267-aec0-4ecf-84f0-a9820ecb4fa8",
+  "path": "/p/ssg-blog-comment/",
+  "name": "Xeu",
+  "message": "rin 现在是客户端渲染，页面加载、自定义配置等都需要在浏览器中靠 js 实时处理，响应很慢且对于 SEO 也不太友好，考虑到博客大部分内容更新频率都比较低，天然适合静态生成，只需要解决较高频的内容的更新问题就行。同时静态生成也方便做性能优化，因此就尝试了下新的方案",
+  "createdAt": "2026-10-10T03:21:24.074Z",
+  "parentId": "8c8f3690-7bb7-4add-901d-c829b337417e",
+  "emailEncrypted": "v1.oYn00jqBb3wNVJaX.q2Hm9tGThifD-YMraLyj_g.Sqff1VEctx1BYsec5XL0uA",
+  "emailHash": "78111c18d71cca6177ffb1685b9c4952f1c4f0e2230a6749c72325c6ff994a7c"
+}
