@@ -1,0 +1,17 @@
+{{- /* 公式由 scripts/assets/math.mjs 在构建期渲染成 SVG，这里只负责内联。 */ -}}
+{{- $source := trim .Inner " \n\r\t" -}}
+{{- $key := crypto.SHA256 (printf "%s\n%s" .Type $source) -}}
+{{- $type := .Type -}}
+{{- $ordinal := .Ordinal -}}
+{{- with index hugo.Data.xeu.math $key -}}
+{{- /* 同一公式可能出现多次，按页内序号重写 id，避免重复 id 让 <use> 引用错位。 */ -}}
+{{- $instance := printf "xeu-math-%s-%d" (substr $key 0 10) $ordinal -}}
+{{- $svg := . | replaceRE `xeu-math-[a-f0-9]{24}-` (printf "%s-" $instance) -}}
+<span class="math math-{{ $type }}">{{ $svg | safeHTML }}</span>
+{{- else -}}
+{{- if hugo.IsServer -}}
+<span class="math math-{{ $type }}">{{ $source }}</span>
+{{- else -}}
+{{- errorf "公式缺少静态产物，请先运行 npm run math：%s (%s)" (substr $key 0 12) .Position -}}
+{{- end -}}
+{{- end -}}

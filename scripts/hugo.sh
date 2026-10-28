@@ -21,6 +21,7 @@ case "${1:-}" in
       node "$project_dir/scripts/assets/d2.mjs"
     fi
     node "$project_dir/scripts/assets/shiki.mjs"
+    node "$project_dir/scripts/assets/math.mjs"
     ;;
   *)
     if [[ "${SHIUE_IMAGES_READY:-0}" != 1 ]]; then

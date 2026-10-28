@@ -96,6 +96,10 @@ body.d2-fullscreen-open { overflow: hidden; }
 .prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 14px; }
 .prose td, .prose th { border: 1px solid var(--border-hover); padding: 8px 12px; }
 .prose th { background: var(--surface-muted); text-align: left; }
+.prose .math { font-size: 1.05em; }
+/* 基线由 texsvg 写在 svg 的内联 style 上（vertical-align: -X.XXXex），不要覆盖。 */
+.prose .math > svg { display: inline-block; max-width: 100%; height: auto; }
+.prose .math-block { display: block; margin-block: 16px; padding-block: 4px; overflow-x: auto; overflow-y: hidden; text-align: center; }
 .prose input[type="checkbox"] { accent-color: var(--button-fill); }
 .markdown-alert { --alert: var(--note); --alert-background: var(--note-soft); padding: 20px 22px; margin-block: 24px; border-radius: var(--radius-surface); color: var(--text); background: var(--alert-background); }
 .markdown-alert .alert-title { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 700; margin: 0 0 8px; }

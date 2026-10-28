@@ -9,11 +9,14 @@
     "images": "node scripts/assets/images.mjs",
     "d2": "node scripts/assets/d2.mjs",
     "shiki": "node scripts/assets/shiki.mjs",
+    "math": "node scripts/assets/math.mjs",
     "identity": "node scripts/assets/identity.mjs",
     "images:watch": "node scripts/assets/images.mjs --watch",
     "d2:watch": "node scripts/assets/d2.mjs --watch",
     "shiki:watch": "node scripts/assets/shiki.mjs --watch",
+    "math:watch": "node scripts/assets/math.mjs --watch",
     "test:shiki": "node --test scripts/assets/shiki.test.mjs",
+    "test:math": "node --test scripts/assets/math.test.mjs",
     "test:styles": "node --test scripts/assets/styles.test.mjs",
     "build": "node scripts/deploy.mjs",
     "deploy": "node scripts/deploy.mjs",
@@ -33,7 +36,8 @@
     "purgecss": "7.0.2",
     "sharp": "0.35.4",
     "shiki": "4.5.0",
-    "svgo": "4.1.0"
+    "svgo": "4.1.0",
+    "texsvg": "4.0.3"
   },
   "overrides": {
     "cheerio": {

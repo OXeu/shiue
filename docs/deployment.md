@@ -29,6 +29,7 @@ Hugo 构建 → CSS 裁剪与压缩 → 产物检查 → 耗时汇总 + JSON 报
 | `scripts/assets/identity.mjs` | 联网拉取 GitHub 头像、生成站点图标 |
 | `scripts/assets/d2.mjs` | D2 图表预渲染与压缩 |
 | `scripts/assets/shiki.mjs` | Shiki 双主题代码高亮预渲染与缓存 |
+| `scripts/assets/math.mjs` | 公式预渲染为 SVG、id 重写与缓存 |
 | `scripts/assets/styles.mjs` | 根据页面及脚本裁剪 CSS、清理变量与动画、重写指纹及 SRI |
 | `scripts/assets/images.mjs` | 图片缩略图与 BlurHash 生成 |
 | `scripts/deploy/files.mjs` | JSON 原子写入 |
@@ -67,6 +68,8 @@ npm run d2                                   # 预渲染 D2 SVG
 npm run d2:watch                             # 监听 D2 代码块变化
 npm run shiki                                # 预渲染 Shiki 代码高亮
 npm run shiki:watch                          # 单独监听代码块变化
+npm run math                                 # 预渲染公式 SVG
+npm run math:watch                           # 单独监听公式变化
 npm run dev                                  # 开发服务器
 npm run deploy -- --list                     # 列出注册步骤
 npm run deploy -- --destination /tmp/out --baseURL https://example.com/blog/
@@ -84,7 +87,7 @@ CSS 内容变化后重新生成 SHA-256 文件名和 `integrity`，同步替换�
 
 文章入口保留图片占位、代码复制、目录和评论时间；首次点击评论或正文图片时才加载对应模块及样式，加载失败可再次点击重试。评论审核单独打包；卡片动效只随列表和搜索脚本加载。开发服务器使用完整样式，页面交互与生产构建一致。
 
-`npm run test:styles` 检查裁剪、动态状态、共享样式、延迟依赖、子目录地址及 SRI；`npm run test:shiki` 检查静态高亮。
+`npm run test:styles` 检查裁剪、动态状态、共享样式、延迟依赖、子目录地址及 SRI；`npm run test:shiki` 检查静态高亮；`npm run test:math` 检查公式提取、id 重写与缓存。
 
 ## 图片构建缓存
 
@@ -105,6 +108,16 @@ CSS 内容变化后重新生成 SHA-256 文件名和 `integrity`，同步替换�
 代码块缓存于 `.cache/xeu-shiki/code.json`，语言、源码、高亮库版本或主题变化时重新生成。未标注及未知语言回退为纯文本，支持大小写语言名及现有的 `shell` / `clike` 标记。高亮只在构建时执行，不向浏览器发送 Shiki 或语言语法文件。
 
 `npm run build` 自动准备高亮产物；`npm run dev` 同时监听代码块变化并更新高亮，退出后自动停止监听。绕过统一入口直接运行 Hugo 构建前，需先执行 `npm run shiki`。
+
+## 公式
+
+正文里的 `$$…$$` 是展示公式，`\(…\)` 是行内公式，由 `config/_default/markup.toml` 的 passthrough 扩展交给 `render-passthrough.html`。行内不用 `$…$`，避免把 `$12`、`$HOME` 这类文本当成数学；块级也不用 `\[…\]`，避免与老文章里 `\[1\]` 这类脚注标记冲突。
+
+`scripts/assets/math.mjs` 用 [texsvg](https://github.com/remarkablemark/texsvg)（MathJax + SVGO）把公式渲染成自包含 SVG，写入 `data/xeu/math.json`，模板按「类型 + 源码」的 SHA-256 取值内联。SVG 用 `currentColor` 着色，跟随浅色/深色外观，页面不加载任何数学字体或运行时脚本。
+
+MathJax 的 id 形如 `MJX-1-NCM-I-1D465`，序号随渲染顺序变化；同一公式在页面上也可能出现多次。构建时先把 id 重写成「公式指纹 + 元素序号」，渲染时再按页内出现顺序追加实例序号，避免内联多个公式时 id 互相覆盖、`<use>` 引用错位。
+
+缓存位于 `.cache/xeu-math/`，配方或源码变化时重新生成。MathJax 语法错误不会抛异常而是输出占位 SVG，脚本会检测 `data-mjx-error` 并终止构建并给出出错公式。
 
 ## 友链检测
 

@@ -6,6 +6,16 @@ startLevel = 1
 endLevel = 4
 ordered = false
 
+[goldmark.extensions.passthrough]
+# 公式交给 render-passthrough.html，由 scripts/assets/math.mjs 在构建期渲染成 SVG。
+# 行内用 \( \) 而非 $ $：文章里的 $12、$HOME 这类文本不会被误判成公式。
+# 不启用 \[ \] 作为块级定界符：老文章里的 \[1\] 这类脚注标记会被误判成公式。
+enable = true
+
+[goldmark.extensions.passthrough.delimiters]
+block = [['$$', '$$']]
+inline = [['\(', '\)']]
+
 [highlight]
 # Hugo 需要启用 codeFences 才会调用自定义渲染钩子；高亮由 Shiki 产物提供。
 codeFences = true

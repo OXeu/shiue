@@ -84,11 +84,11 @@ title: 一条多出 8dp 的分割线
 
 代码看起来一切正常，但是等等……怎么跟想象中不太一样：
 
-![分割线从 24dp 处开始，右侧一直顶到父布局的边缘](02-shifted.svg)
+![分割线没有和上方方块的左边缘对齐，而是向右缩进了一段，右侧则一直顶到父布局的边缘](02-shifted.svg)
 
 感觉像是尺寸被 x1.5 了，尝试将 16dp / 1.5：
 
-![分割线从 16dp 处开始](03-half-margin.svg)
+![分割线左侧缩进变小，和上方方块的左边缘对齐了](03-half-margin.svg)
 
 还真是，不过为什么会这样呢？
 
@@ -98,7 +98,6 @@ title: 一条多出 8dp 的分割线
 
 ![分割线的布局位置在 24dp 到 368dp 之间，右侧多出的 8dp 超出了父布局](04-geometry.svg)
 
-
 翻一翻 LinearLayout 的源码可以发现，竖直方向 LinearLayout 的 layoutVertical() 里，居中分支是：
 
 ```java
@@ -106,11 +105,11 @@ childLeft = paddingLeft + ((childSpace - childWidth) / 2)
         + lp.leftMargin - lp.rightMargin;
 ```
 
-推导（竖直方向 LinearLayout，宽度 W，左右 padding 为 0，子 View `match_parent`）：
 
-1. `measureChildWithMargins` 给子 View 的可用宽度 = `parentWidthSize - paddingLeft - paddingRight - lp.leftMargin - lp.rightMargin` = `W - margin`（单边 margin 的情况）。
-2. 子 View 因此测得宽度 `childWidth = W - margin`。
-3. `layoutVertical` 里的 `childSpace = W`，`Gravity.CENTER_HORIZONTAL` 分支：`childLeft = (childSpace - childWidth)/2 + lp.leftMargin = margin/2 + margin = 1.5 * margin`。
+
+说白了，`center_horizontal` **是在「已经扣掉 margin 的宽度」上居中的，居中之后又把** `marginStart` **加回来**，margin 等于被算了两次。
+
+子 View 测得宽度 \( \mathrm{childWidth} = W - \mathrm{margin} \)，居中位移是 \( (W - \mathrm{childWidth}) / 2 = \mathrm{margin}/2 \)，再加上 \( \mathrm{lp.leftMargin} \)，\( \mathrm{childLeft} \) 就成了 \( 1.5 \cdot \mathrm{margin} \)。
 
 这就是「**看起来 1.5 倍**」的来源，而且它**只在子 View 宽度为** `match_parent` **且父容器** `center_horizontal` **时出现**。
 
@@ -118,29 +117,30 @@ childLeft = paddingLeft + ((childSpace - childWidth) / 2)
 
 把上面的推导写成一般形式：
 
-```text
-measuredWidth = W - margin_start - margin_end
-
-getLeft() = ⌊(W - measuredWidth) / 2⌋ + margin_start - margin_end
-          = (margin_start + margin_end) / 2 + margin_start - margin_end
-          = (3 * margin_start - margin_end) / 2
-```
+$$
+\begin{aligned}
+  \mathrm{measuredWidth} &= W - \mathrm{marginStart} - \mathrm{marginEnd} \\
+  \mathrm{getLeft}() &= \left\lfloor \frac{W - \mathrm{measuredWidth}}{2} \right\rfloor + \mathrm{marginStart} - \mathrm{marginEnd} \\
+            &= \frac{\mathrm{marginStart} + \mathrm{marginEnd}}{2} + \mathrm{marginStart} - \mathrm{marginEnd} \\
+            &= \frac{3 \cdot \mathrm{marginStart} - \mathrm{marginEnd}}{2}
+\end{aligned}
+$$
 
 三种 margin 组合分别对应三种结果：
 
 
-| margin\_start | margin\_end | getLeft() | 结果     |
-| ------------- | ----------- | --------- | ------ |
-| m             | m           | m         | 对齐，正常  |
-| m             | 0           | 1.5m      | 多出 m/2 |
-| 0             | m           | -0.5m     | 越出左边界  |
+| margin\_start | margin\_end | getLeft() | 结果 |
+| ------------- | ----------- | --------- | -------- |
+| \(m\)         | \(m\)       | \(m\)     | 对齐，正常    |
+| \(m\)         | \(0\)       | \(1.5m\)  | 多出 \(m/2\) |
+| \(0\)         | \(m\)       | \(-0.5m\) | 越出左边界    |
 
 
 偏移量只和左右 margin 的差有关：
 
-```text
-Δ = L - margin_start = (margin_start - margin_end) / 2
-```
+$$
+\Delta = L - \mathrm{marginStart} = \frac{\mathrm{marginStart} - \mathrm{marginEnd}}{2}
+$$
 
 移除后恢复正常
 
