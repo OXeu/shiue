@@ -149,3 +149,5 @@ $$
 ![分割线从 16dp 处开始，右侧与父布局的边缘对齐](05-fixed.svg)
 
 若父布局里的其它子 View 还要靠 `center_horizontal` 居中，也可以只给分割线 View 设置 `layout_gravity=start`
+
+> 什么？为什么分割线要只左边留白右边不留？那只是忠实还原设计稿罢了
